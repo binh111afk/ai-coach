@@ -1,12 +1,20 @@
 import { DataService } from '../services/dataService.js';
 import { getLevelInfo } from '../services/gamificationService.js';
-import { renderGeminiIcon } from './ui/Icons.js';
+import { Modal } from './ui/Modal.js';
+import { renderCrownIcon } from './ui/Icons.js';
 
 export async function renderNavigation(activeTab = 'dashboard', onTabChange, onOpenAiCoach, onOpenSettings) {
   const profile = await DataService.getUserProfile();
   const progress = await DataService.getUserProgress();
+  const goal = await DataService.getUserGoal();
   const levelInfo = getLevelInfo(progress.totalXp);
   const isDark = document.body.classList.contains('dark');
+
+  // Calculate Journey Day (e.g., Ngày 30/100)
+  const startMs = new Date(goal.startDate || Date.now()).getTime();
+  const daysElapsed = Math.max(1, Math.floor((Date.now() - startMs) / 86400000) + 1);
+  const currentDay = goal.currentJourneyDay || daysElapsed;
+  const totalDays = goal.totalJourneyDays || 100;
 
   const navHtml = `
     <nav class="navbar">
@@ -23,7 +31,7 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
             <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
           </a>
           <a class="nav-item ${activeTab === 'plan' ? 'active' : ''}" data-tab="plan">
-            ${renderGeminiIcon({ width: 17, height: 17 })} <span>Kế Hoạch AI</span>
+            <i data-lucide="wand-2"></i> <span>Kế Hoạch AI</span>
           </a>
           <a class="nav-item ${activeTab === 'meals' ? 'active' : ''}" data-tab="meals">
             <i data-lucide="utensils"></i> <span>Bữa Ăn</span>
@@ -40,23 +48,26 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <!-- Level & XP Badge -->
-          <div style="display: flex; align-items: center; gap: 0.6rem; background: var(--bg-subtle); padding: 0.4rem 0.85rem; border-radius: var(--radius-full); border: 1px solid var(--border-color); cursor: pointer;" id="btn-level-widget">
-            <span class="badge badge-primary"><i data-lucide="crown"></i> Lvl ${levelInfo.currentLevel.level}</span>
-            <div style="width: 60px; height: 7px; background: var(--bg-card); border-radius: 10px; overflow: hidden;">
-              <div style="width: ${levelInfo.progressPercent}%; height: 100%; background: var(--primary-gradient);"></div>
+          <!-- Sleek Vibrant Level & XP Badge -->
+          <div style="display: flex; align-items: center; gap: 0.6rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.12), rgba(168, 145, 255, 0.08)); padding: 0.35rem 0.85rem; border-radius: var(--radius-full); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); cursor: pointer; transition: all 0.2s ease;" id="btn-level-widget" title="Xem Thành Tích & Cấp Độ XP">
+            <div style="display: flex; align-items: center; gap: 0.35rem; background: linear-gradient(135deg, #7556D9, #6042C0); color: #FFFFFF; padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.775rem; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.3);">
+              ${renderCrownIcon({ width: 16, height: 16, color: '#FFC107' })} Lvl ${levelInfo.currentLevel.level}
             </div>
-            <span class="text-xs text-muted" style="font-weight: 800;">${progress.totalXp} XP</span>
+            <div style="width: 60px; height: 7px; background: rgba(117, 86, 217, 0.18); border-radius: 10px; overflow: hidden; position: relative;">
+              <div style="width: ${levelInfo.progressPercent}%; height: 100%; background: linear-gradient(90deg, #7556D9, #A891FF); border-radius: 10px; box-shadow: 0 0 8px rgba(117, 86, 217, 0.6);"></div>
+            </div>
+            <span style="font-weight: 800; font-size: 0.8rem; color: #7556D9;">${progress.totalXp} <span style="font-size: 0.7rem; color: var(--text-muted);">XP</span></span>
+          </div>
+
+          <!-- Interactive Journey Day Progress Badge (Thay thế nút AI Coach cũ) -->
+          <div style="display: flex; align-items: center; gap: 0.45rem; background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.08)); border: 1.5px solid rgba(245, 158, 11, 0.35); padding: 0.4rem 0.85rem; border-radius: var(--radius-full); font-weight: 800; font-size: 0.825rem; color: #D97706; cursor: pointer; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.12); transition: all 0.2s ease;" id="btn-journey-day-widget" title="Bấm để chỉnh sửa Ngày trong hành trình">
+            <i data-lucide="flag" style="width: 14px; height: 14px; color: #D97706;"></i>
+            <span>Ngày ${currentDay}/${totalDays}</span>
           </div>
 
           <!-- Light/Dark Mode Switcher -->
           <button class="btn btn-secondary btn-icon" id="btn-toggle-theme" title="Chuyển chế độ Sáng / Tối">
             <i data-lucide="${isDark ? 'sun' : 'moon'}"></i>
-          </button>
-
-          <!-- AI Coach Trigger -->
-          <button class="btn btn-ai btn-sm" id="btn-trigger-ai-coach">
-            ${renderGeminiIcon({ width: 16, height: 16 })} <span>AI Coach</span>
           </button>
 
           <!-- Settings -->
@@ -90,13 +101,33 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
       onTabChange('gamification');
     });
 
+    // Edit Journey Day Handler
+    document.getElementById('btn-journey-day-widget')?.addEventListener('click', async () => {
+      const inputVal = prompt(`Chỉnh sửa Ngày Trong Hành Trình:\n(Ví dụ nhập: "30/100" hoặc nhập số ngày hiện tại)`, `${currentDay}/${totalDays}`);
+      if (inputVal) {
+        const parts = inputVal.split('/');
+        const newDay = parseInt(parts[0]) || currentDay;
+        const newTotal = parts[1] ? (parseInt(parts[1]) || totalDays) : totalDays;
+
+        goal.currentJourneyDay = newDay;
+        goal.totalJourneyDays = newTotal;
+        await DataService.saveUserGoal(goal);
+
+        await Modal.success({
+          title: 'Đã Cập Nhật Ngày Hành Trình!',
+          message: `Hành trình cá nhân đã được đặt thành: Ngày ${newDay}/${newTotal}`
+        });
+
+        renderNavigation(activeTab, onTabChange, onOpenAiCoach, onOpenSettings);
+      }
+    });
+
     // Theme Switcher
     document.getElementById('btn-toggle-theme')?.addEventListener('click', () => {
       document.body.classList.toggle('dark');
       renderNavigation(activeTab, onTabChange, onOpenAiCoach, onOpenSettings);
     });
 
-    document.getElementById('btn-trigger-ai-coach')?.addEventListener('click', onOpenAiCoach);
     document.getElementById('btn-open-settings')?.addEventListener('click', onOpenSettings);
   }
 }

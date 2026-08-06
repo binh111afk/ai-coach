@@ -268,6 +268,28 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         }
       };
     }
+    // Pattern 3.5: Journey Day Update ("chuyển sang ngày 30/100", "ngày 40/100", "ngày 15")
+    else if (text.includes("hành trình") || (text.includes("ngày") && text.match(/\d+/))) {
+      const dayMatch = text.match(/ngày\s*(\d+)(?:\/(\d+))?/i) || text.match(/(\d+)\s*\/\s*(\d+)/);
+      if (dayMatch) {
+        const targetDay = parseInt(dayMatch[1]);
+        const totalD = dayMatch[2] ? parseInt(dayMatch[2]) : (goal.totalJourneyDays || 100);
+
+        replyText = `Tôi sẽ cập nhật **Ngày Trong Hành Trình** của bạn thành **Ngày ${targetDay}/${totalD}**.\n\nBấm **[Đồng ý]** bên dưới để áp dụng thay đổi lên thanh điều hướng nhé!`;
+        proposedChange = {
+          id: 'prop_' + Date.now(),
+          type: 'UPDATE_GOAL',
+          title: `Đề xuất cập nhật Ngày Hành Trình (${targetDay}/${totalD})`,
+          details: [
+            { field: 'Ngày hành trình', from: `Ngày ${goal.currentJourneyDay || 1}/${goal.totalJourneyDays || 100}`, to: `Ngày ${targetDay}/${totalD}` }
+          ],
+          payload: {
+            currentJourneyDay: targetDay,
+            totalJourneyDays: totalD
+          }
+        };
+      }
+    }
     // Pattern 4: Plan generation with daily budget & workout location ("ngân sách 100k", "lập kế hoạch 80.000đ/ngày")
     else if (text.includes("kế hoạch") || text.includes("ngân sách") || text.includes("tiền") || text.includes("vnđ") || text.includes("k/ngày")) {
       const budgetMatch = text.match(/(\d+)\s*(k|000|ngàn|trăm)/i);
