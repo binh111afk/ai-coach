@@ -51,7 +51,7 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
           <!-- Sleek Vibrant Level & XP Badge -->
           <div style="display: flex; align-items: center; gap: 0.6rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.12), rgba(168, 145, 255, 0.08)); padding: 0.35rem 0.85rem; border-radius: var(--radius-full); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); cursor: pointer; transition: all 0.2s ease;" id="btn-level-widget" title="Xem Thành Tích & Cấp Độ XP">
             <div style="display: flex; align-items: center; gap: 0.35rem; background: linear-gradient(135deg, #7556D9, #6042C0); color: #FFFFFF; padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.775rem; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.3);">
-              ${renderCrownIcon({ width: 16, height: 16, color: '#FFC107' })} Lvl ${levelInfo.currentLevel.level}
+              Lvl ${levelInfo.currentLevel.level}
             </div>
             <div style="width: 60px; height: 7px; background: rgba(117, 86, 217, 0.18); border-radius: 10px; overflow: hidden; position: relative;">
               <div style="width: ${levelInfo.progressPercent}%; height: 100%; background: linear-gradient(90deg, #7556D9, #A891FF); border-radius: 10px; box-shadow: 0 0 8px rgba(117, 86, 217, 0.6);"></div>

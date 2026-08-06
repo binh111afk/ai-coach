@@ -6,6 +6,7 @@ import { Modal } from './ui/Modal.js';
 export async function renderSettingsModal(onSaveComplete) {
   const profile = await DataService.getUserProfile();
   const selectedModel = await DataService.getSelectedModel();
+  const plan = await DataService.getUserPlan();
 
   let currentSelectedModel = selectedModel;
 
