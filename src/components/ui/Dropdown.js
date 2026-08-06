@@ -68,6 +68,18 @@ export function initDropdownListeners(containerNode, onChangeCallback) {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
         const val = item.getAttribute('data-value');
+        
+        // Update label text in trigger button immediately
+        const labelSpan = container.querySelector('.custom-dropdown-label');
+        const itemSpan = item.querySelector('span');
+        if (labelSpan && itemSpan) {
+          labelSpan.textContent = itemSpan.textContent;
+        }
+
+        // Update selected class across items
+        menu.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
         container.classList.remove('open');
         trigger.setAttribute('aria-expanded', 'false');
 

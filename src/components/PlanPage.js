@@ -5,15 +5,20 @@ import { Modal } from './ui/Modal.js';
 import { renderGeminiIcon } from './ui/Icons.js';
 
 let selectedDateStr = new Date().toISOString().split('T')[0];
+let activeWorkoutTypeSelection = null;
 
 export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   const profile = await DataService.getUserProfile();
   const goal = await DataService.getUserGoal();
   const plan = await DataService.getUserPlan();
 
+  let currentWorkoutType = activeWorkoutTypeSelection || plan.workoutType || 'home';
+  let currentHomeEquipment = plan.homeEquipment || 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg';
+
   // Ensure weeklyMealPlan has entries
   if (!plan.weeklyMealPlan || Object.keys(plan.weeklyMealPlan).length === 0) {
     plan.weeklyMealPlan = generate7DayMealPlan(plan.dailyBudgetVnd || 100000, DataService.getTodayString());
+    plan.weeklyWorkoutRoutine = generate7DayWorkoutRoutine(currentWorkoutType, currentHomeEquipment);
     await DataService.saveUserPlan(plan);
   }
 
@@ -39,9 +44,6 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
     { value: 'gym', label: 'Tập Tại Phòng Gym (Đầy đủ máy tạ)' },
     { value: 'outdoor', label: 'Tập Outdoor / Chạy Bộ & Công Viên' }
   ];
-
-  let currentWorkoutType = plan.workoutType || 'home';
-  let currentHomeEquipment = plan.homeEquipment || 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg';
 
   const html = `
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
@@ -226,14 +228,23 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       const homeEquipInput = document.getElementById('plan-home-equipment-input');
       const homeEquipVal = homeEquipInput ? homeEquipInput.value.trim() : currentHomeEquipment;
 
+      const chosenWorkoutType = activeWorkoutTypeSelection || currentWorkoutType || 'home';
+
       plan.dailyBudgetVnd = budget;
-      plan.workoutType = currentWorkoutType;
+      plan.workoutType = chosenWorkoutType;
       plan.homeEquipment = homeEquipVal;
       plan.weeklyMealPlan = generate7DayMealPlan(budget, DataService.getTodayString());
-      plan.weeklyWorkoutRoutine = generate7DayWorkoutRoutine(currentWorkoutType, homeEquipVal);
+      plan.weeklyWorkoutRoutine = generate7DayWorkoutRoutine(chosenWorkoutType, homeEquipVal);
 
       await DataService.saveUserPlan(plan);
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+
+      const locationName = chosenWorkoutType === 'gym' ? 'Phòng Gym' : chosenWorkoutType === 'outdoor' ? 'Outdoor / Công Viên' : 'Tập Tại Nhà';
+      await Modal.success({
+        title: 'Cập Nhật Lộ Trình Thành Công!',
+        message: `Đã đổi địa điểm tập sang: ${locationName}\nAI Coach đã thiết kế lại 7 bài tập mới phù hợp!`
+      });
+
       renderPlanPage(onNavigateTab, onOpenAiCoach);
     });
 
