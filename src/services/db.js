@@ -1,6 +1,6 @@
 // IndexedDB Database Manager for Fitness & Nutrition Tracker
 const DB_NAME = 'FitnessCoachDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 class IndexedDBManager {
   constructor() {

@@ -272,6 +272,38 @@ function parseMarkdown(text = '') {
   // Inline code
   html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(117, 86, 217, 0.15); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.82rem; color: var(--accent-purple); font-weight: 600;">$1</code>');
 
+  // Markdown Images ![alt](src)
+  html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<div style="margin: 0.4rem 0;"><img src="$2" alt="$1" style="max-width: 220px; max-height: 180px; border-radius: 10px; object-fit: cover; border: 2px solid var(--accent-purple);"></div>');
+
+  // Markdown Tables (| Header | Header |)
+  const tableRegex = /(?:\|[^\n]+\|\r?\n){2,}/g;
+  html = html.replace(tableRegex, (match) => {
+    const lines = match.trim().split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return match;
+
+    const headers = lines[0].split('|').map(s => s.trim()).filter(Boolean);
+    const rows = lines.slice(2).map(line => line.split('|').map(s => s.trim()).filter(Boolean));
+
+    let tableHtml = `<div style="overflow-x: auto; margin: 0.6rem 0; border-radius: 8px; border: 1px solid var(--border-color);"><table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; background: var(--bg-subtle);">`;
+    tableHtml += `<thead><tr style="background: linear-gradient(135deg, rgba(117, 86, 217, 0.18), rgba(168, 145, 255, 0.1)); border-bottom: 1.5px solid var(--border-color);">`;
+    headers.forEach(h => {
+      tableHtml += `<th style="padding: 0.45rem 0.65rem; text-align: left; font-weight: 800; color: var(--accent-purple);">${h}</th>`;
+    });
+    tableHtml += `</tr></thead><tbody>`;
+
+    rows.forEach((r, idx) => {
+      const bg = idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.03)';
+      tableHtml += `<tr style="background: ${bg}; border-bottom: 1px solid var(--border-color);">`;
+      r.forEach(cell => {
+        tableHtml += `<td style="padding: 0.4rem 0.65rem; color: var(--text-main);">${cell}</td>`;
+      });
+      tableHtml += `</tr>`;
+    });
+
+    tableHtml += `</tbody></table></div>`;
+    return tableHtml;
+  });
+
   // Headers (### Heading 3, ## Heading 2, # Heading 1)
   html = html.replace(/^### (.*$)/gim, '<h5 style="margin: 0.4rem 0; font-weight: 800; color: var(--accent-purple); font-size: 0.9rem;">$1</h5>');
   html = html.replace(/^## (.*$)/gim, '<h4 style="margin: 0.5rem 0; font-weight: 800; color: var(--text-main); font-size: 0.95rem;">$1</h4>');

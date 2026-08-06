@@ -377,21 +377,90 @@ export const DataService = {
     await dbManager.delete('photos', id);
   },
 
-  // ---------------- CHAT HISTORY ----------------
-  async getChatHistory() {
+  // ---------------- CHAT SESSIONS & HISTORY ----------------
+  currentSessionId: null,
+
+  async getCurrentSessionId() {
+    if (!this.currentSessionId) {
+      const stored = await this.getSetting('current_chat_session');
+      this.currentSessionId = stored || 'session_default';
+    }
+    return this.currentSessionId;
+  },
+
+  async setCurrentSessionId(sessionId) {
+    this.currentSessionId = sessionId;
+    await this.saveSetting('current_chat_session', sessionId);
+  },
+
+  async createNewSession() {
+    const newSessionId = 'session_' + Date.now();
+    await this.setCurrentSessionId(newSessionId);
+    return newSessionId;
+  },
+
+  async getChatSessions() {
     const msgs = await dbManager.getAll('chat_history');
-    return msgs.sort((a, b) => a.timestamp - b.timestamp);
+    if (msgs.length === 0) return [];
+
+    const sessionsMap = {};
+    msgs.forEach(m => {
+      const sId = m.sessionId || 'session_default';
+      if (!sessionsMap[sId]) {
+        sessionsMap[sId] = {
+          id: sId,
+          title: '',
+          updatedAt: m.timestamp,
+          messages: []
+        };
+      }
+      sessionsMap[sId].messages.push(m);
+      if (m.timestamp > sessionsMap[sId].updatedAt) {
+        sessionsMap[sId].updatedAt = m.timestamp;
+      }
+    });
+
+    const sessions = Object.values(sessionsMap).map(s => {
+      const firstUserMsg = s.messages.find(m => m.role === 'user');
+      let title = firstUserMsg ? firstUserMsg.content.replace(/!\[.*?\]\(.*?\)/g, '[Hình ảnh]').replace(/📄.*?\*\*/g, '[PDF]').trim() : 'Đoạn trò chuyện AI';
+      if (title.length > 32) title = title.substring(0, 29) + '...';
+      return {
+        id: s.id,
+        title: title || 'Phiên trò chuyện',
+        updatedAt: s.updatedAt,
+        messageCount: s.messages.length
+      };
+    });
+
+    return sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+
+  async getChatHistory(targetSessionId) {
+    const sId = targetSessionId || await this.getCurrentSessionId();
+    const msgs = await dbManager.getAll('chat_history');
+    const filtered = msgs.filter(m => (m.sessionId || 'session_default') === sId);
+    return filtered.sort((a, b) => a.timestamp - b.timestamp);
   },
 
   async addChatMessage(msg) {
+    const activeSessionId = await this.getCurrentSessionId();
     const item = {
       timestamp: Date.now(),
+      sessionId: activeSessionId,
       status: 'none', // 'none', 'pending', 'approved', 'rejected'
       ...msg
     };
     const id = await dbManager.put('chat_history', item);
     item.id = id;
     return item;
+  },
+
+  async deleteChatSession(targetSessionId) {
+    const msgs = await dbManager.getAll('chat_history');
+    const toDelete = msgs.filter(m => (m.sessionId || 'session_default') === targetSessionId);
+    for (const m of toDelete) {
+      await dbManager.delete('chat_history', m.id);
+    }
   },
 
   async updateChatMessageStatus(id, status) {
@@ -464,8 +533,13 @@ export const DataService = {
 
   // ---------------- SETTINGS & MODEL ----------------
   async getSetting(key) {
-    const item = await dbManager.get('settings', key);
-    return item ? item.value : null;
+    try {
+      const item = await dbManager.get('settings', key);
+      return item ? item.value : null;
+    } catch (e) {
+      console.warn('[DataService] getSetting error (store may not exist yet):', e);
+      return null;
+    }
   },
 
   async saveSetting(key, value) {

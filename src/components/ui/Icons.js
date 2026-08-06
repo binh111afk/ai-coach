@@ -108,6 +108,21 @@ export function renderCalendarIcon({ width = 18, height = 18, color = 'var(--acc
 }
 
 /**
+ * PDF Document SVG Icon 📄
+ */
+export function renderPdfIcon({ width = 20, height = 20, color = '#EF4444', style = '' } = {}) {
+  return `
+    <svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle; flex-shrink: 0; ${style}">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <path d="M9 15h6"></path>
+      <path d="M9 18h6"></path>
+      <path d="M9 12h1"></path>
+    </svg>
+  `;
+}
+
+/**
  * Crown / Trophy SVG Icon (Vương Miện Level 👑)
  */
 export function renderCrownIcon({ width = 17, height = 17, color = '#F59E0B', style = '' } = {}) {

@@ -8,9 +8,10 @@ import { renderWorkoutTracker } from './components/WorkoutTracker.js';
 import { renderPhotoVault } from './components/PhotoVault.js';
 import { renderGamificationPage } from './components/GamificationPage.js';
 import { renderAiCoachChat } from './components/AiCoachChat.js';
+import { renderAiChatPage } from './components/AiChatPage.js';
 import { renderSettingsModal } from './components/SettingsModal.js';
 
-const TAB_ORDER = ['dashboard', 'plan', 'meals', 'workouts', 'photos', 'gamification'];
+const TAB_ORDER = ['dashboard', 'plan', 'meals', 'workouts', 'photos', 'gamification', 'ai'];
 let currentTab = 'dashboard';
 let prevTab = 'dashboard';
 
@@ -41,6 +42,14 @@ async function handleTabChange(tab) {
   if (tab === currentTab) return;
   prevTab = currentTab;
   currentTab = tab;
+
+  // Toggle AI full-screen mode on body
+  if (tab === 'ai') {
+    document.body.classList.add('ai-tab-active');
+  } else {
+    document.body.classList.remove('ai-tab-active');
+  }
+
   await renderNavigation(currentTab, handleTabChange, handleOpenAiCoach, handleOpenSettings);
   await renderActiveView();
 }
@@ -76,6 +85,11 @@ async function renderActiveView() {
       break;
     case 'gamification':
       await renderGamificationPage();
+      break;
+    case 'ai':
+      await renderAiChatPage(async () => {
+        await refreshAllViews();
+      });
       break;
     default:
       await renderDashboard(handleTabChange, handleOpenAiCoach);

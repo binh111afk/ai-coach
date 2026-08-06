@@ -1,7 +1,7 @@
 import { DataService } from '../services/dataService.js';
 import { getLevelInfo } from '../services/gamificationService.js';
 import { Modal } from './ui/Modal.js';
-import { renderCrownIcon } from './ui/Icons.js';
+import { renderCrownIcon, renderGeminiIcon } from './ui/Icons.js';
 
 export async function renderNavigation(activeTab = 'dashboard', onTabChange, onOpenAiCoach, onOpenSettings) {
   const profile = await DataService.getUserProfile();
@@ -44,6 +44,9 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
           </a>
           <a class="nav-item ${activeTab === 'gamification' ? 'active' : ''}" data-tab="gamification">
             <i data-lucide="trophy"></i> <span>Thành Tích</span>
+          </a>
+          <a class="nav-item ${activeTab === 'ai' ? 'active' : ''}" data-tab="ai" style="font-weight: 800; color: var(--accent-purple);">
+            ${renderGeminiIcon({ width: 17, height: 17 })} <span>AI</span>
           </a>
         </div>
 
