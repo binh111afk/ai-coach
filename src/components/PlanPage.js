@@ -2,7 +2,7 @@ import confetti from 'canvas-confetti';
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine } from '../services/dataService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { Modal } from './ui/Modal.js';
-import { renderGeminiIcon } from './ui/Icons.js';
+import { renderGeminiIcon, renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon } from './ui/Icons.js';
 
 let selectedDateStr = new Date().toISOString().split('T')[0];
 let activeWorkoutTypeSelection = null;
@@ -121,10 +121,10 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
         <!-- 4 Meals Grid for Active Date -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
-          ${renderMealPlanCard('Bữa Sáng ☀️', activeDayMealPlan?.breakfast)}
-          ${renderMealPlanCard('Bữa Trưa 🍲', activeDayMealPlan?.lunch)}
-          ${renderMealPlanCard('Bữa Tối 🥗', activeDayMealPlan?.dinner)}
-          ${renderMealPlanCard('Bữa Phụ 🍎', activeDayMealPlan?.snack)}
+          ${renderMealPlanCard('Bữa Sáng', activeDayMealPlan?.breakfast, renderSunIcon())}
+          ${renderMealPlanCard('Bữa Trưa', activeDayMealPlan?.lunch, renderSunsetIcon())}
+          ${renderMealPlanCard('Bữa Tối', activeDayMealPlan?.dinner, renderMoonIcon())}
+          ${renderMealPlanCard('Bữa Phụ', activeDayMealPlan?.snack, renderAppleIcon())}
         </div>
 
         <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
@@ -310,17 +310,19 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   }
 }
 
-function renderMealPlanCard(title, meal) {
+function renderMealPlanCard(title, meal, iconSvg = '') {
   if (!meal) return '';
   return `
     <div class="card" style="padding: 1.1rem; background: var(--bg-card); border: 1px solid var(--border-color);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-        <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">${title}</span>
+        <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: inline-flex; align-items: center; gap: 0.45rem;">
+          ${title} ${iconSvg}
+        </span>
         <span class="badge badge-secondary">${(meal.costVnd || 0).toLocaleString('vi-VN')} VNĐ</span>
       </div>
       <div style="font-weight: 700; font-size: 0.9rem; color: var(--accent-purple); margin-bottom: 0.5rem;">${meal.name}</div>
       <div class="text-xs text-muted" style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 0.5rem;">
-        <span>🔥 <b>${meal.calories} kcal</b></span>
+        <span style="display: inline-flex; align-items: center; gap: 0.3rem;">${renderFlameIcon({ width: 14, height: 14 })} <b>${meal.calories} kcal</b></span>
         <span>P:<b>${meal.protein}g</b> | C:<b>${meal.carb}g</b> | F:<b>${meal.fat}g</b></span>
       </div>
     </div>

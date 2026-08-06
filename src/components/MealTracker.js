@@ -2,6 +2,7 @@ import confetti from 'canvas-confetti';
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { Modal } from './ui/Modal.js';
+import { renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon } from './ui/Icons.js';
 
 export async function renderMealTracker(onOpenAiCoach) {
   const goal = await DataService.getUserGoal();
@@ -78,10 +79,10 @@ export async function renderMealTracker(onOpenAiCoach) {
 
       <!-- Meals Log Grid (4 Categories: Sáng, Trưa, Tối, Phụ) -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem;" class="dash-grid">
-        ${renderMealCategoryCard('Bữa Sáng', 'sun', mealsByCategory.Breakfast)}
-        ${renderMealCategoryCard('Bữa Trưa', 'utensils', mealsByCategory.Lunch)}
-        ${renderMealCategoryCard('Bữa Tối', 'moon', mealsByCategory.Dinner)}
-        ${renderMealCategoryCard('Bữa Phụ / Snack', 'apple', mealsByCategory.Snack)}
+        ${renderMealCategoryCard('Bữa Sáng', renderSunIcon({ width: 22, height: 22 }), mealsByCategory.Breakfast)}
+        ${renderMealCategoryCard('Bữa Trưa', renderSunsetIcon({ width: 22, height: 22 }), mealsByCategory.Lunch)}
+        ${renderMealCategoryCard('Bữa Tối', renderMoonIcon({ width: 22, height: 22 }), mealsByCategory.Dinner)}
+        ${renderMealCategoryCard('Bữa Phụ / Snack', renderAppleIcon({ width: 22, height: 22 }), mealsByCategory.Snack)}
       </div>
     </div>
 
@@ -179,14 +180,18 @@ export async function renderMealTracker(onOpenAiCoach) {
   }
 }
 
-function renderMealCategoryCard(title, iconName, mealsList = []) {
+function renderMealCategoryCard(title, iconSvg = '', mealsList = []) {
   const catCalories = mealsList.reduce((s, m) => s + (m.calories || 0), 0);
 
   return `
     <div class="card">
       <div class="card-header" style="margin-bottom: 0.85rem;">
-        <div class="card-title"><i data-lucide="${iconName}" style="color: var(--accent-purple);"></i> ${title}</div>
-        <span class="badge badge-primary" style="font-size: 0.85rem;">${catCalories} kcal</span>
+        <div class="card-title" style="display: flex; align-items: center; gap: 0.45rem;">
+          <span>${title}</span> ${iconSvg}
+        </div>
+        <span class="badge badge-primary" style="font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.3rem;">
+          ${renderFlameIcon({ width: 14, height: 14, color: '#FFFFFF' })} ${catCalories} kcal
+        </span>
       </div>
       <div style="display: flex; flex-direction: column; gap: 0.6rem;">
         ${mealsList.length === 0 ? '<div class="text-xs text-muted" style="font-style: italic; padding: 0.5rem 0;">Chưa ghi nhận món ăn nào</div>' : ''}
@@ -197,7 +202,9 @@ function renderMealCategoryCard(title, iconName, mealsList = []) {
               <div class="text-xs text-muted">P:${m.protein}g | C:${m.carb}g | F:${m.fat}g</div>
             </div>
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <span style="font-weight: 800; color: var(--accent-purple); font-size: 0.95rem;">${m.calories} kcal</span>
+              <span style="font-weight: 800; color: var(--accent-purple); font-size: 0.95rem; display: inline-flex; align-items: center; gap: 0.25rem;">
+                ${renderFlameIcon({ width: 14, height: 14 })} ${m.calories} kcal
+              </span>
               <button class="btn btn-secondary btn-sm btn-icon" data-delete-meal="${m.id}" style="width: 32px; height: 32px;"><i data-lucide="trash-2" style="width: 14px; height: 14px;"></i></button>
             </div>
           </div>
