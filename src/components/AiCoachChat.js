@@ -75,9 +75,15 @@ export async function renderAiCoachChat(onStateUpdated) {
       await DataService.addChatMessage({ role: 'user', content: msg });
       await refreshChatMessages(onStateUpdated);
 
+      // Show dynamic thinking indicator animation
+      showThinkingIndicator();
+
       // 2. Fetch Chat History context & call AI Coach Service
       const history = await DataService.getChatHistory();
       const aiResponse = await AiCoachService.sendMessage(msg, history);
+
+      // Hide thinking indicator
+      hideThinkingIndicator();
 
       // 3. Save AI Message
       await DataService.addChatMessage({
@@ -101,6 +107,36 @@ export async function renderAiCoachChat(onStateUpdated) {
   }
 }
 
+function showThinkingIndicator() {
+  const container = document.getElementById('chat-messages-container');
+  if (!container) return;
+
+  const existing = document.getElementById('ai-thinking-indicator');
+  if (existing) return;
+
+  const thinkingDiv = document.createElement('div');
+  thinkingDiv.id = 'ai-thinking-indicator';
+  thinkingDiv.className = 'chat-bubble assistant thinking';
+  thinkingDiv.style.cssText = 'display: flex; align-items: center; gap: 0.65rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.14), rgba(168, 145, 255, 0.08)); border: 1.5px solid rgba(117, 86, 217, 0.3); padding: 0.65rem 0.95rem; border-radius: 14px; margin-bottom: 0.75rem; box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); width: fit-content;';
+
+  thinkingDiv.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 0.35rem;">
+      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0s;"></span>
+      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.2s;"></span>
+      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.4s;"></span>
+    </div>
+    <span style="font-size: 0.825rem; font-weight: 700; color: var(--accent-purple); animation: pulseText 1.5s infinite ease-in-out;">AI Coach đang suy nghĩ & phân tích...</span>
+  `;
+
+  container.appendChild(thinkingDiv);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideThinkingIndicator() {
+  const indicator = document.getElementById('ai-thinking-indicator');
+  if (indicator) indicator.remove();
+}
+
 async function refreshChatMessages(onStateUpdated) {
   const container = document.getElementById('chat-messages-container');
   if (!container) return;
@@ -121,12 +157,12 @@ async function refreshChatMessages(onStateUpdated) {
 
   const html = history.map(m => {
     if (m.role === 'user') {
-      return `<div class="chat-bubble user">${escapeHtml(m.content)}</div>`;
+      return `<div class="chat-bubble user">${parseMarkdown(m.content)}</div>`;
     } else {
-      // Assistant Bubble with Optional Proposed Change Approval Card
+      // Assistant Bubble with Rich Markdown Formatting & Optional Proposed Change Card
       return `
         <div class="chat-bubble assistant">
-          <div>${escapeHtml(m.content)}</div>
+          <div class="chat-markdown-body" style="line-height: 1.55;">${parseMarkdown(m.content)}</div>
           ${m.proposedChange ? renderApprovalCard(m) : ''}
         </div>
       `;
@@ -223,6 +259,39 @@ function renderApprovalCard(msg) {
   `;
 }
 
-function escapeHtml(str = '') {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/**
+ * Lightweight Markdown Parser for AI Coach Rich Text Responses
+ */
+function parseMarkdown(text = '') {
+  if (!text) return '';
+  let html = text;
+
+  // Code blocks
+  html = html.replace(/```([\s\S]*?)```/g, '<pre style="background: rgba(0,0,0,0.18); padding: 0.6rem; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; margin: 0.4rem 0;"><code>$1</code></pre>');
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(117, 86, 217, 0.15); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.82rem; color: var(--accent-purple); font-weight: 600;">$1</code>');
+
+  // Headers (### Heading 3, ## Heading 2, # Heading 1)
+  html = html.replace(/^### (.*$)/gim, '<h5 style="margin: 0.4rem 0; font-weight: 800; color: var(--accent-purple); font-size: 0.9rem;">$1</h5>');
+  html = html.replace(/^## (.*$)/gim, '<h4 style="margin: 0.5rem 0; font-weight: 800; color: var(--text-main); font-size: 0.95rem;">$1</h4>');
+  html = html.replace(/^# (.*$)/gim, '<h3 style="margin: 0.6rem 0; font-weight: 800; color: var(--text-main); font-size: 1.05rem;">$1</h3>');
+
+  // Bold & Italic
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 800; color: var(--text-main);">$1</strong>');
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  // Numbered list items (1. item or 1️⃣ item)
+  html = html.replace(/^(\d+[\.\️⃣]|(?:[1-9]\d?️⃣))\s+(.*)$/gim, '<li style="margin-left: 1.1rem; margin-bottom: 0.25rem;"><strong>$1</strong> $2</li>');
+
+  // Unordered list items (- item or * item)
+  html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li style="margin-left: 1.1rem; list-style-type: disc; margin-bottom: 0.25rem;">$1</li>');
+
+  // Group consecutive <li> items into <ul>
+  html = html.replace(/(<li.*?>.*?<\/li>\n?)+/g, '<ul style="margin: 0.4rem 0; padding-left: 0.2rem;">$&</ul>');
+
+  // Line breaks
+  html = html.replace(/\n/g, '<br/>');
+
+  return html;
 }

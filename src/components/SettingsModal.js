@@ -123,7 +123,7 @@ export async function renderSettingsModal(onSaveComplete) {
 
           <div class="form-group" style="margin-bottom: 0.75rem;">
             <label class="form-label" style="color: var(--accent-purple);">
-              💵 Ngân Sách Ăn Uống Hàng Ngày (VNĐ / Ngày)
+              Ngân Sách Ăn Uống Hàng Ngày (VNĐ / Ngày)
             </label>
             <input type="number" class="form-input" id="settings-daily-budget" value="${plan.dailyBudgetVnd || 100000}" step="10000">
           </div>
@@ -131,7 +131,7 @@ export async function renderSettingsModal(onSaveComplete) {
           <!-- Food Allergies & Dietary Restrictions Input -->
           <div class="form-group">
             <label class="form-label" style="color: var(--accent-amber);">
-              🚫 Món Ăn / Thực Phẩm Dị Ứng Hoặc Kiêng Khem
+              Món Ăn / Thực Phẩm Dị Ứng 
             </label>
             <input type="text" class="form-input" id="settings-food-allergies" value="${profile.foodAllergies || ''}" placeholder="Ví dụ: Hải sản tôm mực, Đậu nành, Sữa tươi lactose, Trứng..." style="word-break: break-word;">
             <span class="text-xs text-muted" style="word-break: break-word; overflow-wrap: break-word; display: block; margin-top: 0.3rem;">* AI Coach sẽ tự động lọc và tính toán lại thực đơn 7 ngày theo ngân sách và món dị ứng.</span>
