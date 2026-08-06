@@ -2,7 +2,7 @@ import confetti from 'canvas-confetti';
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine } from '../services/dataService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { Modal } from './ui/Modal.js';
-import { renderGeminiIcon, renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon } from './ui/Icons.js';
+import { renderGeminiIcon, renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon, renderCalendarIcon } from './ui/Icons.js';
 
 let selectedDateStr = new Date().toISOString().split('T')[0];
 let activeWorkoutTypeSelection = null;
@@ -110,8 +110,8 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-date-prev" title="Ngày trước đó" style="width: 32px; height: 32px;">
               <i data-lucide="chevron-left"></i>
             </button>
-            <span style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); min-width: 180px; text-align: center;">
-              📅 ${activeDayMealPlan?.formattedDate || selectedDateStr}
+            <span style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); min-width: 180px; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">
+              ${renderCalendarIcon()} ${activeDayMealPlan?.formattedDate || selectedDateStr}
             </span>
             <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-date-next" title="Ngày tiếp theo" style="width: 32px; height: 32px;">
               <i data-lucide="chevron-right"></i>
