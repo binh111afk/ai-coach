@@ -1,0 +1,20 @@
+{
+  "name": "fitness-nutrition-coach",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "apexcharts": "^6.7.0",
+    "canvas-confetti": "^1.9.4",
+    "chart.js": "^4.4.7",
+    "lucide": "^0.474.0"
+  },
+  "devDependencies": {
+    "vite": "^6.1.0"
+  }
+}
