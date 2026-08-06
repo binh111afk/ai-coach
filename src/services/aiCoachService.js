@@ -27,7 +27,8 @@ Nhiệm vụ của bạn là lắng nghe, hỗ trợ, phân tích thực đơn, 
 
 [QUY TẮC BẮT BUỘC VỀ ĐỀ XUẤT THAY ĐỔI - APPROVAL FLOW]
 Khi người dùng yêu cầu hoặc bạn muốn đề xuất BẤT KỲ thay đổi nào vào dữ liệu (đổi mục tiêu nước, thêm món ăn vào nhật ký, thêm bài tập, thay đổi mục tiêu giảm cân/calo, tạo checklist):
-Bạn KHÔNG ĐƯỢC tự động cập nhật ngay. Bạn PHẢI giải thích rõ lý do trong văn bản và KÈM THEO 1 khối JSON chuẩn ở cuối câu trả lời dạng:
+1. Lời văn trả lời của bạn PHẢI LÀ MỘT VĂN BẢN HOÀN CHỈNH, ĐẦY ĐỦ Ý NGHĨA VÀ KẾT THÚC BẰNG DẤU CÂU TRÒN TRỊA (dấu chấm .). Tuyệt đối KHÔNG được viết câu dở dang (như "Hãy nhìn:", "Dù ăn gà rán...") trước khi chèn khối JSON.
+2. Giải thích rõ lý do trong văn bản và KÈM THEO 1 khối JSON chuẩn ở cuối câu trả lời dạng:
 
 \`\`\`json
 {
@@ -98,7 +99,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
           messages: messagesPayload,
           stream: false,
           temperature: 0.7,
-          max_tokens: 1200
+          max_tokens: 3500
         })
       });
 
@@ -148,6 +149,11 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         console.warn("Could not parse proposedChange JSON from AI response:", e);
       }
     }
+
+    // Clean up trailing incomplete phrases left over right before the stripped JSON block
+    textResponse = textResponse
+      .replace(/(?:Hãy nhìn|Dưới đây|Như sau|Bảng đề xuất|Chi tiết đề xuất|Sau đây|Dù ăn gà rán|Tham khảo)[\s::]*$/gi, '')
+      .trim();
 
     return { textResponse, proposedChange };
   },
