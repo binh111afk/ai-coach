@@ -75,6 +75,36 @@ body.dark {
   --page-wash: linear-gradient(135deg, #17131F 0%, #201A31 50%, #17141F 100%);
 }
 
+/* Custom Sleek & Thin Browser Scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-purple) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(117, 86, 217, 0.35);
+  border-radius: 10px;
+  transition: background 0.25s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-purple);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
