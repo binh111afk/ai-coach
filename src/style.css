@@ -18,6 +18,9 @@
   --text-muted: #706A82;
   --text-subtle: #9891A8;
 
+  --primary: #7556D9;
+  --primary-gradient: linear-gradient(135deg, #7556D9 0%, #6042C0 100%);
+
   --accent-purple: #7556D9;
   --accent-purple-dark: #6042C0;
   --accent-purple-light: #F0EBFF;

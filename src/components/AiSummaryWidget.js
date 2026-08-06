@@ -50,44 +50,107 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
   // Default Weekly Advice
   const weeklyAdvice = `Tuần này bạn đã duy trì chuỗi Streak ${progress.currentStreak} ngày liên tục. Cân nặng thâm hụt đúng hướng. AI Coach khuyến nghị giữ nguyên mức Calo mục tiêu ${calorieTarget} kcal và duy trì 4 buổi tập/tuần.`;
 
+  // Dynamic status badge color theme
+  let statusBg = "rgba(239, 68, 68, 0.12)";
+  let statusColor = "#DC2626";
+  let statusBorder = "rgba(239, 68, 68, 0.35)";
+  let statusText = "⚠️ Cần Cố Gắng";
+
+  if (score >= 80) {
+    statusBg = "rgba(16, 185, 129, 0.12)";
+    statusColor = "#059669";
+    statusBorder = "rgba(16, 185, 129, 0.35)";
+    statusText = "🔥 Phong Độ Trái Tim";
+  } else if (score >= 50) {
+    statusBg = "rgba(245, 158, 11, 0.12)";
+    statusColor = "#D97706";
+    statusBorder = "rgba(245, 158, 11, 0.35)";
+    statusText = "💪 Khá Tốt";
+  }
+
   const html = `
-    <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.95), rgba(255, 253, 250, 0.95)); border: 1px solid var(--border-highlight); position: relative; overflow: hidden;">
-      <div class="card-header" style="margin-bottom: 0.85rem;">
-        <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; color: var(--accent-purple);">
-          ${renderGeminiIcon({ width: 22, height: 22, strokeWidth: 1.8, color: 'var(--accent-purple)' })}
+    <div class="card" style="background: linear-gradient(135deg, rgba(248, 246, 255, 0.98) 0%, rgba(255, 252, 248, 0.98) 100%); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 16px 36px -10px rgba(117, 86, 217, 0.15); position: relative; overflow: hidden; border-radius: 24px;">
+      <div class="card-header" style="margin-bottom: 1.25rem;">
+        <div class="card-title" style="display: flex; align-items: center; gap: 0.6rem; font-size: 1.15rem; font-weight: 800; color: #7556D9;">
+          ${renderGeminiIcon({ width: 24, height: 24, strokeWidth: 1.8, color: '#7556D9' })}
           <span>Tổng Kết & Đánh Giá Tiến Độ AI Coach</span>
         </div>
 
         <!-- Tabs: Daily vs Weekly -->
-        <div style="display: flex; gap: 0.4rem; background: var(--bg-subtle); padding: 0.25rem; border-radius: var(--radius-full); border: 1px solid var(--border-color);">
-          <button class="btn btn-primary btn-sm" id="btn-summary-tab-daily" style="padding: 0.35rem 0.85rem; font-size: 0.8rem;">Hôm Nay</button>
-          <button class="btn btn-secondary btn-sm" id="btn-summary-tab-weekly" style="padding: 0.35rem 0.85rem; font-size: 0.8rem;">Tuần Này</button>
+        <div style="display: flex; gap: 0.4rem; background: var(--bg-subtle); padding: 0.3rem; border-radius: var(--radius-full); border: 1px solid var(--border-color);">
+          <button class="btn btn-primary btn-sm" id="btn-summary-tab-daily" style="padding: 0.4rem 1rem; font-size: 0.825rem; font-weight: 700;">Hôm Nay</button>
+          <button class="btn btn-secondary btn-sm" id="btn-summary-tab-weekly" style="padding: 0.4rem 1rem; font-size: 0.825rem; font-weight: 700;">Tuần Này</button>
         </div>
       </div>
 
       <!-- Content Area 1: Daily Progress Review -->
       <div id="ai-summary-content-daily" style="display: block;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 1.25rem; align-items: center;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
-              <span class="badge badge-primary"><i data-lucide="award"></i> Điểm Kỷ Luật: ${score}/100</span>
-              <span class="badge badge-secondary">${score >= 80 ? '🔥 Rất Tốt' : score >= 50 ? '⚡ Đạt Yêu Cầu' : '⚠️ Cần Cố Gắng'}</span>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1.5rem; align-items: center;">
+          
+          <!-- Left Main Content -->
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            
+            <!-- Header Badges Row -->
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+              <div style="display: inline-flex; align-items: center; gap: 0.45rem; background: #7556D9; color: #FFFFFF; padding: 0.45rem 1rem; border-radius: var(--radius-full); font-weight: 800; font-size: 0.875rem; box-shadow: 0 4px 14px rgba(117, 86, 217, 0.3);">
+                <i data-lucide="award" style="width: 16px; height: 16px; color: #FFFFFF;"></i> Điểm Kỷ Luật: ${score}/100
+              </div>
+              <div style="display: inline-flex; align-items: center; gap: 0.35rem; background: ${statusBg}; color: ${statusColor}; border: 1.5px solid ${statusBorder}; padding: 0.45rem 1rem; border-radius: var(--radius-full); font-weight: 800; font-size: 0.85rem;">
+                ${statusText}
+              </div>
             </div>
-            <div style="font-size: 0.925rem; line-height: 1.6; color: var(--text-main); font-weight: 600; margin-bottom: 0.75rem;" id="ai-daily-advice-text">
-              "${dailyAdvice}"
+
+            <!-- AI Advice Highlighting Card -->
+            <div style="background: #FFFFFF; border-left: 4px solid #7556D9; padding: 1rem 1.25rem; border-radius: 16px; border-top: 1px solid rgba(233, 228, 243, 0.8); border-right: 1px solid rgba(233, 228, 243, 0.8); border-bottom: 1px solid rgba(233, 228, 243, 0.8); box-shadow: 0 4px 16px rgba(117, 86, 217, 0.06); position: relative;">
+              <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                <i data-lucide="quote" style="width: 22px; height: 22px; color: #7556D9; flex-shrink: 0; margin-top: 0.1rem;"></i>
+                <div style="font-size: 0.95rem; line-height: 1.6; color: #26213C; font-weight: 600;" id="ai-daily-advice-text">
+                  ${dailyAdvice}
+                </div>
+              </div>
             </div>
-            <div class="text-xs text-muted" style="display: flex; gap: 1rem;">
-              <span>Calo Ròng: <b>${netCalories} / ${calorieTarget} kcal</b></span>
-              <span>Nước: <b>${waterIntake} / ${waterTarget} ml</b></span>
-              <span>Checklist: <b>${checklistDone}/${checklistTotal}</b></span>
+
+            <!-- Sub-Metrics 3 Mini Cards Row -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.65rem;">
+              <div style="background: rgba(117, 86, 217, 0.08); border: 1px solid rgba(117, 86, 217, 0.22); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: #7556D9; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.25);">
+                  <i data-lucide="flame" style="width: 18px; height: 18px;"></i>
+                </div>
+                <div>
+                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700; color: #706A82;">Calo Ròng</div>
+                  <div style="font-size: 0.875rem; font-weight: 800; color: #7556D9;">${netCalories} / ${calorieTarget} <span style="font-weight: 600; font-size: 0.725rem;">kcal</span></div>
+                </div>
+              </div>
+
+              <div style="background: rgba(49, 114, 184, 0.08); border: 1px solid rgba(49, 114, 184, 0.22); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: #3172B8; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(49, 114, 184, 0.25);">
+                  <i data-lucide="droplet" style="width: 18px; height: 18px;"></i>
+                </div>
+                <div>
+                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700; color: #706A82;">Nước Uống</div>
+                  <div style="font-size: 0.875rem; font-weight: 800; color: #3172B8;">${waterIntake} / ${waterTarget} <span style="font-weight: 600; font-size: 0.725rem;">ml</span></div>
+                </div>
+              </div>
+
+              <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.22); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: #10B981; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
+                  <i data-lucide="check-circle-2" style="width: 18px; height: 18px;"></i>
+                </div>
+                <div>
+                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700; color: #706A82;">Checklist</div>
+                  <div style="font-size: 0.875rem; font-weight: 800; color: #059669;">${checklistDone} / ${checklistTotal} <span style="font-weight: 600; font-size: 0.725rem;">mục</span></div>
+                </div>
+              </div>
             </div>
+
           </div>
 
-          <!-- Circular Score Badge -->
-          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-card); padding: 1rem; border-radius: 20px; border: 1px solid var(--border-color); text-align: center;">
-            <div style="font-size: 2rem; font-weight: 900; color: var(--accent-purple); line-height: 1;">${score}</div>
-            <div class="text-xs text-muted" style="font-weight: 800; margin-top: 0.2rem;">/ 100 ĐIỂM</div>
+          <!-- Right Large Glowing Score Box -->
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FFFFFF; padding: 1.25rem 1rem; border-radius: 22px; border: 1.5px solid rgba(117, 86, 217, 0.3); text-align: center; box-shadow: 0 10px 25px -5px rgba(117, 86, 217, 0.18); height: 100%;">
+            <div style="font-size: 2.75rem; font-weight: 900; color: #7556D9; line-height: 1;">${score}</div>
+            <div style="font-size: 0.75rem; font-weight: 800; color: #706A82; letter-spacing: 0.5px; margin-top: 0.35rem;">/ 100 ĐIỂM</div>
           </div>
+
         </div>
       </div>
 
