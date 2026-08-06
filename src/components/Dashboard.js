@@ -3,6 +3,7 @@ import { DataService } from '../services/dataService.js';
 import { renderWeightChart, renderCalorieChart, renderMacroChart } from '../utils/chartUtils.js';
 import { renderAiSummaryWidget } from './AiSummaryWidget.js';
 import { renderCheckbox, initCheckboxListeners } from './ui/Checkbox.js';
+import { renderGeminiIcon } from './ui/Icons.js';
 
 export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const profile = await DataService.getUserProfile();
@@ -84,7 +85,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
                 <i data-lucide="plus-circle"></i> Cập Nhật Hôm Nay
               </button>
               <button class="btn btn-ai" id="dash-btn-ai-coach">
-                <i data-lucide="sparkles"></i> AI Coach Cố Vấn
+                ${renderGeminiIcon({ width: 17, height: 17 })} AI Coach Cố Vấn
               </button>
             </div>
           </div>

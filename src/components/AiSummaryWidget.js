@@ -1,5 +1,6 @@
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
+import { renderGeminiIcon } from './ui/Icons.js';
 
 export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-container') {
   const container = document.getElementById(containerId);
@@ -53,7 +54,7 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
     <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.95), rgba(255, 253, 250, 0.95)); border: 1px solid var(--border-highlight); position: relative; overflow: hidden;">
       <div class="card-header" style="margin-bottom: 0.85rem;">
         <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; color: var(--accent-purple);">
-          <i data-lucide="sparkles" style="width: 22px; height: 22px;"></i>
+          ${renderGeminiIcon({ width: 22, height: 22, strokeWidth: 1.8, color: 'var(--accent-purple)' })}
           <span>Tổng Kết & Đánh Giá Tiến Độ AI Coach</span>
         </div>
 

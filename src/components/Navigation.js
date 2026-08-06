@@ -1,5 +1,6 @@
 import { DataService } from '../services/dataService.js';
 import { getLevelInfo } from '../services/gamificationService.js';
+import { renderGeminiIcon } from './ui/Icons.js';
 
 export async function renderNavigation(activeTab = 'dashboard', onTabChange, onOpenAiCoach, onOpenSettings) {
   const profile = await DataService.getUserProfile();
@@ -22,7 +23,7 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
             <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
           </a>
           <a class="nav-item ${activeTab === 'plan' ? 'active' : ''}" data-tab="plan">
-            <i data-lucide="sparkles"></i> <span>Kế Hoạch AI</span>
+            ${renderGeminiIcon({ width: 17, height: 17 })} <span>Kế Hoạch AI</span>
           </a>
           <a class="nav-item ${activeTab === 'meals' ? 'active' : ''}" data-tab="meals">
             <i data-lucide="utensils"></i> <span>Bữa Ăn</span>
@@ -55,7 +56,7 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
 
           <!-- AI Coach Trigger -->
           <button class="btn btn-ai btn-sm" id="btn-trigger-ai-coach">
-            <i data-lucide="sparkles"></i> <span>AI Coach</span>
+            ${renderGeminiIcon({ width: 16, height: 16 })} <span>AI Coach</span>
           </button>
 
           <!-- Settings -->

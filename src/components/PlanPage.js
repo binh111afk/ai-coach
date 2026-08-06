@@ -2,6 +2,7 @@ import confetti from 'canvas-confetti';
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine } from '../services/dataService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { Modal } from './ui/Modal.js';
+import { renderGeminiIcon } from './ui/Icons.js';
 
 let selectedDateStr = new Date().toISOString().split('T')[0];
 
@@ -50,7 +51,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         <div class="card-header">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.6rem;">
-              <i data-lucide="sparkles" class="text-purple"></i> Kế Hoạch 7 Ngày Theo Ngân Sách & Lịch Tập
+              ${renderGeminiIcon({ width: 22, height: 22, strokeWidth: 1.8, color: 'var(--accent-purple)' })} Kế Hoạch 7 Ngày Theo Ngân Sách & Lịch Tập
             </h2>
             <p class="text-sm text-muted" style="margin-top: 0.25rem;">
               AI Coach lập thực đơn 7 ngày theo ngân sách (${(plan.dailyBudgetVnd || 100000).toLocaleString('vi-VN')} VNĐ/ngày) & lịch tập bài bản.

@@ -1,6 +1,7 @@
 import { DataService } from '../services/dataService.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
+import { renderGeminiIcon } from './ui/Icons.js';
 
 export function renderOnboarding(onComplete) {
   const formData = {
@@ -22,7 +23,7 @@ export function renderOnboarding(onComplete) {
       <div class="modal-card" style="max-width: 560px;">
         <div style="text-align: center; margin-bottom: 1.5rem;">
           <div style="width: 54px; height: 54px; background: var(--primary-gradient); border-radius: 16px; margin: 0 auto 0.75rem auto; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 8px 20px rgba(117, 86, 217, 0.3);">
-            <i data-lucide="sparkles" style="width: 28px; height: 28px;"></i>
+            ${renderGeminiIcon({ width: 28, height: 28, strokeWidth: 1.8, color: '#fff' })}
           </div>
           <h2>Thiết Lập Hành Trình Fitness</h2>
           <p class="text-sm text-muted">AI Coach sẽ tự động tính toán chỉ số BMR, TDEE & thiết kế lộ trình chuẩn cá nhân hóa cho bạn.</p>

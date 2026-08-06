@@ -1,5 +1,6 @@
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
+import { renderGeminiIcon } from './ui/Icons.js';
 
 export async function renderAiCoachChat(onStateUpdated) {
   let isSending = false;
@@ -7,7 +8,7 @@ export async function renderAiCoachChat(onStateUpdated) {
   const chatDrawerHtml = `
     <!-- Floating FAB Trigger Button -->
     <button class="chat-fab" id="chat-fab-toggle" title="Mở AI Coach">
-      <i data-lucide="bot" style="width: 28px; height: 28px;"></i>
+      ${renderGeminiIcon({ width: 28, height: 28, strokeWidth: 1.8 })}
     </button>
 
     <!-- Floating Chat Drawer -->
@@ -15,7 +16,7 @@ export async function renderAiCoachChat(onStateUpdated) {
       <div class="chat-header">
         <div style="display: flex; align-items: center; gap: 0.6rem;">
           <div style="width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent-purple), var(--primary)); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: #fff;">
-            <i data-lucide="sparkles" style="width: 18px; height: 18px;"></i>
+            ${renderGeminiIcon({ width: 18, height: 18, strokeWidth: 1.8, color: '#fff' })}
           </div>
           <div>
             <div style="font-weight: 700; font-size: 0.95rem;">AI Coach Smart Brain</div>

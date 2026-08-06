@@ -3,6 +3,7 @@ import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { Modal } from './ui/Modal.js';
+import { renderGeminiIcon } from './ui/Icons.js';
 
 const CUSTOM_SCALE_SVG_ICON = `
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle; flex-shrink: 0;">
@@ -191,7 +192,7 @@ export async function renderPhotoVault() {
         </div>
 
         <button class="btn btn-primary" style="width: 100%; height: 44px;" id="btn-confirm-compare-modal">
-          <i data-lucide="sparkles"></i> Xác Nhận & Cho AI Phân Tích
+          ${renderGeminiIcon({ width: 17, height: 17 })} Xác Nhận & Cho AI Phân Tích
         </button>
       </div>
     </div>
@@ -429,7 +430,7 @@ function updateUploadJourneyDayDisplay(photos, selectedDateStr) {
       subtext.innerHTML = `<i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: var(--accent-green); display: inline-block; vertical-align: middle;"></i> Ngày chụp liên tiếp nối tiếp mốc trước (${formatDisplayDate(lastPhoto.date)})`;
     }
   } else {
-    subtext.innerHTML = `<i data-lucide="sparkles" style="width: 14px; height: 14px; color: var(--accent-purple); display: inline-block; vertical-align: middle;"></i> Đây là bức ảnh tiến trình Ngày 1 mở đầu hành trình!`;
+    subtext.innerHTML = `${renderGeminiIcon({ width: 14, height: 14, color: 'var(--accent-purple)' })} Đây là bức ảnh tiến trình Ngày 1 mở đầu hành trình!`;
   }
   if (window.lucide) window.lucide.createIcons();
 }
@@ -511,7 +512,7 @@ function renderComparisonResultCard(result, photos) {
       <!-- AI Coach Markdown Assessment Box -->
       <div style="margin-top: 1.25rem; background: var(--bg-subtle); padding: 1.2rem; border-radius: 18px; border: 1px solid var(--border-color);">
         <h4 style="color: var(--accent-purple); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-          <i data-lucide="sparkles"></i> Phân Tích & Đánh Giá Chi Tiết AI Coach (Markdown Supported)
+          ${renderGeminiIcon({ width: 18, height: 18, color: 'var(--accent-purple)' })} Phân Tích & Đánh Giá Chi Tiết AI Coach (Markdown Supported)
         </h4>
         <div style="font-size: 0.925rem; line-height: 1.6; color: var(--text-main);" class="markdown-content">
           ${parseMarkdownToHtml(aiMarkdownText)}
