@@ -197,10 +197,14 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       let foodName = userMessage.replace(/^(sáng|trưa|tối|phụ)?\s*(tôi)?\s*(ăn|uống)\s*/i, '').trim();
       if (!foodName) foodName = "Bữa ăn dinh dưỡng";
 
-      if (text.includes("trứng") && text.includes("bánh mì")) {
+      if (text.includes("gà rán") || text.includes("kfc") || text.includes("lotteria") || text.includes("jollibee")) {
+        cal = 580; p = 32; c = 38; f = 32;
+      } else if (text.includes("trứng") && text.includes("bánh mì")) {
         cal = 380; p = 18; c = 40; f = 14;
-      } else if (text.includes("ức gà") || text.includes("gà")) {
+      } else if (text.includes("ức gà") || text.includes("gà luộc") || text.includes("gà áp chảo")) {
         cal = 420; p = 45; c = 30; f = 8;
+      } else if (text.includes("trà sữa") || text.includes("pizza") || text.includes("burger")) {
+        cal = 520; p = 12; c = 68; f = 24;
       } else if (text.includes("bún") || text.includes("phở") || text.includes("hủ tiếu")) {
         cal = 520; p = 22; c = 65; f = 16;
       } else if (text.includes("cơm tấm") || text.includes("sườn")) {
@@ -213,13 +217,18 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       const explicitCal = text.match(/(\d+)\s*(kcal|calo)/i);
       if (explicitCal) cal = parseInt(explicitCal[1]);
 
-      replyText = `Tôi đã phân tích bữa ăn **"${foodName}"** của bạn:\n- **Calo:** ~${cal} kcal\n- **Protein:** ~${p}g | **Carb:** ~${c}g | **Fat:** ~${f}g\n\nBạn có muốn ghi nhận bữa ăn này vào nhật ký **${mealType}** hôm nay không?`;
+      const isHighCalorie = cal >= 500;
+      const adviceTip = isHighCalorie
+        ? `\n\n💡 **Lời khuyên AI Coach:** Đừng lo lắng nếu lỡ ăn vượt thực đơn! Để duy trì thâm hụt calo cả tuần, bạn chỉ cần:\n1️⃣ Đi bộ nhanh / Tập nhẹ 25-30 phút hôm nay để bù ~200 kcal.\n2️⃣ Bữa sáng ngày mai ăn nhẹ nhàng (yến mạch/trứng luộc) để cân bằng lại!`
+        : `\n\nBấm **[Đồng ý]** bên dưới để cập nhật bữa ăn này vào nhật ký nhé!`;
+
+      replyText = `Tôi đã ghi nhận bữa ăn **"${foodName}"** của bạn:\n- **Ước tính Calo:** ~${cal} kcal\n- **Macro:** Protein: ${p}g | Carb: ${c}g | Fat: ${f}g${adviceTip}`;
       proposedChange = {
         id: 'prop_' + Date.now(),
         type: 'LOG_MEAL',
-        title: `Đề xuất thêm Bữa ${mealType === 'Breakfast' ? 'Sáng' : mealType === 'Lunch' ? 'Trưa' : mealType === 'Dinner' ? 'Tối' : 'Phụ'}`,
+        title: `Đề xuất ghi nhận Bữa ${mealType === 'Breakfast' ? 'Sáng' : mealType === 'Lunch' ? 'Trưa' : mealType === 'Dinner' ? 'Tối' : 'Phụ'} (${foodName})`,
         details: [
-          { field: 'Món ăn', from: '-', to: foodName },
+          { field: 'Món ăn thực tế', from: 'Thực đơn AI cũ', to: foodName },
           { field: 'Calo & Macro', from: '-', to: `${cal} kcal (P:${p}g, C:${c}g, F:${f}g)` }
         ],
         payload: {
