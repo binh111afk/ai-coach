@@ -57,7 +57,7 @@ export async function renderSettingsModal(onSaveComplete) {
         <!-- User Profile & Food Allergies Settings -->
         <div style="margin-bottom: 1.25rem;">
           <h4 style="margin-bottom: 0.75rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
-            <i data-lucide="user"></i> Thông Tin Cá Nhân & Dị Ứng Thực Phẩm
+            <i data-lucide="user"></i> Thông Tin Cá Nhân & Ngân Sách Ăn Uống
           </h4>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
@@ -71,13 +71,20 @@ export async function renderSettingsModal(onSaveComplete) {
             </div>
           </div>
 
+          <div class="form-group" style="margin-bottom: 0.75rem;">
+            <label class="form-label" style="color: var(--accent-purple);">
+              💵 Ngân Sách Ăn Uống Hàng Ngày (VNĐ / Ngày)
+            </label>
+            <input type="number" class="form-input" id="settings-daily-budget" value="${plan.dailyBudgetVnd || 100000}" step="10000">
+          </div>
+
           <!-- Food Allergies & Dietary Restrictions Input -->
           <div class="form-group">
             <label class="form-label" style="color: var(--accent-amber);">
               🚫 Món Ăn / Thực Phẩm Dị Ứng Hoặc Kiêng Khem
             </label>
             <input type="text" class="form-input" id="settings-food-allergies" value="${profile.foodAllergies || ''}" placeholder="Ví dụ: Hải sản tôm mực, Đậu nành, Sữa tươi lactose, Trứng...">
-            <span class="text-xs text-muted">* AI Coach sẽ tự động lọc và thay thế món dị ứng này ra khỏi thực đơn 7 ngày.</span>
+            <span class="text-xs text-muted">* AI Coach sẽ tự động lọc và tính toán lại thực đơn 7 ngày theo ngân sách và món dị ứng.</span>
           </div>
         </div>
 
@@ -116,6 +123,7 @@ export async function renderSettingsModal(onSaveComplete) {
       const newName = document.getElementById('settings-user-name').value.trim();
       const newWeight = parseFloat(document.getElementById('settings-user-weight').value);
       const newAllergies = document.getElementById('settings-food-allergies').value.trim();
+      const newBudget = parseInt(document.getElementById('settings-daily-budget').value) || 100000;
 
       await DataService.saveSetting('ninerouter_model', currentSelectedModel);
 
@@ -125,9 +133,10 @@ export async function renderSettingsModal(onSaveComplete) {
 
       await DataService.saveUserProfile(profile);
 
-      // Re-generate user's 7-day meal plan to respect new food allergies
+      // Re-generate user's 7-day meal plan to respect new budget & food allergies
       const plan = await DataService.getUserPlan();
-      plan.weeklyMealPlan = generate7DayMealPlan(plan.dailyBudgetVnd || 100000, DataService.getTodayString(), newAllergies);
+      plan.dailyBudgetVnd = newBudget;
+      plan.weeklyMealPlan = generate7DayMealPlan(newBudget, DataService.getTodayString(), newAllergies);
       await DataService.saveUserPlan(plan);
 
       modal.remove();

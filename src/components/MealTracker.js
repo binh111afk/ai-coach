@@ -7,6 +7,8 @@ import { renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, rende
 export async function renderMealTracker(onOpenAiCoach) {
   const goal = await DataService.getUserGoal();
   const todayLog = await DataService.getDailyLog();
+  const plan = await DataService.getUserPlan();
+  const dailyBudget = plan.dailyBudgetVnd || 100000;
 
   const caloriesIn = todayLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
   const totalProtein = todayLog.meals.reduce((sum, m) => sum + (m.protein || 0), 0);
@@ -32,7 +34,9 @@ export async function renderMealTracker(onOpenAiCoach) {
         <div class="card-header">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="utensils" class="text-purple"></i> Theo Dõi Bữa Ăn & Dinh Dưỡng</h2>
-            <p class="text-sm text-muted" style="margin-top: 0.25rem;">Nhập thủ công hoặc gõ mô tả tự nhiên để AI tự phân tích calo & macro!</p>
+            <p class="text-sm text-muted" style="margin-top: 0.25rem;">
+              Ngân sách ăn uống: <b style="color: var(--accent-purple);">${dailyBudget.toLocaleString('vi-VN')} VNĐ/ngày</b> | Nhập thủ công hoặc gõ mô tả tự nhiên để AI tự phân tích calo & macro!
+            </p>
           </div>
           <button class="btn btn-primary" id="btn-open-add-meal-modal">
             <i data-lucide="plus"></i> Thêm Món Ăn Mới
