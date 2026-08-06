@@ -70,16 +70,23 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
 
   const html = `
     <div class="card" style="background: linear-gradient(135deg, rgba(248, 246, 255, 0.98) 0%, rgba(255, 252, 248, 0.98) 100%); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 16px 36px -10px rgba(117, 86, 217, 0.15); position: relative; overflow: hidden; border-radius: 24px;">
-      <div class="card-header" style="margin-bottom: 1.25rem;">
+      <div class="card-header" style="margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
         <div class="card-title" style="display: flex; align-items: center; gap: 0.6rem; font-size: 1.15rem; font-weight: 800; color: #7556D9;">
           ${renderGeminiIcon({ width: 24, height: 24, strokeWidth: 1.8, color: '#7556D9' })}
           <span>Tổng Kết & Đánh Giá Tiến Độ AI Coach</span>
         </div>
 
-        <!-- Tabs: Daily vs Weekly -->
-        <div style="display: flex; gap: 0.4rem; background: var(--bg-subtle); padding: 0.3rem; border-radius: var(--radius-full); border: 1px solid var(--border-color);">
-          <button class="btn btn-primary btn-sm" id="btn-summary-tab-daily" style="padding: 0.4rem 1rem; font-size: 0.825rem; font-weight: 700;">Hôm Nay</button>
-          <button class="btn btn-secondary btn-sm" id="btn-summary-tab-weekly" style="padding: 0.4rem 1rem; font-size: 0.825rem; font-weight: 700;">Tuần Này</button>
+        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+          <!-- Live AI Re-analyze Button right next to tabs -->
+          <button class="btn btn-secondary btn-sm" id="btn-reanalyze-ai-summary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 700;">
+            <i data-lucide="refresh-cw"></i> AI Phân Tích Lại Chi Tiết
+          </button>
+
+          <!-- Tabs: Daily vs Weekly -->
+          <div style="display: flex; gap: 0.4rem; background: var(--bg-subtle); padding: 0.3rem; border-radius: var(--radius-full); border: 1px solid var(--border-color);">
+            <button class="btn btn-primary btn-sm" id="btn-summary-tab-daily" style="padding: 0.4rem 1rem; font-size: 0.825rem; font-weight: 700;">Hôm Nay</button>
+            <button class="btn btn-secondary btn-sm" id="btn-summary-tab-weekly" style="padding: 0.4rem 1rem; font-size: 0.825rem; font-weight: 700;">Tuần Này</button>
+          </div>
         </div>
       </div>
 
@@ -174,13 +181,6 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
         <div style="font-size: 0.925rem; line-height: 1.6; color: var(--text-main); font-weight: 600; background: var(--bg-card); padding: 0.9rem 1.1rem; border-radius: 14px; border: 1px solid var(--border-color);" id="ai-weekly-advice-text">
           "${weeklyAdvice}"
         </div>
-      </div>
-
-      <!-- Live AI Re-analyze Button -->
-      <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
-        <button class="btn btn-secondary btn-sm" id="btn-reanalyze-ai-summary">
-          <i data-lucide="refresh-cw"></i> AI Phân Tích Lại Chi Tiết
-        </button>
       </div>
     </div>
   `;
