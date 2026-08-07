@@ -33,6 +33,13 @@ async function initApp() {
     });
   }
 
+  // Toggle AI full-screen mode on body if starting on AI tab
+  if (currentTab === 'ai') {
+    document.body.classList.add('ai-tab-active');
+  } else {
+    document.body.classList.remove('ai-tab-active');
+  }
+
   // Render navigation header
   await renderNavigation(currentTab, handleTabChange, handleOpenAiCoach, handleOpenSettings);
 

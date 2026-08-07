@@ -382,13 +382,22 @@ async function showPageThinkingIndicator(container) {
     <div class="msg-avatar" style="background: transparent; border: none; box-shadow: none; display: flex; align-items: center; justify-content: center;">
       ${renderProviderIcon(currentModelId)}
     </div>
-    <div class="msg-bubble" style="display: flex; align-items: center; gap: 0.65rem; background: var(--bg-subtle); border: 1.5px solid var(--border-highlight);">
-      <div style="display: flex; align-items: center; gap: 0.35rem;">
-        <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0s;"></span>
-        <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.2s;"></span>
-        <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.4s;"></span>
+    <div class="msg-bubble">
+      <div class="thinking-content">
+        <svg class="thinking-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+        </svg>
+        <div class="thinking-text">
+          AI đang suy nghĩ
+          <span class="dots">
+            <span>.</span><span>.</span><span>.</span>
+          </span>
+        </div>
+        <div class="thinking-dots">
+          <span></span><span></span><span></span>
+        </div>
       </div>
-      <span style="font-size: 0.85rem; font-weight: 700; color: var(--accent-purple); animation: pulseText 1.5s infinite ease-in-out;">AI Coach đang suy nghĩ & phân tích...</span>
+      <div class="thinking-shimmer"></div>
     </div>
   `;
 

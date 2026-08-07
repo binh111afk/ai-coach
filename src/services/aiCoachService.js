@@ -33,14 +33,14 @@ Khi bạn tư vấn thực đơn hoặc đề xuất món ăn, bạn PHẢI cung
 - Giá ước tính tổng bữa ăn (costVnd).
 
 [QUY TẮC BẮT BUỘC VỀ ĐỀ XUẤT THAY ĐỔI - APPROVAL FLOW]
-Khi người dùng yêu cầu hoặc bạn muốn đề xuất BẤT KỲ thay đổi nào vào dữ liệu (đổi mục tiêu nước, thêm món ăn vào nhật ký, thêm bài tập, thay đổi mục tiêu giảm cân/calo, tạo checklist):
-1. Lời văn trả lời của bạn PHẢI LÀ MỘT VĂN BẢN HOÀN CHỈNH, ĐẦY ĐỦ Ý NGHĨA VÀ KẾT THÚC BẰNG DẤU CÂU TRÒN TRỊA (dấu chấm .). Tuyệt đối KHÔNG được viết câu dở dang (như "Hãy nhìn:", "Dù ăn gà rán...") trước khi chèn khối JSON.
-2. Giải thích rõ lý do trong văn bản và KÈM THEO 1 khối JSON chuẩn ở cuối câu trả lời dạng:
+BẤT CỨ KHI NÀO người dùng yêu cầu hoặc bạn muốn đề xuất BẤT KỲ thay đổi nào vào dữ liệu (ăn bữa ăn, đổi mục tiêu nước, thêm bài tập, thay đổi mục tiêu giảm cân/calo, tạo checklist):
+1. Lời văn trả lời của bạn PHẢI LÀ MỘT VĂN BẢN HOÀN CHỈNH, ĐẦY ĐỦ Ý NGHĨA VÀ KẾT THÚC BẰNG DẤU CÂU TRÒN TRỊA (dấu chấm .). Tuyệt đối KHÔNG được viết câu dở dang trước khi chèn khối JSON.
+2. Bạn BẮT BUỘC PHẢI CHÈN KHỐI JSON chuẩn ở cuối câu trả lời dạng \`\`\`json { "proposedChange": { ... } } \`\`\` để hệ thống hiển thị thẻ Thẻ xác nhận với 2 nút [Đồng ý] và [Từ chối] cho người dùng bấm.
 
 \`\`\`json
 {
   "proposedChange": {
-    "id": "prop_${Date.now()}",
+    "id": "prop_\${Date.now()}",
     "type": "UPDATE_GOAL" | "LOG_MEAL" | "LOG_WORKOUT" | "UPDATE_WATER_GOAL" | "GENERATE_CHECKLIST",
     "title": "Tiêu đề mô tả thay đổi",
     "details": [
@@ -126,8 +126,8 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
       const aiContent = data.choices[0]?.message?.content || "Xin lỗi, tôi không thể xử lý câu trả lời lúc này.";
 
-      // Parse potential proposedChange JSON from AI text response
-      const { textResponse, proposedChange } = this.extractProposedChange(aiContent);
+      // Parse potential proposedChange JSON from AI text response (with intelligent fallback)
+      const { textResponse, proposedChange } = await this.extractProposedChange(aiContent, userMessage);
 
       return {
         role: "assistant",
@@ -147,25 +147,67 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
   /**
    * Helper to extract proposedChange JSON block embedded in AI response markdown
    */
-  extractProposedChange(content) {
+  async extractProposedChange(content = '', userMessage = '') {
     let proposedChange = null;
     let textResponse = content;
 
-    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+    // 1. Check for markdown codeblocks: ```json, ```JSON, ```json5, ```
+    const jsonMatch = content.match(/```(?:json|JSON|json5)?\s*([\s\S]*?)\s*```/);
     if (jsonMatch && jsonMatch[1]) {
       try {
         const parsed = JSON.parse(jsonMatch[1]);
         if (parsed.proposedChange) {
           proposedChange = parsed.proposedChange;
-          // Remove the raw JSON block from displayed chat text for clean reading
-          textResponse = content.replace(/```json\s*[\s\S]*?\s*```/, '').trim();
+          textResponse = content.replace(/```(?:json|JSON|json5)?\s*[\s\S]*?\s*```/, '').trim();
         }
       } catch (e) {
-        console.warn("Could not parse proposedChange JSON from AI response:", e);
+        try {
+          const sanitized = jsonMatch[1].replace(/,\s*([\}\]])/g, '$1');
+          const parsed = JSON.parse(sanitized);
+          if (parsed.proposedChange) {
+            proposedChange = parsed.proposedChange;
+            textResponse = content.replace(/```(?:json|JSON|json5)?\s*[\s\S]*?\s*```/, '').trim();
+          }
+        } catch (err) {}
       }
     }
 
-    // Clean up trailing incomplete phrases left over right before the stripped JSON block
+    // 2. Check for raw {"proposedChange": ...} anywhere in text if codeblock wasn't matched
+    if (!proposedChange) {
+      const rawMatch = content.match(/\{\s*"proposedChange"\s*:[\s\S]*\}/);
+      if (rawMatch) {
+        try {
+          const parsed = JSON.parse(rawMatch[0]);
+          if (parsed.proposedChange) {
+            proposedChange = parsed.proposedChange;
+            textResponse = content.replace(rawMatch[0], '').trim();
+          }
+        } catch (e) {
+          try {
+            const sanitized = rawMatch[0].replace(/,\s*([\}\]])/g, '$1');
+            const parsed = JSON.parse(sanitized);
+            if (parsed.proposedChange) {
+              proposedChange = parsed.proposedChange;
+              textResponse = content.replace(rawMatch[0], '').trim();
+            }
+          } catch (err) {}
+        }
+      }
+    }
+
+    // 3. Fallback NLP extraction if the AI model forgot to output the JSON block for an actionable command
+    if (!proposedChange && userMessage) {
+      const text = userMessage.toLowerCase().trim();
+      const isActionable = /ăn|uống|bữa|món|nước|tập|chạy|gym|calo|cân nặng|mục tiêu/i.test(text);
+      if (isActionable) {
+        const fallbackResult = await this.smartLocalFallback(userMessage);
+        if (fallbackResult && fallbackResult.proposedChange) {
+          proposedChange = fallbackResult.proposedChange;
+        }
+      }
+    }
+
+    // Clean up trailing incomplete phrases
     textResponse = textResponse
       .replace(/(?:Hãy nhìn|Dưới đây|Như sau|Bảng đề xuất|Chi tiết đề xuất|Sau đây|Dù ăn gà rán|Tham khảo)[\s::]*$/gi, '')
       .trim();
