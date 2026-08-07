@@ -215,9 +215,19 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
     btn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> Đang Phân Tích...`;
 
     try {
-      const aiResponse = await AiCoachService.sendMessage(`Hãy nhận xét tổng kết ngắn gọn tiến độ hôm nay và tuần này của tôi dựa trên dữ liệu nhật ký calo, nước uống và bài tập.`);
+      const detailedPrompt = `Hãy lục tìm kiến thức y học thể thao, dinh dưỡng toàn diện và phân tích sâu tiến độ hôm nay của tôi (${profile.name}):
+- Calo nạp = ${caloriesIn} kcal, Calo đốt = ${caloriesOut} kcal, Calo ròng = ${netCalories} kcal (Mục tiêu = ${calorieTarget} kcal)
+- Nước uống = ${waterIntake}/${waterTarget} ml (${Math.round((waterIntake / waterTarget) * 100)}%)
+- Checklist kỷ luật = ${checklistDone}/${checklistTotal} công việc
+- Chuỗi Streak = ${progress.currentStreak} ngày
+
+Yêu cầu: Đánh giá ngắn gọn, chỉ ra ưu điểm, nhược điểm và đưa ra lời khuyên hành động thực tế tốt nhất.`;
+
+      const aiResponse = await AiCoachService.sendMessage(detailedPrompt);
       if (aiResponse && aiResponse.content) {
-        document.getElementById('ai-daily-advice-text').innerText = aiResponse.content.substring(0, 280) + "...";
+        const cleanAdvice = aiResponse.content.replace(/```json[\s\S]*?```/g, '').trim();
+        const adviceEl = document.getElementById('ai-daily-advice-text');
+        if (adviceEl) adviceEl.innerText = cleanAdvice;
       }
     } catch (e) {
       console.error(e);

@@ -10,6 +10,14 @@ import { renderGamificationPage } from './components/GamificationPage.js';
 import { renderAiCoachChat } from './components/AiCoachChat.js';
 import { renderAiChatPage } from './components/AiChatPage.js';
 import { renderSettingsModal } from './components/SettingsModal.js';
+import { showAchievementToast } from './components/ui/AchievementToast.js';
+
+// Global achievement toast listener — catches events from anywhere in the app
+window.addEventListener('achievement:unlocked', (e) => {
+  if (e.detail?.badgeIds?.length > 0) {
+    showAchievementToast(e.detail.badgeIds);
+  }
+});
 
 const TAB_ORDER = ['dashboard', 'plan', 'meals', 'workouts', 'photos', 'gamification', 'ai'];
 let currentTab = 'dashboard';

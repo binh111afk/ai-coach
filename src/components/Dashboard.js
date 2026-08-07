@@ -69,11 +69,11 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
               Nhật ký hôm nay của ${profile.name}
             </h1>
             <p class="text-sm text-muted" style="margin-bottom: 1.25rem;">
-              Mỗi ghi nhận nhỏ đều góp phần tạo nên chuỗi thói quen bền vững. Bạn đã hoàn thành <strong style="color: var(--accent-purple);">${completeCount}/4</strong> điểm chạm hôm nay.
+              Mỗi ghi nhận nhỏ đều góp phần tạo nên chuỗi thói quen bền vững. Bạn đã hoàn thành <strong style="color: var(--accent-purple);" id="dash-hero-touchpoint-count">${completeCount}/4</strong> điểm chạm hôm nay.
             </p>
 
             <!-- 4 Touchpoint Pills -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1.25rem;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1.25rem;" id="dash-hero-touchpoint-pills">
               ${renderTouchpointPill('Dinh dưỡng', hasMeal, 'utensils')}
               ${renderTouchpointPill('Nước uống', hasWater, 'droplets')}
               ${renderTouchpointPill('Tập luyện', hasWorkout, 'dumbbell')}
@@ -95,9 +95,9 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
             <div style="display: flex; align-items: center; justify-content: space-between;">
               <div>
                 <div class="text-xs text-muted" style="font-weight: 800; text-transform: uppercase;">Tiến độ check-in</div>
-                <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">Còn ${4 - completeCount} mục để trọn ngày</div>
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);" id="dash-hero-checkin-remaining">Còn ${4 - completeCount} mục để trọn ngày</div>
               </div>
-              <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-purple-light); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 900; color: var(--accent-purple); border: 3px solid var(--accent-purple);">
+              <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-purple-light); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 900; color: var(--accent-purple); border: 3px solid var(--accent-purple);" id="dash-hero-checkin-percent">
                 ${checkinPercent}%
               </div>
             </div>
@@ -106,11 +106,11 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; text-align: center;">
               <div style="background: var(--bg-subtle); padding: 0.6rem; border-radius: 12px; border: 1px solid var(--border-color);">
                 <div class="text-xs text-muted">Năng lượng</div>
-                <div style="font-weight: 800; font-size: 0.95rem; color: var(--accent-purple);">${caloriesIn} kcal</div>
+                <div style="font-weight: 800; font-size: 0.95rem; color: var(--accent-purple);" id="dash-hero-calories">${caloriesIn} kcal</div>
               </div>
               <div style="background: var(--bg-subtle); padding: 0.6rem; border-radius: 12px; border: 1px solid var(--border-color);">
                 <div class="text-xs text-muted">Nước</div>
-                <div style="font-weight: 800; font-size: 0.95rem; color: var(--accent-blue);">${(waterIntake / 1000).toFixed(1)} L</div>
+                <div style="font-weight: 800; font-size: 0.95rem; color: var(--accent-blue);" id="dash-hero-water">${(waterIntake / 1000).toFixed(1)} L</div>
               </div>
               <div style="background: var(--bg-subtle); padding: 0.6rem; border-radius: 12px; border: 1px solid var(--border-color);">
                 <div class="text-xs text-muted">Chuỗi ngày</div>
@@ -118,20 +118,17 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
               </div>
             </div>
 
-            <!-- Mascot Companion SVG -->
-            <div style="display: flex; align-items: center; gap: 0.75rem; background: var(--accent-purple-light); padding: 0.75rem; border-radius: 14px;">
-              <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--accent-purple); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2a2 2 0 0 1 2 2v2h-4V4a2 2 0 0 1 2-2z"/>
-                  <rect width="18" height="12" x="3" y="6" rx="2"/>
-                  <circle cx="9" cy="12" r="1" fill="currentColor"/>
-                  <circle cx="15" cy="12" r="1" fill="currentColor"/>
-                  <path d="M9 16c1.5 1 4.5 1 6 0"/>
+            <!-- AI Coach Message Card (No robot head icon) -->
+            <div class="dash-coach-msg">
+              <div class="msg-label">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width: 12px; height: 12px;">
+                  <path d="M12 2L9.5 8.5 3 9.5l5 4.5L6.5 21 12 17.5 17.5 21 16 14l5-4.5-6.5-1L12 2z"/>
                 </svg>
+                AI Coach
               </div>
-              <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">
-                "Cố lên ${profile.name}! Chỉ còn ${remainingCalories} kcal nữa là hoàn thành mục tiêu ngày!"
-              </div>
+              <p class="msg-text" id="dash-hero-coach-text">
+                "Cố lên <strong>${profile.name}</strong>! Chỉ còn <span class="highlight">${remainingCalories} kcal</span> nữa là hoàn thành mục tiêu ngày!"
+              </p>
             </div>
           </div>
         </div>
@@ -305,23 +302,76 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       }
     }
 
+    function updateDashboardRealtime(updatedLog) {
+      const cIn = updatedLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
+      const cOut = updatedLog.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
+      const net = cIn - cOut;
+      const rem = calorieTarget - net;
+      const wIntake = updatedLog.waterIntake || 0;
+
+      const hMeal = updatedLog.meals.length > 0;
+      const hWater = wIntake > 0;
+      const hWorkout = updatedLog.workouts.length > 0 || updatedLog.isRestDay;
+      const hChecklist = updatedLog.checklist.some(t => t.done);
+
+      const cIns = [hMeal, hWater, hWorkout, hChecklist];
+      const cCount = cIns.filter(Boolean).length;
+      const cPercent = Math.round((cCount / 4) * 100);
+
+      const countEl = document.getElementById('dash-hero-touchpoint-count');
+      if (countEl) countEl.innerText = `${cCount}/4`;
+
+      const pillsEl = document.getElementById('dash-hero-touchpoint-pills');
+      if (pillsEl) {
+        pillsEl.innerHTML = `
+          ${renderTouchpointPill('Dinh dưỡng', hMeal, 'utensils')}
+          ${renderTouchpointPill('Nước uống', hWater, 'droplets')}
+          ${renderTouchpointPill('Tập luyện', hWorkout, 'dumbbell')}
+          ${renderTouchpointPill('Checklist', hChecklist, 'check-square')}
+        `;
+        if (window.lucide) window.lucide.createIcons({ el: pillsEl });
+      }
+
+      const remEl = document.getElementById('dash-hero-checkin-remaining');
+      if (remEl) remEl.innerText = `Còn ${4 - cCount} mục để trọn ngày`;
+
+      const pctEl = document.getElementById('dash-hero-checkin-percent');
+      if (pctEl) pctEl.innerText = `${cPercent}%`;
+
+      const calEl = document.getElementById('dash-hero-calories');
+      if (calEl) calEl.innerText = `${cIn} kcal`;
+
+      const waterEl = document.getElementById('dash-hero-water');
+      if (waterEl) waterEl.innerText = `${(wIntake / 1000).toFixed(1)} L`;
+
+      const msgEl = document.getElementById('dash-hero-coach-text');
+      if (msgEl) {
+        msgEl.innerHTML = `"Cố lên <strong>${profile.name}</strong>! Chỉ còn <span class="highlight">${rem} kcal</span> nữa là hoàn thành mục tiêu ngày!"`;
+      }
+
+      // Live refresh AI Summary Widget
+      renderAiSummaryWidget('dashboard-ai-summary-container');
+    }
+
     // Water quick buttons + smooth animation
     document.getElementById('btn-water-250')?.addEventListener('click', async () => {
       const updatedLog = await DataService.addWaterIntake(todayLog.date, 250);
       animateWaterUpdate(updatedLog.waterIntake, waterTarget);
+      updateDashboardRealtime(updatedLog);
       confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
     });
 
     document.getElementById('btn-water-500')?.addEventListener('click', async () => {
       const updatedLog = await DataService.addWaterIntake(todayLog.date, 500);
       animateWaterUpdate(updatedLog.waterIntake, waterTarget);
+      updateDashboardRealtime(updatedLog);
       confetti({ particleCount: 50, spread: 80, origin: { y: 0.8 } });
     });
 
     document.getElementById('btn-water-reset')?.addEventListener('click', async () => {
       const updatedLog = await DataService.resetWaterIntake(todayLog.date);
-      // Smoothly retreat fill bar and percentage down to 0%
       animateWaterUpdate(0, waterTarget);
+      updateDashboardRealtime(updatedLog);
     });
 
     // Custom Circular Checkbox toggles + Smooth SVG Path Drawing (NO Full Page Re-render Flash!)
@@ -334,6 +384,8 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
         const doneCount = updatedLog.checklist.filter(t => t.done).length;
         badgeCountEl.innerText = `${doneCount}/${updatedLog.checklist.length} Tick`;
       }
+
+      updateDashboardRealtime(updatedLog);
 
       if (isChecked) {
         confetti({ particleCount: 40, spread: 70, origin: { y: 0.6 } });
@@ -362,6 +414,8 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
               const doneCount = updatedLog.checklist.filter(t => t.done).length;
               badgeCountEl.innerText = `${doneCount}/${updatedLog.checklist.length} Tick`;
             }
+
+            updateDashboardRealtime(updatedLog);
           }, 350);
         }
       });

@@ -467,32 +467,32 @@ h1, h2, h3, h4 {
 
 /* Fullscreen Modal Overlay with Backdrop Blur Covering Entire Viewport Screen */
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 999999;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 999999 !important;
+  background: rgba(15, 23, 42, 0.7) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.3s ease, visibility 0.3s ease;
-  padding: 1.5rem;
-  box-sizing: border-box;
+  padding: 1.5rem !important;
+  box-sizing: border-box !important;
 }
 
 .modal-overlay.active {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 /* Custom Animated Modal Dialog Component (Success / Warning / Confirm) */
@@ -768,39 +768,32 @@ h1, h2, h3, h4 {
   border: 1px solid rgba(117, 86, 217, 0.25);
 }
 
-/* Modals */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(38, 33, 60, 0.6);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.25rem;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.modal-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
+/* Modals & Popup Cards (Centered & Scrollbars Hidden) */
 .modal-card {
   background: var(--bg-card);
   border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-card);
+  border-radius: 24px;
   max-width: 640px;
   width: 100%;
-  max-height: 90vh;
+  max-height: calc(100vh - 4rem) !important;
   overflow-y: auto;
-  padding: 2rem;
-  box-shadow: 0 20px 50px rgba(46, 34, 80, 0.25);
-  transform: scale(0.95);
+  padding: 1.75rem;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  transform: scale(0.94);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  margin: auto !important;
+
+  /* HIDE ALL SCROLLBARS AS REQUESTED */
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.modal-card::-webkit-scrollbar,
+.custom-modal-card::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .modal-overlay.active .modal-card {
@@ -1053,3 +1046,1063 @@ h1, h2, h3, h4 {
   color: var(--accent-purple);
 }
 
+/* ============================================================
+   RESPONSIVE — MOBILE & TABLET
+   Breakpoints:
+     1024px  → Tablet landscape (iPad, small laptop)
+     768px   → Tablet portrait / large phone landscape
+     480px   → Mobile portrait standard
+     360px   → Small phone (SE, Galaxy A)
+   PC layout is fully untouched above these breakpoints.
+============================================================ */
+
+/* ── 1024px: Tablet Landscape ── */
+@media (max-width: 1024px) {
+  .main-container {
+    padding: 1.25rem;
+    gap: 1.25rem;
+  }
+
+  /* Navbar: compress nav-item labels to icon-only if needed */
+  .nav-item span {
+    display: none;
+  }
+  .nav-item {
+    padding: 0.5rem 0.65rem;
+    gap: 0;
+  }
+
+  /* Hero grid: side-by-side but tighter */
+  .dash-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Main 2-col dashboard grid → single column */
+  [style*="grid-template-columns: 2fr 1fr"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.25rem !important;
+  }
+}
+
+/* ── 768px: Tablet Portrait / Large Phone ── */
+@media (max-width: 768px) {
+  /* ─ Global Layout ─ */
+  .main-container {
+    padding: 0.85rem;
+    gap: 1rem;
+  }
+
+  /* ─ Navbar ─ */
+  .navbar {
+    padding: 0.55rem 0.85rem;
+  }
+  .navbar-container {
+    gap: 0.4rem;
+  }
+  .brand-logo span {
+    display: none; /* hide "FitCoach AI" text, keep icon */
+  }
+  .brand-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .nav-links {
+    gap: 0.15rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-item {
+    padding: 0.4rem 0.55rem;
+    font-size: 0.8rem;
+  }
+
+  /* ─ Navbar right-side widgets ─ */
+  /* Hide level XP bar on small screens, keep just the level badge */
+  #btn-level-widget > div:nth-child(2),
+  #btn-level-widget > span {
+    display: none;
+  }
+  #btn-level-widget {
+    padding: 0.3rem 0.55rem;
+    gap: 0.25rem;
+  }
+  /* Journey day badge: shorten */
+  #btn-journey-day-widget {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.6rem;
+    gap: 0.3rem;
+  }
+
+  /* ─ Hero Card ─ */
+  .dash-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Hero h1 */
+  [style*="font-size: 1.85rem"] {
+    font-size: 1.35rem !important;
+  }
+
+  /* Touchpoint pills → 2×2 */
+  [style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.4rem !important;
+  }
+
+  /* ─ Hero action buttons: stack vertically ─ */
+  [style*="display: flex; gap: 0.75rem;"] > .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* ─ Main Dashboard 2-col → single col ─ */
+  [style*="grid-template-columns: 2fr 1fr"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  /* ─ Metric 3-col grids → responsive ─ */
+  [style*="grid-template-columns: 1fr 1fr 1fr"] {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 0.4rem !important;
+  }
+
+  /* ─ Card ─ */
+  .card {
+    padding: 1.1rem;
+    border-radius: 18px;
+  }
+
+  /* ─ Charts: reduce min-height ─ */
+  #chart-weight-trend { min-height: 200px !important; }
+  #chart-calorie-io   { min-height: 190px !important; }
+  #chart-macro-doughnut { min-height: 170px !important; }
+
+  /* ─ Water tracker buttons ─ */
+  [style*="grid-template-columns: 1fr 1fr 1fr"].water-btns,
+  #btn-water-250, #btn-water-500, #btn-water-reset {
+    font-size: 0.77rem;
+    padding: 0.45rem 0.3rem;
+  }
+
+  /* ─ Checklist add form ─ */
+  #form-add-daily-task {
+    flex-wrap: wrap;
+  }
+  #form-add-daily-task .form-input {
+    flex: 1 1 100%;
+  }
+
+  /* ─ Badges ─ */
+  .badge {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.55rem;
+  }
+}
+
+/* ── 480px: Mobile Portrait ── */
+@media (max-width: 480px) {
+  /* ─ Layout ─ */
+  .main-container {
+    padding: 0.65rem;
+    gap: 0.85rem;
+  }
+
+  /* ─ Navbar: ultra-compact ─ */
+  .navbar {
+    padding: 0.45rem 0.6rem;
+  }
+  .navbar-container {
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+  }
+  /* Journey day: hide total on very small */
+  #btn-journey-day-widget {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.5rem;
+  }
+  /* Settings & theme icons */
+  .btn.btn-secondary.btn-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* ─ Hero Card ─ */
+  [style*="font-size: 1.85rem"] {
+    font-size: 1.15rem !important;
+    line-height: 1.3 !important;
+  }
+  /* Hero mascot card on right: hide on very small */
+  .dash-grid > div:last-child {
+    display: none;
+  }
+
+  /* ─ Touchpoint pills → 2×2 ─ */
+  [style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ─ Cards ─ */
+  .card {
+    padding: 0.9rem;
+    border-radius: 16px;
+  }
+  .card-title {
+    font-size: 0.85rem;
+  }
+
+  /* ─ Compact metric grid 3-col: 1 col on tiny ─ */
+  [style*="grid-template-columns: 1fr 1fr 1fr"].compact-metrics {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ─ Charts ─ */
+  #chart-weight-trend   { min-height: 175px !important; }
+  #chart-calorie-io     { min-height: 165px !important; }
+  #chart-macro-doughnut { min-height: 150px !important; }
+
+  /* ─ Water buttons ─ */
+  [style*="grid-template-columns: 1fr 1fr 1fr"] {
+    gap: 0.35rem !important;
+  }
+
+  /* ─ Action buttons in hero ─ */
+  .btn {
+    font-size: 0.82rem;
+    padding: 0.5rem 0.85rem;
+  }
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+  }
+
+  /* ─ AI Summary Widget ─ */
+  #dashboard-ai-summary-container .card {
+    padding: 0.9rem;
+  }
+
+  /* ─ Modals ─ */
+  .modal-card,
+  .custom-modal-card {
+    max-width: calc(100vw - 1.5rem) !important;
+    padding: 1.25rem !important;
+    border-radius: 20px !important;
+  }
+}
+
+/* ── 360px: Small Phone (iPhone SE, Galaxy A-series) ── */
+@media (max-width: 360px) {
+  .main-container {
+    padding: 0.5rem;
+    gap: 0.65rem;
+  }
+
+  .navbar {
+    padding: 0.4rem 0.5rem;
+  }
+
+  /* Nav item text hidden, icon only */
+  .nav-item span { display: none !important; }
+  .nav-item { padding: 0.35rem 0.45rem; }
+
+  [style*="font-size: 1.85rem"] {
+    font-size: 1rem !important;
+  }
+
+  .card {
+    padding: 0.75rem;
+    border-radius: 14px;
+  }
+
+  #chart-weight-trend   { min-height: 150px !important; }
+  #chart-calorie-io     { min-height: 145px !important; }
+  #chart-macro-doughnut { min-height: 130px !important; }
+}
+
+/* ============================================================
+   RESPONSIVE — TAB TẬP LUYỆN (WorkoutTracker)
+============================================================ */
+
+/* ── 768px ── */
+@media (max-width: 768px) {
+  /* Header: stack h2+desc and button group vertically */
+  #btn-open-workout-modal,
+  #btn-toggle-rest-day {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.75rem;
+  }
+
+  /* Card-header flex wraps on mobile */
+  .card .card-header {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+  .card .card-header > div:last-child {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* NLP quick-parse input row: stack vertically */
+  [style*="margin-top: 1rem; display: flex; gap: 0.6rem"] {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  #quick-workout-nlp-input {
+    width: 100%;
+  }
+  #btn-quick-parse-workout {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Stats summary grid: 1 col on mobile */
+  [style*="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))"] {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  /* Workout item row: wrap so kcal goes below */
+  [style*="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle)"] {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  [style*="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle)"] > div:last-child {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Stat value font size */
+  [style*="font-size: 1.8rem; font-weight: 900"] {
+    font-size: 1.4rem !important;
+  }
+}
+
+/* ── 480px ── */
+@media (max-width: 480px) {
+  /* Header button group: stack */
+  .card .card-header > div[style*="display: flex; gap: 0.75rem"] {
+    flex-direction: column !important;
+    gap: 0.4rem !important;
+    width: 100%;
+  }
+  #btn-open-workout-modal,
+  #btn-toggle-rest-day {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.8rem;
+  }
+
+  /* Workout item: tighter padding */
+  [style*="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle)"] {
+    padding: 0.65rem 0.75rem !important;
+  }
+
+  /* Workout name font */
+  [style*="font-weight: 800; font-size: 0.95rem; color: var(--text-main)"] {
+    font-size: 0.875rem !important;
+  }
+
+  /* Kcal label */
+  [style*="font-weight: 900; font-size: 1.05rem; color: var(--accent-amber)"] {
+    font-size: 0.9rem !important;
+  }
+
+  /* Modal full-width */
+  #add-workout-modal .modal-card {
+    max-width: calc(100vw - 1rem) !important;
+    padding: 1.1rem !important;
+    border-radius: 18px !important;
+  }
+}
+
+/* ── 360px ── */
+@media (max-width: 360px) {
+  #btn-open-workout-modal,
+  #btn-toggle-rest-day {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  [style*="font-size: 1.8rem; font-weight: 900"] {
+    font-size: 1.2rem !important;
+  }
+
+  [style*="font-size: 1.35rem; font-weight: 900"] {
+    font-size: 1rem !important;
+  }
+}
+
+/* ============================================================
+   TAB THÀNH TÍCH — GamificationPage Component Styles
+============================================================ */
+
+/* ── Hero Row (Level + Streak) ── */
+.gami-hero-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.gami-crown-icon {
+  width: 72px;
+  height: 72px;
+  background: var(--primary-gradient);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 10px 25px rgba(117, 86, 217, 0.35);
+  flex-shrink: 0;
+}
+
+.gami-level-name {
+  font-size: 1.65rem;
+}
+
+.gami-streak-card {
+  background: var(--bg-card);
+  padding: 1.1rem 1.6rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.gami-streak-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--accent-amber-light);
+  color: var(--accent-amber);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.gami-streak-value {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--accent-amber);
+}
+
+/* ── Badge Card ── */
+.badge-card {
+  padding: 1.1rem 0.75rem;
+  text-align: center;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-color);
+  background: var(--bg-subtle);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.badge-card--unlocked {
+  background: var(--bg-card);
+  border-color: var(--border-highlight);
+}
+
+.badge-card--locked {
+  opacity: 0.55;
+}
+
+.badge-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(117, 86, 217, 0.12);
+}
+
+.badge-card__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 0.65rem auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-card__name {
+  font-weight: 800;
+  font-size: 0.875rem;
+  margin-bottom: 0.2rem;
+  line-height: 1.3;
+}
+
+.badge-card__desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ── Badge Grids ── */
+
+/* Desktop: shown on ≥ 769px */
+.badges-grid-desktop {
+  display: block;
+}
+
+.badges-desktop-initial,
+.badges-desktop-more-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+/* Expandable container for 10+ badges on PC */
+.badges-desktop-more {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, margin-top 0.3s ease;
+  margin-top: 0;
+}
+
+.badges-desktop-more.is-expanded {
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: 1rem;
+}
+
+#btn-expand-desktop-badges.is-expanded .expand-icon {
+  transform: rotate(180deg);
+}
+
+/* Mobile: hidden on ≥ 769px */
+.badges-grid-mobile {
+  display: none;
+}
+
+/* Mobile preview: exactly 4 cols (icon-focused, compact) */
+.badges-preview-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+/* Popup grid: 4 cols, no overflow */
+.badges-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+/* ── Responsive ── */
+
+/* 768px: switch to mobile badge layout */
+@media (max-width: 768px) {
+  /* Level hero */
+  .gami-hero-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .gami-crown-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+
+  .gami-level-name {
+    font-size: 1.3rem !important;
+  }
+
+  .gami-streak-card {
+    width: 100%;
+    padding: 0.9rem 1.1rem;
+  }
+
+  .gami-streak-value {
+    font-size: 1.3rem;
+  }
+
+  /* Hide desktop grid, show mobile preview */
+  .badges-grid-desktop { display: none; }
+  .badges-grid-mobile  { display: block; }
+
+  /* XP rules section: reduce font */
+  [style*="border-left: 4px solid var(--accent-purple)"],
+  [style*="border-left: 4px solid var(--accent-amber)"] {
+    padding: 0.85rem !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* 480px: tighter badge preview */
+@media (max-width: 480px) {
+  .badges-preview-row {
+    gap: 0.4rem;
+  }
+
+  .badge-card {
+    padding: 0.75rem 0.4rem;
+    border-radius: 14px;
+  }
+
+  .badge-card__icon {
+    width: 38px;
+    height: 38px;
+    margin-bottom: 0.45rem;
+  }
+
+  .badge-card__name {
+    font-size: 0.72rem;
+  }
+
+  .badge-card__desc {
+    display: none; /* Hide desc on tiny screens to save space */
+  }
+
+  .badge-card .badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  .gami-crown-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* Popup: full screen on mobile */
+  #all-badges-popup-card {
+    max-height: 92vh !important;
+    border-radius: 20px !important;
+  }
+
+  .badges-popup-grid {
+    gap: 0.4rem;
+  }
+}
+
+/* 360px: smallest phone */
+@media (max-width: 360px) {
+  .gami-level-name {
+    font-size: 1.1rem !important;
+  }
+
+  .gami-streak-value {
+    font-size: 1.1rem;
+  }
+
+  .badge-card__name {
+    font-size: 0.65rem;
+  }
+
+  .badges-preview-row,
+  .badges-popup-grid {
+    gap: 0.3rem;
+  }
+}
+
+/* ============================================================
+   ACHIEVEMENT TOAST NOTIFICATION
+============================================================ */
+
+#achievement-toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+#achievement-toast {
+  pointer-events: all;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: linear-gradient(135deg, #1e1440 0%, #2d1f5e 50%, #1e1440 100%);
+  border: 1.5px solid rgba(168, 145, 255, 0.45);
+  border-radius: 20px;
+  padding: 0.85rem 1.1rem 1.25rem 0.9rem;
+  box-shadow:
+    0 20px 50px rgba(117, 86, 217, 0.35),
+    0 8px 20px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  min-width: 280px;
+  max-width: 340px;
+  overflow: hidden;
+  transform: translateX(calc(100% + 2rem));
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+}
+
+#achievement-toast.ach-toast--visible {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+#achievement-toast.ach-toast--hiding {
+  transform: translateX(calc(100% + 2rem));
+  opacity: 0;
+}
+
+/* Shimmer shine effect */
+.ach-toast__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%);
+  animation: ach-shine 2.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ach-shine {
+  0%   { transform: translateX(-100%); }
+  60%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Icon circle */
+.ach-toast__icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #7556D9, #A891FF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(117, 86, 217, 0.5);
+}
+
+.ach-toast__icon-lucide {
+  width: 24px !important;
+  height: 24px !important;
+  color: #fff;
+  stroke: #fff !important;
+}
+
+/* Text body */
+.ach-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ach-toast__label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #A891FF;
+  margin-bottom: 0.15rem;
+}
+
+.ach-toast__name {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin-bottom: 0.15rem;
+  line-height: 1.2;
+}
+
+.ach-toast__desc {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.3;
+}
+
+/* Close button */
+.ach-toast__close {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.6rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.ach-toast__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* Progress bar (bottom) */
+.ach-toast__progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, #7556D9, #A891FF, #fbbf24);
+  border-radius: 0 0 20px 20px;
+  transition: width 0.1s linear;
+  transform-origin: left;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  #achievement-toast-container {
+    bottom: 1rem;
+    right: 0.75rem;
+    left: 0.75rem;
+  }
+  #achievement-toast {
+    min-width: unset;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* ===== DASHBOARD AI COACH MESSAGE CARD ===== */
+.dash-coach-msg {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow:
+    0 2px 6px rgba(99, 102, 241, 0.06),
+    0 8px 20px rgba(99, 102, 241, 0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.dash-coach-msg:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 10px rgba(99, 102, 241, 0.08),
+    0 12px 28px rgba(99, 102, 241, 0.12);
+}
+
+.dash-coach-msg .msg-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7c3aed;
+  margin-bottom: 4px;
+  letter-spacing: 0.02em;
+}
+
+.dash-coach-msg .msg-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #4c1d95;
+  font-weight: 500;
+}
+
+.dash-coach-msg .msg-text strong {
+  font-weight: 600;
+  color: #5b21b6;
+}
+
+.dash-coach-msg .msg-text .highlight {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+/* Dark Mode Support */
+body.dark .dash-coach-msg {
+  background: linear-gradient(135deg, rgba(117, 86, 217, 0.2) 0%, rgba(96, 66, 192, 0.15) 100%);
+  border-color: rgba(168, 145, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+body.dark .dash-coach-msg .msg-label {
+  color: #a891ff;
+}
+
+body.dark .dash-coach-msg .msg-text {
+  color: var(--text-main);
+}
+
+body.dark .dash-coach-msg .msg-text strong {
+  color: #a891ff;
+}
+
+body.dark .dash-coach-msg .msg-text .highlight {
+  color: #a891ff;
+}
+
+/* ===== LEVEL ROADMAP CARD & GRID ===== */
+.roadmap-card {
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.05), 0 12px 28px -6px rgba(99, 102, 241, 0.1);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.roadmap-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.roadmap-header .icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(109, 40, 217, 0.3);
+}
+
+.roadmap-header .icon svg {
+  width: 16px;
+  height: 16px;
+  color: #fff;
+}
+
+.roadmap-header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.levels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.level-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  border-radius: 14px;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-color);
+  cursor: default;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.level-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.level-item.current {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border-color: #c4b5fd;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.15);
+}
+
+.level-item.current:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.2);
+}
+
+.level-item.locked {
+  opacity: 0.7;
+}
+
+.level-item.completed {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  letter-spacing: 0.02em;
+}
+
+.level-item.completed .level-badge {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.level-item.locked .level-badge {
+  background: #94a3b8;
+}
+
+.level-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.level-item.current .level-name {
+  color: #5b21b6;
+}
+
+.level-xp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.level-item.current .level-xp {
+  color: #7c3aed;
+}
+
+.level-xp svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.current-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: #ddd6fe;
+  color: #6d28d9;
+}
+
+.current-tag svg {
+  width: 10px;
+  height: 10px;
+}
+
+@media (max-width: 640px) {
+  .roadmap-card {
+    padding: 18px 16px;
+  }
+  .levels-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

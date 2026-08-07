@@ -213,6 +213,9 @@ export async function renderAiChatPage(onStateUpdated) {
       inputText.disabled = false;
       inputText.focus();
 
+      // Award XP for using AI Coach (dispatches achievement event if new badge)
+      DataService.awardAiCoachXp().catch(() => {});
+
       await refreshMessages(container, activeSessionId, onStateUpdated);
       await renderChatSessionsSidebar(activeSessionId, async (selectedId) => {
         activeSessionId = selectedId;
