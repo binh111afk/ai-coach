@@ -1,71 +1,94 @@
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
-import { renderGeminiIcon, renderPdfIcon } from './ui/Icons.js';
+import { CONFIG } from '../config.js';
+import { renderGeminiIcon, renderPdfIcon, renderProviderIcon } from './ui/Icons.js';
 
 export async function renderAiChatPage(onStateUpdated) {
   let isSending = false;
-  let currentAttachment = null;
+  let attachedFiles = [];
 
   const profile = await DataService.getUserProfile();
   let activeSessionId = await DataService.getCurrentSessionId();
 
   const chatPageHtml = `
-    <!-- Edge-to-Edge Full Screen Layout -->
-    <div style="width: 100%; height: calc(100vh - 65px); display: flex; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; background: var(--bg-card);">
-      
-      <!-- Left Sidebar: Chat Sessions / Threads (Phiên Trò Chuyện) -->
-      <div style="width: 280px; flex-shrink: 0; background: var(--bg-subtle); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; box-sizing: border-box;">
-        
-        <!-- New Chat Action -->
-        <div style="padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
-          <div style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); display: flex; align-items: center; gap: 0.4rem;">
-            <i data-lucide="message-square-plus" style="width: 18px; height: 18px;"></i>
-            <span>Đoạn Trò Chuyện</span>
+    <div class="ai-chat-app">
+      <!-- SIDEBAR -->
+      <aside class="ai-chat-sidebar" id="ai-sidebar">
+        <div class="ai-sidebar-inner">
+          <div class="ai-sidebar-top">
+            <button class="btn-sidebar btn-history">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+              </svg>
+              Đoạn Trò Chuyện
+            </button>
+            <button class="btn-sidebar btn-new" id="btn-new-chat-session">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Mới
+            </button>
           </div>
-          <button class="btn btn-primary btn-sm" id="btn-new-chat-session" style="padding: 0.35rem 0.75rem; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem;">
-            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Mới
-          </button>
+
+          <div class="chat-list" id="chat-sessions-sidebar-container">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="ai-chat-main">
+        <!-- Top bar -->
+        <div class="ai-topbar">
+          <div class="topbar-left">
+            <button class="btn-toggle" id="btnToggleSidebar" title="Đóng/Mở sidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+
+            <!-- Model selector -->
+            <div class="model-select" id="modelSelect">
+              <span id="currentModelIcon" style="display: flex; align-items: center;"></span>
+              <span class="model-name" id="currentModelText">Gemini 3.6 Flash</span>
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+
+              <div class="model-dropdown" id="modelDropdown">
+                <!-- Dynamically populated model items with brand logos -->
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Chat Sessions List -->
-        <div style="flex: 1; overflow-y: auto; padding: 0.65rem; display: flex; flex-direction: column; gap: 0.4rem;" id="chat-sessions-sidebar-container">
+        <!-- Chat area -->
+        <div class="chat-area" id="page-chat-messages-container">
           <!-- Rendered dynamically -->
         </div>
-      </div>
 
-      <!-- Center Edge-to-Edge Main Chat Workspace -->
-      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; background: var(--bg-card);">
-        
-        <!-- Messages Stream (Center-Aligned Spacious Column) -->
-        <div style="flex: 1; overflow-y: auto; padding: 1.5rem 2rem; display: flex; flex-direction: column; gap: 1.25rem;" id="page-chat-messages-container">
-          <!-- Rendered dynamically -->
-        </div>
+        <!-- Input area -->
+        <div class="input-area">
+          <!-- File attach preview chips -->
+          <div class="attach-preview" id="page-attach-preview-container"></div>
 
-        <!-- Attachment Demo Preview Container -->
-        <div id="page-attachment-preview-container" style="display: none; padding: 0.6rem 2rem; background: var(--bg-subtle); border-top: 1px solid var(--border-color); align-items: center; gap: 0.75rem;">
-          <!-- Rendered dynamically -->
-        </div>
-
-        <!-- Bottom Chat Input Bar -->
-        <div style="padding: 1rem 2rem 1.25rem 2rem; border-top: 1px solid var(--border-color); background: var(--bg-card);">
-          <div style="max-width: 950px; margin: 0 auto; display: flex; align-items: center; gap: 0.75rem; background: var(--bg-subtle); padding: 0.4rem 0.6rem 0.4rem 0.85rem; border-radius: var(--radius-card); border: 1.5px solid var(--border-color); box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
-            
-            <!-- File Attachment Button -->
-            <label for="page-chat-file-input" style="cursor: pointer; padding: 0.5rem; border-radius: 8px; background: transparent; color: var(--accent-purple); display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;" title="Đính kèm File Ảnh hoặc PDF">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+          <div class="input-wrap">
+            <label for="page-chat-file-input" class="btn-attach" title="Đính kèm file (Có thể chọn nhiều file)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
               </svg>
             </label>
-            <input type="file" id="page-chat-file-input" accept="image/*,application/pdf,.pdf,.xlsx,.xls,.docx,.doc" style="display: none;">
+            <input type="file" id="page-chat-file-input" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.xlsx,.xls,.csv,.doc,.docx" style="display: none;">
 
-            <input type="text" class="form-input" id="page-chat-input-text" placeholder="Nhập câu hỏi, thực đơn hoặc đính kèm ảnh/PDF/Excel/DOCX..." style="flex: 1; border: none; background: transparent; padding: 0.5rem 0.25rem; font-size: 0.95rem; outline: none; box-shadow: none;">
-            
-            <button class="btn btn-primary" id="page-chat-btn-send" style="width: 42px; height: 42px; padding: 0; font-weight: 800; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-              <i data-lucide="send" style="width: 17px; height: 17px; margin-left: 2px;"></i>
+            <input type="text" id="page-chat-input-text" placeholder="Nhập câu hỏi, thực đơn hoặc đính kèm ảnh/PDF/Excel/DOCX..." />
+            <button class="btn-send" id="page-chat-btn-send" title="Gửi">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
             </button>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   `;
 
@@ -78,9 +101,81 @@ export async function renderAiChatPage(onStateUpdated) {
     const sendBtn = document.getElementById('page-chat-btn-send');
     const inputText = document.getElementById('page-chat-input-text');
     const fileInput = document.getElementById('page-chat-file-input');
-    const attachmentContainer = document.getElementById('page-attachment-preview-container');
+    const attachPreview = document.getElementById('page-attach-preview-container');
+    const sidebar = document.getElementById('ai-sidebar');
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
 
-    // Helpers to build sidebar with all callbacks
+    btnToggleSidebar?.addEventListener('click', () => {
+      sidebar?.classList.toggle('collapsed');
+    });
+
+    const buildModelDropdown = async () => {
+      const dropdown = document.getElementById('modelDropdown');
+      const currentModelText = document.getElementById('currentModelText');
+      const currentModelIcon = document.getElementById('currentModelIcon');
+      if (!dropdown || !currentModelText) return;
+
+      const currentModelId = await DataService.getSelectedModel();
+      const currentModelObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId) || CONFIG.SUPPORTED_MODELS[0];
+      currentModelText.textContent = currentModelObj.name.split(' (')[0];
+      if (currentModelIcon) currentModelIcon.innerHTML = renderProviderIcon(currentModelObj.id);
+
+      const top3Ids = [
+        "gemini/gemini-3.6-flash",
+        "oc/big-pickle",
+        "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
+      ];
+
+      const top3Models = CONFIG.SUPPORTED_MODELS.filter(m => top3Ids.includes(m.id));
+      const remainingModels = CONFIG.SUPPORTED_MODELS.filter(m => !top3Ids.includes(m.id));
+
+      dropdown.innerHTML = `
+        <div class="model-dropdown-section-title">Model Nổi Bật (Khuyên Dùng)</div>
+        ${top3Models.map(m => `
+          <div class="model-option ${m.id === currentModelId ? 'active' : ''}" data-model-id="${m.id}">
+            ${renderProviderIcon(m.id)}
+            <div style="flex: 1; min-width: 0;">
+              <div class="name">${m.name.split(' (')[0]}</div>
+              <div class="desc">${m.name.includes('(') ? m.name.split('(')[1].replace(')', '') : 'AI Coach Model'}</div>
+            </div>
+          </div>
+        `).join('')}
+        <div class="model-dropdown-section-title" style="margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 8px;">Tất Cả Models (${remainingModels.length})</div>
+        ${remainingModels.map(m => `
+          <div class="model-option ${m.id === currentModelId ? 'active' : ''}" data-model-id="${m.id}">
+            ${renderProviderIcon(m.id)}
+            <div style="flex: 1; min-width: 0;">
+              <div class="name">${m.name.split(' (')[0]}</div>
+              <div class="desc">${m.name.includes('(') ? m.name.split('(')[1].replace(')', '') : 'AI Coach Model'}</div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+
+      dropdown.querySelectorAll('.model-option').forEach(opt => {
+        opt.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const selectedId = opt.getAttribute('data-model-id');
+          if (selectedId) {
+            await DataService.setSelectedModel(selectedId);
+            await buildModelDropdown();
+          }
+          dropdown.classList.remove('open');
+        });
+      });
+    };
+
+    const modelSelect = document.getElementById('modelSelect');
+    const modelDropdown = document.getElementById('modelDropdown');
+    modelSelect?.addEventListener('click', (e) => {
+      if (e.target.closest('#modelDropdown')) return;
+      e.stopPropagation();
+      modelDropdown?.classList.toggle('open');
+    });
+
+    document.addEventListener('click', () => modelDropdown?.classList.remove('open'));
+    await buildModelDropdown();
+
     const buildSidebar = async () => {
       await renderChatSessionsSidebar(
         activeSessionId,
@@ -92,7 +187,6 @@ export async function renderAiChatPage(onStateUpdated) {
         },
         async (deleteId) => {
           await DataService.deleteChatSession(deleteId);
-          // If we deleted the active session, create a new one
           if (deleteId === activeSessionId) {
             activeSessionId = await DataService.createNewSession();
           }
@@ -105,7 +199,6 @@ export async function renderAiChatPage(onStateUpdated) {
     await buildSidebar();
     await refreshMessages(container, activeSessionId, onStateUpdated);
 
-    // New Session Button Handler
     document.getElementById('btn-new-chat-session')?.addEventListener('click', async () => {
       activeSessionId = await DataService.createNewSession();
       await buildSidebar();
@@ -113,130 +206,109 @@ export async function renderAiChatPage(onStateUpdated) {
       inputText.focus();
     });
 
-    // File Upload Handler (Image, PDF, Excel, DOCX)
+    const renderPreviewChips = () => {
+      if (!attachPreview) return;
+      attachPreview.innerHTML = '';
+      if (attachedFiles.length === 0) return;
+
+      attachedFiles.forEach((fileObj, idx) => {
+        const type = getFileType(fileObj.name);
+        const sizeStr = formatFileSize(fileObj.size);
+        const chip = document.createElement('div');
+        chip.className = `file-chip ${type}`;
+        chip.innerHTML = `
+          <div class="file-icon">${getFileIconSvg(type)}</div>
+          <div class="file-info">
+            <div class="file-name" title="${fileObj.name}">${fileObj.name}</div>
+            <div class="file-size">${sizeStr}</div>
+          </div>
+          <button class="file-remove" data-index="${idx}" title="Xóa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        `;
+        attachPreview.appendChild(chip);
+      });
+
+      attachPreview.querySelectorAll('.file-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const removeIdx = parseInt(btn.getAttribute('data-index'));
+          attachedFiles.splice(removeIdx, 1);
+          renderPreviewChips();
+        });
+      });
+    };
+
     fileInput?.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const name = file.name.toLowerCase();
-      const isImage = file.type.startsWith('image/');
-      const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
-      const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls') ||
-        file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-        file.type === 'application/vnd.ms-excel';
-      const isDocx = name.endsWith('.docx') || name.endsWith('.doc') ||
-        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-        file.type === 'application/msword';
-
-      if (!isImage && !isPdf && !isExcel && !isDocx) {
-        alert('Chỉ hỗ trợ: Hình ảnh (PNG/JPG), PDF, Excel (.xlsx/.xls) và DOCX (.docx/.doc).');
-        fileInput.value = '';
-        return;
-      }
-
-      // Determine display type for attachment preview
-      const fileType = isImage ? 'image' : isPdf ? 'pdf' : isExcel ? 'excel' : 'docx';
-
-      if (isImage) {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          currentAttachment = {
-            type: 'image',
-            file,
-            fileName: file.name,
-            dataUrl: evt.target.result
-          };
-          renderAttachmentPreview(attachmentContainer, currentAttachment);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        currentAttachment = {
-          type: fileType,
-          file,
-          fileName: file.name
-        };
-        renderAttachmentPreview(attachmentContainer, currentAttachment);
-      }
+      const files = Array.from(e.target.files || []);
+      files.forEach(f => {
+        if (!attachedFiles.find(x => x.name === f.name && x.size === f.size)) {
+          attachedFiles.push({
+            name: f.name,
+            size: f.size,
+            file: f
+          });
+        }
+      });
+      renderPreviewChips();
+      fileInput.value = '';
     });
 
-    // Send Message Handler
     const sendMessageHandler = async () => {
       const msgText = inputText.value.trim();
-      if ((!msgText && !currentAttachment) || isSending) return;
+      if ((!msgText && attachedFiles.length === 0) || isSending) return;
 
       isSending = true;
-      let finalContent = msgText;
-      const attachmentPayload = currentAttachment ? { ...currentAttachment } : null;
+      const sentFilesPayload = [...attachedFiles];
 
-      // Reset Inputs
       inputText.value = '';
-      currentAttachment = null;
-      attachmentContainer.style.display = 'none';
-      attachmentContainer.innerHTML = '';
+      attachedFiles = [];
+      renderPreviewChips();
       fileInput.value = '';
       inputText.disabled = true;
 
-      // Attachment markdown formatting
-      if (attachmentPayload) {
-        if (attachmentPayload.type === 'image') {
-          finalContent = (msgText ? msgText + '\n\n' : '') + `![${attachmentPayload.fileName}](${attachmentPayload.dataUrl})`;
-        } else {
-          finalContent = (msgText ? msgText + '\n\n' : '') + `📄 **File Đính Kèm:** ${attachmentPayload.fileName}`;
-        }
-      }
+      let finalContent = msgText;
 
-      // 1. Save User Message
       await DataService.addChatMessage({
         role: 'user',
         content: finalContent,
-        attachment: attachmentPayload
+        attachments: sentFilesPayload
       });
 
       await refreshMessages(container, activeSessionId, onStateUpdated);
-      showPageThinkingIndicator(container);
+      await showPageThinkingIndicator(container);
 
-      // 2. Fetch AI Response
       const historyList = await DataService.getChatHistory(activeSessionId);
-      const aiResponse = await AiCoachService.sendMessage(msgText || "Hãy phân tích file đính kèm này", historyList);
+      const promptText = msgText || `Hãy phân tích các file đính kèm: ${sentFilesPayload.map(f => f.name).join(', ')}`;
+      const currentModelId = await DataService.getSelectedModel();
+      const aiResponse = await AiCoachService.sendMessage(promptText, historyList);
 
       hidePageThinkingIndicator();
 
-      // 3. Save AI Message
       await DataService.addChatMessage({
         role: 'assistant',
+        model: currentModelId,
         content: aiResponse.content,
         proposedChange: aiResponse.proposedChange,
         status: aiResponse.proposedChange ? 'pending' : 'none'
       });
-
       isSending = false;
       inputText.disabled = false;
       inputText.focus();
-
-      // Award XP for using AI Coach (dispatches achievement event if new badge)
       DataService.awardAiCoachXp().catch(() => {});
-
       await refreshMessages(container, activeSessionId, onStateUpdated);
-      await renderChatSessionsSidebar(activeSessionId, async (selectedId) => {
-        activeSessionId = selectedId;
-        await DataService.setCurrentSessionId(activeSessionId);
-        await refreshMessages(container, activeSessionId, onStateUpdated);
-      });
+      await buildSidebar();
     };
 
-    sendBtn.addEventListener('click', sendMessageHandler);
-    inputText.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendMessageHandler();
-    });
+    sendBtn?.addEventListener('click', sendMessageHandler);
+    inputText?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessageHandler(); });
   }
 }
 
 async function renderChatSessionsSidebar(activeSessionId, onSelectSession, onDeleteSession) {
   const sidebarContainer = document.getElementById('chat-sessions-sidebar-container');
   if (!sidebarContainer) return;
-
   const sessions = await DataService.getChatSessions();
-
   if (sessions.length === 0) {
     sidebarContainer.innerHTML = `
       <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1.5rem 0.5rem;">
@@ -245,23 +317,14 @@ async function renderChatSessionsSidebar(activeSessionId, onSelectSession, onDel
     `;
     return;
   }
-
   sidebarContainer.innerHTML = sessions.map(s => {
     const isActive = s.id === activeSessionId;
-    const activeClass = isActive
-      ? 'background: linear-gradient(135deg, rgba(117, 86, 217, 0.18), rgba(168, 145, 255, 0.12)); border-color: rgba(117, 86, 217, 0.4);'
-      : 'background: var(--bg-card); border-color: var(--border-color);';
-
     return `
-      <div class="chat-session-item" data-session-id="${s.id}" style="padding: 0.6rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid; ${activeClass} cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 0.4rem;" title="${s.title}">
-        <div style="min-width: 0; flex: 1; font-size: 0.8rem; font-weight: ${isActive ? '800' : '600'}; color: ${isActive ? 'var(--accent-purple)' : 'var(--text-main)'}; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${s.title}</div>
-        <button class="btn-delete-session" data-del-session-id="${s.id}" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.15rem; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.6; transition: all 0.2s ease;" title="Xóa đoạn trò chuyện này">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-            <path d="M10 11v6"></path>
-            <path d="M14 11v6"></path>
-            <path d="M9 6V4h6v2"></path>
+      <div class="chat-item ${isActive ? 'active' : ''}" data-session-id="${s.id}" title="${s.title}">
+        <span class="title">${s.title}</span>
+        <button class="delete" data-del-session-id="${s.id}" title="Xóa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
           </svg>
         </button>
       </div>
@@ -270,86 +333,63 @@ async function renderChatSessionsSidebar(activeSessionId, onSelectSession, onDel
 
   if (window.lucide) window.lucide.createIcons();
 
-  // Select session on click (exclude delete button)
   sidebarContainer.querySelectorAll('[data-session-id]').forEach(item => {
     item.addEventListener('click', (e) => {
       if (e.target.closest('[data-del-session-id]')) return;
-      const sId = item.getAttribute('data-session-id');
-      if (onSelectSession) onSelectSession(sId);
+      onSelectSession(item.getAttribute('data-session-id'));
     });
   });
-
-  // Delete session button
   sidebarContainer.querySelectorAll('[data-del-session-id]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const sId = btn.getAttribute('data-del-session-id');
-      if (onDeleteSession) onDeleteSession(sId);
-    });
+    btn.addEventListener('click', (e) => { e.stopPropagation(); onDeleteSession(btn.getAttribute('data-del-session-id')); });
   });
 }
 
-function renderAttachmentPreview(container, attachment) {
-  if (!container || !attachment) return;
-
-  const rawName = attachment.fileName || 'file';
-  const truncatedName = rawName.length > 22 ? rawName.substring(0, 19) + '...' : rawName;
-
-  container.style.display = 'flex';
-
-  // Inline SVG icons for different file types
-  const pdfIconSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M9 15h6"></path><path d="M9 18h6"></path><path d="M9 12h1"></path></svg>`;
-  const excelIconSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><line x1="10" y1="9" x2="14" y2="9"></line></svg>`;
-  const docxIconSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
-
-  const fileIconMap = { pdf: pdfIconSvg, excel: excelIconSvg, docx: docxIconSvg };
-  const labelMap = { pdf: 'Tài liệu PDF', excel: 'Bảng tính Excel', docx: 'Tài liệu DOCX' };
-
-  if (attachment.type === 'image') {
-    container.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 0.65rem; background: var(--bg-card); padding: 0.4rem 0.85rem; border-radius: var(--radius-md); border: 1.5px solid var(--accent-purple); box-shadow: 0 2px 8px rgba(117, 86, 217, 0.15);">
-        <img src="${attachment.dataUrl}" style="width: 36px; height: 36px; border-radius: 6px; object-fit: cover;">
-        <span style="font-weight: 800; font-size: 0.825rem; color: var(--text-main); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 160px;" title="${rawName}">${truncatedName}</span>
-        <button id="btn-remove-attachment" style="background: none; border: none; cursor: pointer; color: var(--danger); padding: 0 0.2rem; font-weight: 800; font-size: 1.2rem;">&times;</button>
-      </div>
-      <span class="text-xs text-muted" style="font-weight: 600;">Ảnh demo sẵn sàng để gửi</span>
-    `;
-  } else {
-    const icon = fileIconMap[attachment.type] || pdfIconSvg;
-    const label = labelMap[attachment.type] || 'Tài liệu';
-    container.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 0.65rem; background: var(--bg-card); padding: 0.4rem 0.85rem; border-radius: var(--radius-md); border: 1.5px solid var(--accent-purple); box-shadow: 0 2px 8px rgba(117, 86, 217, 0.15);">
-        ${icon}
-        <span style="font-weight: 800; font-size: 0.825rem; color: var(--text-main); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 160px;" title="${rawName}">${truncatedName}</span>
-        <button id="btn-remove-attachment" style="background: none; border: none; cursor: pointer; color: var(--danger); padding: 0 0.2rem; font-weight: 800; font-size: 1.2rem;">&times;</button>
-      </div>
-      <span class="text-xs text-muted" style="font-weight: 600;">${label} sẵn sàng để gửi</span>
-    `;
-  }
-
-  document.getElementById('btn-remove-attachment')?.addEventListener('click', () => {
-    container.style.display = 'none';
-    container.innerHTML = '';
-  });
+function getFileType(name = '') {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['pdf'].includes(ext)) return 'pdf';
+  if (['png','jpg','jpeg','gif','webp'].includes(ext)) return 'img';
+  if (['xls','xlsx','csv'].includes(ext)) return 'xls';
+  if (['doc','docx'].includes(ext)) return 'doc';
+  return 'other';
 }
 
-function showPageThinkingIndicator(container) {
+function formatFileSize(bytes = 0) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getFileIconSvg(type) {
+  if (type === 'pdf') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`;
+  if (type === 'img') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+  if (type === 'xls') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2l2 3 2-3h2"/></svg>`;
+  if (type === 'doc') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+}
+
+async function showPageThinkingIndicator(container) {
   if (!container) return;
   const existing = document.getElementById('page-ai-thinking');
   if (existing) return;
 
+  const currentModelId = await DataService.getSelectedModel();
+
   const thinkingDiv = document.createElement('div');
   thinkingDiv.id = 'page-ai-thinking';
-  thinkingDiv.className = 'chat-bubble assistant thinking';
-  thinkingDiv.style.cssText = 'display: flex; align-items: center; gap: 0.65rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.14), rgba(168, 145, 255, 0.08)); border: 1.5px solid rgba(117, 86, 217, 0.3); padding: 0.75rem 1.1rem; border-radius: 14px; margin-bottom: 0.75rem; width: fit-content; max-width: 900px; margin-left: auto; margin-right: auto;';
-
+  thinkingDiv.className = 'msg ai thinking';
   thinkingDiv.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 0.35rem;">
-      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0s;"></span>
-      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.2s;"></span>
-      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.4s;"></span>
+    <div class="msg-avatar" style="background: transparent; border: none; box-shadow: none; display: flex; align-items: center; justify-content: center;">
+      ${renderProviderIcon(currentModelId)}
     </div>
-    <span style="font-size: 0.85rem; font-weight: 700; color: var(--accent-purple); animation: pulseText 1.5s infinite ease-in-out;">AI Coach đang suy nghĩ & phân tích...</span>
+    <div class="msg-bubble" style="display: flex; align-items: center; gap: 0.65rem; background: var(--bg-subtle); border: 1.5px solid var(--border-highlight);">
+      <div style="display: flex; align-items: center; gap: 0.35rem;">
+        <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0s;"></span>
+        <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.2s;"></span>
+        <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.4s;"></span>
+      </div>
+      <span style="font-size: 0.85rem; font-weight: 700; color: var(--accent-purple); animation: pulseText 1.5s infinite ease-in-out;">AI Coach đang suy nghĩ & phân tích...</span>
+    </div>
   `;
 
   container.appendChild(thinkingDiv);
@@ -364,30 +404,69 @@ function hidePageThinkingIndicator() {
 async function refreshMessages(container, sessionId, onStateUpdated) {
   if (!container) return;
   const history = await DataService.getChatHistory(sessionId);
+  const currentModelId = await DataService.getSelectedModel();
 
   if (history.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; margin: auto 0; color: var(--text-muted); padding: 2rem;">
-        <div style="width: 64px; height: 64px; background: rgba(117, 86, 217, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto; color: var(--accent-purple); box-shadow: 0 4px 16px rgba(117, 86, 217, 0.2);">
-          ${renderGeminiIcon({ width: 36, height: 36 })}
+      <div class="empty-state" id="emptyState">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+            <path d="M5 19l.75 2.25L8 22l-2.25.75L5 25l-.75-2.25L2 22l2.25-.75L5 19z" opacity="0.5"/>
+          </svg>
         </div>
-        <h3 style="font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem; font-size: 1.25rem;">AI Coach Smart Brain</h3>
-        <p style="max-width: 520px; margin: 0 auto; font-size: 0.925rem; line-height: 1.6; color: var(--text-muted);">
-          Bắt đầu đoạn trò chuyện mới! Tôi có thể giúp bạn lập thực đơn, phân tích món ăn, đính kèm file PDF/Hình ảnh, tính toán bảng calo & macro và tự động điều khiển dữ liệu hệ thống.
-        </p>
+        <h2>AI Coach Smart Brain</h2>
+        <p>Bắt đầu đoạn trò chuyện mới! Tôi có thể giúp bạn lập thực đơn, phân tích món ăn, đính kèm file PDF/Hình ảnh, tính toán bảng calo & macro và tự động điều khiển dữ liệu hệ thống.</p>
       </div>
     `;
     return;
   }
 
   const html = history.map(m => {
+    const attachments = m.attachments || (m.attachment ? [m.attachment] : []);
+    let filesHTML = '';
+    if (attachments.length > 0) {
+      filesHTML = `
+        <div class="msg-files">
+          ${attachments.map(f => {
+            const t = getFileType(f.fileName || f.name);
+            return `
+              <div class="msg-file ${t}">
+                <div class="mf-icon">${getFileIconSvg(t)}</div>
+                <div class="mf-name" title="${f.fileName || f.name}">${f.fileName || f.name}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
     if (m.role === 'user') {
-      return `<div class="chat-bubble user" style="max-width: 680px; margin-left: auto; border-radius: 20px;">${parseMarkdownPage(m.content)}</div>`;
-    } else {
       return `
-        <div class="chat-bubble assistant" style="max-width: 720px; margin-right: auto; border-radius: 20px;">
-          <div class="chat-markdown-body" style="line-height: 1.6;">${parseMarkdownPage(m.content)}</div>
-          ${m.proposedChange ? renderApprovalCardPage(m) : ''}
+        <div class="msg user">
+          <div class="msg-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="msg-bubble">
+            ${parseMarkdownPage(m.content)}
+            ${filesHTML}
+          </div>
+        </div>
+      `;
+    } else {
+      const msgModel = m.model || currentModelId;
+      return `
+        <div class="msg ai">
+          <div class="msg-avatar" style="background: transparent; border: none; box-shadow: none; display: flex; align-items: center; justify-content: center;">
+            ${renderProviderIcon(msgModel)}
+          </div>
+          <div style="flex: 1; max-width: 680px;">
+            <div class="msg-bubble">
+              ${parseMarkdownPage(m.content)}
+              ${filesHTML}
+            </div>
+            ${m.proposedChange ? renderApprovalCardPage(m) : ''}
+          </div>
         </div>
       `;
     }
@@ -397,7 +476,6 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
   if (window.lucide) window.lucide.createIcons();
   container.scrollTop = container.scrollHeight;
 
-  // Attach approval listeners
   container.querySelectorAll('[data-approve-prop]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const msgId = parseInt(btn.getAttribute('data-approve-prop'));
@@ -479,23 +557,14 @@ function renderApprovalCardPage(msg) {
   `;
 }
 
-/**
- * Rich Markdown Parser with Table Support
- */
 function parseMarkdownPage(text = '') {
   if (!text) return '';
   let html = text;
 
-  // Code blocks
   html = html.replace(/```([\s\S]*?)```/g, '<pre style="background: rgba(0,0,0,0.18); padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; overflow-x: auto; margin: 0.5rem 0;"><code>$1</code></pre>');
-
-  // Inline code
   html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(117, 86, 217, 0.15); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85rem; color: var(--accent-purple); font-weight: 600;">$1</code>');
-
-  // Markdown Images ![alt](src)
   html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<div style="margin: 0.5rem 0;"><img src="$2" alt="$1" style="max-width: 280px; max-height: 240px; border-radius: 12px; object-fit: cover; border: 2px solid var(--accent-purple); box-shadow: 0 4px 14px rgba(0,0,0,0.15);"></div>');
 
-  // Markdown Tables (| Header | Header |)
   const tableRegex = /(?:\|[^\n]+\|\r?\n){2,}/g;
   html = html.replace(tableRegex, (match) => {
     const lines = match.trim().split('\n').map(l => l.trim()).filter(Boolean);
@@ -524,21 +593,14 @@ function parseMarkdownPage(text = '') {
     return tableHtml;
   });
 
-  // Headers
   html = html.replace(/^### (.*$)/gim, '<h5 style="margin: 0.5rem 0; font-weight: 800; color: var(--accent-purple); font-size: 0.95rem;">$1</h5>');
   html = html.replace(/^## (.*$)/gim, '<h4 style="margin: 0.6rem 0; font-weight: 800; color: var(--text-main); font-size: 1rem;">$1</h4>');
   html = html.replace(/^# (.*$)/gim, '<h3 style="margin: 0.75rem 0; font-weight: 800; color: var(--text-main); font-size: 1.1rem;">$1</h3>');
-
-  // Bold & Italic
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 800; color: var(--text-main);">$1</strong>');
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-  // Lists
   html = html.replace(/^(\d+[\.\️⃣]|(?:[1-9]\d?️⃣))\s+(.*)$/gim, '<li style="margin-left: 1.2rem; margin-bottom: 0.3rem;"><strong>$1</strong> $2</li>');
   html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li style="margin-left: 1.2rem; list-style-type: disc; margin-bottom: 0.3rem;">$1</li>');
   html = html.replace(/(<li.*?>.*?<\/li>\n?)+/g, '<ul style="margin: 0.5rem 0; padding-left: 0.2rem;">$&</ul>');
-
-  // Line breaks
   html = html.replace(/\n/g, '<br/>');
 
   return html;

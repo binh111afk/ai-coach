@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@lobehub/icons": "^5.15.0",
     "apexcharts": "^6.7.0",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.4.7",

@@ -640,6 +640,10 @@ export const DataService = {
   async getSelectedModel() {
     const model = await this.getSetting('ninerouter_model');
     return model || CONFIG.DEFAULT_MODEL;
+  },
+
+  async setSelectedModel(model) {
+    await this.saveSetting('ninerouter_model', model);
   }
 };
 
