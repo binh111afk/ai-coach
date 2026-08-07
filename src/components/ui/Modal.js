@@ -68,9 +68,68 @@ export const Modal = {
         closeModal(modalNode, () => resolve(false));
       });
     });
+  },
+  /**
+   * Show a Prompt Modal with Input Field (Returns Promise<string|null>)
+   */
+  prompt({ title = 'Nhập Thông Tin', message = '', placeholder = '', defaultValue = '', confirmText = 'Xác Nhận', cancelText = 'Hủy Bỏ' }) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'custom-modal-overlay';
+
+      overlay.innerHTML = `
+        <div class="custom-modal-card">
+          <div class="custom-modal-icon-wrapper type-info">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+              <path class="custom-modal-path" d="M12 8V12M12 16H12.01" stroke="var(--accent-purple)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle class="custom-modal-path" cx="12" cy="12" r="10" stroke="var(--accent-purple)" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="custom-modal-title">${title}</div>
+          ${message ? `<div class="custom-modal-message">${message}</div>` : ''}
+          <input
+            id="modal-prompt-input"
+            type="text"
+            class="form-input"
+            value="${defaultValue}"
+            placeholder="${placeholder}"
+            style="margin: 0.75rem 0 0.25rem 0; width: 100%; font-size: 0.95rem;"
+            autofocus
+          >
+          <div class="custom-modal-actions">
+            <button class="btn btn-secondary custom-modal-btn" id="modal-btn-cancel">${cancelText}</button>
+            <button class="btn btn-primary custom-modal-btn" id="modal-btn-confirm">${confirmText}</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => overlay.classList.add('active'));
+
+      const inputEl = overlay.querySelector('#modal-prompt-input');
+      const btnConfirm = overlay.querySelector('#modal-btn-confirm');
+      const btnCancel = overlay.querySelector('#modal-btn-cancel');
+
+      // Focus input after animation
+      setTimeout(() => inputEl?.focus(), 150);
+
+      // Enter key submits
+      inputEl?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') btnConfirm.click();
+        if (e.key === 'Escape') btnCancel.click();
+      });
+
+      btnConfirm.addEventListener('click', () => {
+        const val = inputEl?.value?.trim() || null;
+        closeModal(overlay, () => resolve(val));
+      });
+
+      btnCancel.addEventListener('click', () => {
+        closeModal(overlay, () => resolve(null));
+      });
+    });
   }
 };
-
 function createModalDOM({ title, message, type, confirmText, cancelText, showCancel }) {
   const overlay = document.createElement('div');
   overlay.className = 'custom-modal-overlay';

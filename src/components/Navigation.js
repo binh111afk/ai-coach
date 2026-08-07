@@ -106,7 +106,15 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
 
     // Edit Journey Day Handler
     document.getElementById('btn-journey-day-widget')?.addEventListener('click', async () => {
-      const inputVal = prompt(`Chỉnh sửa Ngày Trong Hành Trình:\n(Ví dụ nhập: "30/100" hoặc nhập số ngày hiện tại)`, `${currentDay}/${totalDays}`);
+      const inputVal = await Modal.prompt({
+        title: 'Chỉnh Sửa Ngày Hành Trình',
+        message: 'Nhập ngày hiện tại và tổng số ngày mục tiêu (ví dụ: <b>30/100</b>)',
+        placeholder: `${currentDay}/${totalDays}`,
+        defaultValue: `${currentDay}/${totalDays}`,
+        confirmText: 'Cập Nhật',
+        cancelText: 'Hủy'
+      });
+
       if (inputVal) {
         const parts = inputVal.split('/');
         const newDay = parseInt(parts[0]) || currentDay;
