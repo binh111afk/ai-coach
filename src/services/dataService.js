@@ -659,7 +659,7 @@ export function getMealRecipeDetails(meal) {
     videoEmbedUrl = 'https://www.youtube.com/embed/gq3zY7y25n0';
     ingredients = [
       { name: 'Ức gà tươi sạch', amount: '150g', estPriceVnd: Math.round(totalCost * 0.55) },
-      { name: 'Gạo lứt dẻo', amount: '80g (1 bát cơm)', estPriceVnd: Math.round(totalCost * 0.20) },
+      { name: 'Gạo lứt dẻo', amount: '80g - 1 bát cơm', estPriceVnd: Math.round(totalCost * 0.20) },
       { name: 'Rau cải ngọt / Bông cải xanh', amount: '150g', estPriceVnd: Math.round(totalCost * 0.15) },
       { name: 'Dầu olive, tỏi & gia vị', amount: 'Vừa đủ', estPriceVnd: Math.round(totalCost * 0.10) }
     ];
@@ -674,7 +674,7 @@ export function getMealRecipeDetails(meal) {
     videoEmbedUrl = 'https://www.youtube.com/embed/l592H8fKqE4';
     ingredients = [
       { name: 'Trứng gà tươi', amount: '2 quả', estPriceVnd: Math.round(totalCost * 0.50) },
-      { name: 'Bánh mì đen nguyên cám', amount: '1 lát (40g)', estPriceVnd: Math.round(totalCost * 0.35) },
+      { name: 'Bánh mì đen nguyên cám', amount: '1 lát - 40g', estPriceVnd: Math.round(totalCost * 0.35) },
       { name: 'Dầu ăn / bơ lạt & gia vị', amount: 'Vừa đủ', estPriceVnd: Math.round(totalCost * 0.15) }
     ];
     instructions = [

@@ -115,7 +115,15 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         throw new Error(errorData.error?.message || `API Error Status ${response.status}`);
       }
 
-      const data = await response.json();
+      const rawText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        const cleanJsonStr = rawText.replace(/data:\s*\[DONE\][\s\S]*/g, '').trim();
+        data = JSON.parse(cleanJsonStr);
+      }
+
       const aiContent = data.choices[0]?.message?.content || "Xin lỗi, tôi không thể xử lý câu trả lời lúc này.";
 
       // Parse potential proposedChange JSON from AI text response

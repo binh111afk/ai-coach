@@ -7,6 +7,7 @@ export const CONFIG = {
   NINEROUTER_BASE_URL: import.meta.env.VITE_NINEROUTER_BASE_URL || "http://localhost:20128/v1/chat/completions",
   DEFAULT_MODEL: import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.6-flash",
   SUPPORTED_MODELS: [
+    { id: "oc/big-pickle", name: "Big Pickle Free (OpenCode 9Router)" },
     { id: "oc/deepseek-v4-flash-free", name: "DeepSeek V4 Flash Free (OpenCode 9Router)" },
     { id: "oc/longcat-2.0-free", name: "LongCat 2.0 Free (OpenCode 9Router)" },
     { id: "oc/laguna-s-2.1-free", name: "Laguna S 2.1 Free (OpenCode 9Router)" },

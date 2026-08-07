@@ -140,28 +140,49 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       </div>
 
       <!-- Plan Section 2: Weekly Workout Routine with Video & Text Guide Modal -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i data-lucide="dumbbell" style="color: var(--accent-amber);"></i> Lịch Tập Luyện Cá Nhân Hóa 7 Ngày Trong Tuần (${currentWorkoutType === 'home' ? 'Tập Tại Nhà' : currentWorkoutType === 'gym' ? 'Phòng Gym' : 'Outdoor'})</div>
+      <div class="schedule-card">
+        <div class="schedule-header">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 6.5h11"/>
+              <path d="M6.5 17.5h11"/>
+              <path d="M4 12h16"/>
+              <circle cx="8" cy="6.5" r="2.2"/>
+              <circle cx="16" cy="17.5" r="2.2"/>
+            </svg>
+          </div>
+          <h2>Lịch Tập Luyện Cá Nhân Hóa 7 Ngày Trong Tuần (${currentWorkoutType === 'home' ? 'Tập Tại Nhà' : currentWorkoutType === 'gym' ? 'Phòng Gym' : 'Outdoor'})</h2>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem;">
-          ${(plan.weeklyWorkoutRoutine || []).map((w, idx) => `
-            <div class="card" style="padding: 1.1rem; background: ${w.type === 'Rest' ? 'var(--bg-subtle)' : 'var(--bg-card)'}; border-color: ${w.type === 'Rest' ? 'var(--border-color)' : 'var(--border-highlight)'};">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <span class="badge ${w.type === 'Rest' ? 'badge-secondary' : 'badge-primary'}">${w.day}</span>
-                <span class="text-xs text-muted"><b>${w.duration} phút</b></span>
+
+        <div class="days-grid">
+          ${(plan.weeklyWorkoutRoutine || []).map((w, idx) => {
+            const isRest = w.type === 'Rest' || w.duration === 0;
+            return `
+              <div class="day-card ${isRest ? 'rest' : ''}">
+                <div class="day-top">
+                  <span class="day-name">${w.day}</span>
+                  <span class="day-duration">${w.duration} phút</span>
+                </div>
+                <div class="day-title">${w.title}</div>
+                <div class="day-footer">
+                  <span class="day-kcal"><span>Đốt:</span> ~${w.estBurn} kcal</span>
+                  ${w.duration > 0 ? `
+                    <button class="btn-train" data-open-workout-guide="${idx}">
+                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      Tập Bài Này
+                    </button>
+                  ` : `
+                    <span class="btn-rest">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2a7 7 0 017 7c0 2.5-1.2 4.7-3 6.1V18a1 1 0 01-1 1h-6a1 1 0 01-1-1v-2.9A7.01 7.01 0 015 9a7 7 0 017-7z"/>
+                      </svg>
+                      Phục hồi
+                    </span>
+                  `}
+                </div>
               </div>
-              <div style="font-weight: 800; font-size: 1rem; color: var(--text-main); margin-bottom: 0.35rem;">${w.title}</div>
-              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.825rem; margin-top: 0.75rem;">
-                <span class="text-muted">Đốt ước tính: <b style="color: var(--accent-amber);">~${w.estBurn} kcal</b></span>
-                ${w.duration > 0 ? `
-                  <button class="btn btn-primary btn-sm" data-open-workout-guide="${idx}">
-                    <i data-lucide="play-circle" style="width: 14px; height: 14px;"></i> Tập Bài Này
-                  </button>
-                ` : '<span class="text-xs text-muted">🌙 Phục hồi</span>'}
-              </div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       </div>
     </div>
@@ -216,21 +237,34 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         </div>
 
         <!-- Khối 1: Nguyên liệu cần mua & Giá ước tính -->
-        <div style="background: var(--bg-subtle); padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border-color); margin-bottom: 1.1rem;">
-          <h4 style="color: var(--accent-purple); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
-            <span style="display: flex; align-items: center; gap: 0.45rem;">
-              <i data-lucide="shopping-bag" style="width: 18px; height: 18px;"></i> Nguyên Liệu Cần Mua & Giá Ước Tính
-            </span>
-            <span class="badge badge-primary" id="rd-modal-total-cost">0 VNĐ</span>
-          </h4>
+        <div class="ingredients-card">
+          <div class="ing-header">
+            <div class="ing-title">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                  <line x1="3" y1="6" x2="21" y2="6"/>
+                  <path d="M16 10a4 4 0 01-8 0"/>
+                </svg>
+              </div>
+              <h2>Nguyên Liệu Cần Mua & Giá Ước Tính</h2>
+            </div>
+            <div class="ing-total" id="rd-modal-total-cost">0 VNĐ</div>
+          </div>
           <div id="rd-modal-ingredients-container"></div>
         </div>
 
         <!-- Khối 2: Hướng dẫn cách làm / Chế biến -->
-        <div style="background: var(--bg-subtle); padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border-color); margin-bottom: 1.1rem;">
-          <h4 style="color: var(--accent-purple); margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.45rem;">
-            <i data-lucide="chef-hat" style="width: 18px; height: 18px;"></i> Hướng Dẫn Cách Làm / Chế Biến:
-          </h4>
+        <div class="recipe-card">
+          <div class="recipe-header">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 13.87A4 4 0 017.41 6a5.11 5.11 0 011.05-1.54 5 5 0 017.08 0A5.11 5.11 0 0116.59 6 4 4 0 0118 13.87V21H6z"/>
+                <line x1="6" y1="17" x2="18" y2="17"/>
+              </svg>
+            </div>
+            <h2>Hướng Dẫn Cách Làm / Chế Biến</h2>
+          </div>
           <div id="rd-modal-instructions-container"></div>
         </div>
 
@@ -427,19 +461,41 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           rdTiktokBtn.href = `https://www.tiktok.com/search?q=${encodeURIComponent('cách nấu ' + activeRecipeMeal.name)}`;
         }
 
+function formatIngredientAmount(amount) {
+  if (!amount) return '';
+  let str = amount.trim();
+  if (str.startsWith('(') && str.endsWith(')')) {
+    str = str.substring(1, str.length - 1).trim();
+  }
+  // Replace inner parentheses with dash: "1 lát (40g)" -> "1 lát - 40g"
+  str = str.replace(/\s*\(([^)]+)\)/g, ' - $1');
+  str = str.replace(/\s*-\s*/g, ' - ');
+  return str;
+}
+
         // Render Ingredients & Prices
         const ingContainer = document.getElementById('rd-modal-ingredients-container');
         if (ingContainer) {
           if (activeRecipeMeal.ingredients && activeRecipeMeal.ingredients.length > 0) {
-            const ingRows = activeRecipeMeal.ingredients.map(ing => `
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.75rem; background: var(--bg-card); border-radius: 10px; margin-bottom: 0.4rem; font-size: 0.875rem; border: 1px solid var(--border-color);">
-                <span style="font-weight: 700; color: var(--text-main);">${ing.name} <span class="text-xs text-muted">(${ing.amount})</span></span>
-                <span style="font-weight: 800; color: var(--accent-purple);">${(ing.estPriceVnd || 0).toLocaleString('vi-VN')} VNĐ</span>
+            ingContainer.innerHTML = `
+              <div class="ing-list">
+                ${activeRecipeMeal.ingredients.map(ing => `
+                  <div class="ing-item">
+                    <div class="ing-name">${ing.name} <span class="qty">(${formatIngredientAmount(ing.amount)})</span></div>
+                    <div class="ing-price">${(ing.estPriceVnd || 0).toLocaleString('vi-VN')} VNĐ</div>
+                  </div>
+                `).join('')}
               </div>
-            `).join('');
-            ingContainer.innerHTML = ingRows;
+            `;
           } else {
-            ingContainer.innerHTML = `<div class="text-muted text-sm" style="font-style: italic;">Nguyên liệu khẩu phần đơn giản.</div>`;
+            ingContainer.innerHTML = `
+              <div class="ing-list">
+                <div class="ing-item">
+                  <div class="ing-name">Khẩu phần thực phẩm sẵn dùng <span class="qty">(Mở hộp hoặc rửa sạch)</span></div>
+                  <div class="ing-price">0 VNĐ</div>
+                </div>
+              </div>
+            `;
           }
         }
 
@@ -459,13 +515,25 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           } else {
             if (videoSection) videoSection.style.display = 'block';
             if (activeRecipeMeal.instructions && activeRecipeMeal.instructions.length > 0) {
-              instContainer.innerHTML = activeRecipeMeal.instructions.map(step => `
-                <div style="font-size: 0.875rem; line-height: 1.6; color: var(--text-main); margin-bottom: 0.45rem; background: var(--bg-card); padding: 0.65rem 0.85rem; border-radius: 10px; border: 1px solid var(--border-color);">
-                  ${step}
+              instContainer.innerHTML = `
+                <div class="steps">
+                  ${activeRecipeMeal.instructions.map((stepText, idx) => `
+                    <div class="step">
+                      <div class="step-num">${idx + 1}</div>
+                      <div class="step-text">${stepText.replace(/^(Bước\s*\d+|Step\s*\d+|\d+)[\.\:\s]*/i, '')}</div>
+                    </div>
+                  `).join('')}
                 </div>
-              `).join('');
+              `;
             } else {
-              instContainer.innerHTML = `<div class="text-muted text-sm">Chế biến theo khẩu vị gia đình, nêm ít muối dầu.</div>`;
+              instContainer.innerHTML = `
+                <div class="steps">
+                  <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-text">Chế biến theo khẩu vị gia đình, nêm vừa ăn và ưu tiên luộc/hấp hoặc áp chảo ít dầu.</div>
+                  </div>
+                </div>
+              `;
             }
 
             // Set verified direct embeddable video URL

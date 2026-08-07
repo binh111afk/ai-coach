@@ -4,6 +4,7 @@ import { renderWeightChart, renderCalorieChart, renderMacroChart } from '../util
 import { renderAiSummaryWidget } from './AiSummaryWidget.js';
 import { renderCheckbox, initCheckboxListeners } from './ui/Checkbox.js';
 import { renderGeminiIcon } from './ui/Icons.js';
+import { Modal } from './ui/Modal.js';
 
 export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const profile = await DataService.getUserProfile();
@@ -161,50 +162,61 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
 
         <!-- Right Column: Widgets -->
         <div style="display: flex; flex-direction: column; gap: 1.75rem;">
-          <!-- Water Intake Widget with Crisp SVG Water Glass Illustration -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><i data-lucide="droplet" style="color: var(--accent-blue);"></i> Theo Dõi Nước Uống</div>
-              <span class="badge badge-blue" id="water-badge-display">${waterIntake} / ${waterTarget} ml</span>
+          <!-- Improved Water Tracker Card -->
+          <div class="water-card ${waterIntake >= waterTarget ? 'goal-reached' : ''}" id="waterCard">
+            <!-- Header -->
+            <div class="water-header">
+              <div class="water-title">
+                <div class="icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0L12 2.69z"/>
+                  </svg>
+                </div>
+                <h2>Theo Dõi Nước Uống</h2>
+              </div>
+              <div class="water-total" id="water-badge-display">${waterIntake} / ${waterTarget} ml</div>
             </div>
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-              <!-- Crisp SVG Vector Water Glass with Dynamic Liquid Level -->
-              <div style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: var(--accent-blue-light); border-radius: 14px; border: 1px solid rgba(49, 114, 184, 0.25); flex-shrink: 0;">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M5 3L6.5 19.5C6.6 20.9 7.8 22 9.2 22H14.8C16.2 22 17.4 20.9 17.5 19.5L19 3" stroke="var(--accent-blue)" stroke-width="2" stroke-linecap="round"/>
-                  <path id="water-svg-liquid" d="M7 9C9 8 11 10 13 9C15 8 17 9 17 9V18C17 19.1 16.1 20 15 20H9C7.9 20 7 19.1 7 18V9Z" fill="var(--accent-blue)" fill-opacity="${waterPercent > 0 ? 0.4 : 0.05}" style="transition: fill-opacity 0.6s ease;"/>
-                  <circle cx="10" cy="13" r="1" fill="var(--accent-blue)"/>
-                  <circle cx="13" cy="15" r="1.5" fill="var(--accent-blue)"/>
+
+            <!-- Progress -->
+            <div class="water-progress">
+              <div class="glass-icon">
+                <div class="glass-fill" id="glassFill" style="height: ${waterPercent}%;"></div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 2h8l1 14a4 4 0 01-4 4h-2a4 4 0 01-4-4L8 2z"/>
+                  <path d="M8 6h8"/>
                 </svg>
               </div>
-              <div style="flex: 1;">
-                <div style="font-weight: 800; font-size: 1.2rem; color: var(--accent-blue);" id="water-text-display">${waterPercent}% Đã Uống</div>
-                <div class="progress-bar-bg" style="margin-top: 0.35rem;">
-                  <div class="progress-bar-fill" id="water-progress-fill" style="width: ${waterPercent}%; background: var(--accent-blue); transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+
+              <div class="progress-info">
+                <div class="progress-text">
+                  <span class="progress-percent" id="water-text-display">${waterPercent}%</span>
+                  <span class="progress-label">Đã Uống</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" id="water-progress-fill" style="width: ${waterPercent}%;"></div>
                 </div>
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-              <button class="btn btn-secondary btn-sm" id="btn-water-250" style="padding: 0.5rem 0.4rem; font-size: 0.8rem;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M7 2h10l1 7H6L7 2z"/>
-                  <path d="M6 9l1.5 12.5a2 2 0 0 0 2 1.5h5a2 2 0 0 0 2-1.5L18 9"/>
+            <!-- Actions -->
+            <div class="water-actions">
+              <button class="water-btn add-250" id="btn-water-250">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 2h8l1 14a4 4 0 01-4 4h-2a4 4 0 01-4-4L8 2z"/>
+                  <path d="M8 6h8"/>
                 </svg>
                 +250ml
               </button>
-              <button class="btn btn-secondary btn-sm" id="btn-water-500" style="padding: 0.5rem 0.4rem; font-size: 0.8rem;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2v6"/>
-                  <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>
+
+              <button class="water-btn add-500" id="btn-water-500">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0L12 2.69z"/>
                 </svg>
                 +500ml
               </button>
-              <button class="btn btn-secondary btn-sm" id="btn-water-reset" style="padding: 0.5rem 0.4rem; font-size: 0.8rem; color: var(--text-muted);" title="Đặt lại mực nước uống">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                  <path d="M3 3v5h5"/>
-                </svg>
+
+              <button class="water-btn reset" id="btn-water-reset">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px; flex-shrink: 0;"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill-rule="evenodd" clip-rule="evenodd" d="M13.7071 1.29289C14.0976 1.68342 14.0976 2.31658 13.7071 2.70711L12.4053 4.00896C17.1877 4.22089 21 8.16524 21 13C21 17.9706 16.9706 22 12 22C7.02944 22 3 17.9706 3 13C3 12.4477 3.44772 12 4 12C4.55228 12 5 12.4477 5 13C5 16.866 8.13401 20 12 20C15.866 20 19 16.866 19 13C19 9.2774 16.0942 6.23349 12.427 6.01281L13.7071 7.29289C14.0976 7.68342 14.0976 8.31658 13.7071 8.70711C13.3166 9.09763 12.6834 9.09763 12.2929 8.70711L9.29289 5.70711C9.10536 5.51957 9 5.26522 9 5C9 4.73478 9.10536 4.48043 9.29289 4.29289L12.2929 1.29289C12.6834 0.902369 13.3166 0.902369 13.7071 1.29289Z" fill="currentColor"></path> </g></svg>
                 Đặt lại
               </button>
             </div>
@@ -271,35 +283,20 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     document.getElementById('dash-btn-ai-coach')?.addEventListener('click', onOpenAiCoach);
     document.getElementById('btn-quick-update-journal')?.addEventListener('click', () => onNavigateTab('meals'));
 
-    // Smooth Water Tracker Animation Handler (No Full Page Re-render Flash!)
+    // Smooth Water Tracker Animation Handler
     function animateWaterUpdate(newMl, waterTarget) {
       const newPercent = Math.min(100, Math.round((newMl / waterTarget) * 100));
       const fillEl = document.getElementById('water-progress-fill');
       const textEl = document.getElementById('water-text-display');
       const badgeEl = document.getElementById('water-badge-display');
-      const svgLiquid = document.getElementById('water-svg-liquid');
+      const glassFillEl = document.getElementById('glassFill');
+      const waterCard = document.getElementById('waterCard');
 
       if (fillEl) fillEl.style.width = `${newPercent}%`;
+      if (glassFillEl) glassFillEl.style.height = `${newPercent}%`;
       if (badgeEl) badgeEl.innerText = `${newMl} / ${waterTarget} ml`;
-      if (svgLiquid) svgLiquid.style.fillOpacity = newPercent > 0 ? '0.4' : '0.05';
-
-      if (textEl) {
-        let startVal = parseInt(textEl.innerText) || 0;
-        let endVal = newPercent;
-        let duration = 500;
-        let startTime = null;
-
-        function step(timestamp) {
-          if (!startTime) startTime = timestamp;
-          let progress = Math.min((timestamp - startTime) / duration, 1);
-          let currentVal = Math.round(startVal + (endVal - startVal) * progress);
-          textEl.innerText = `${currentVal}% Đã Uống`;
-          if (progress < 1) {
-            requestAnimationFrame(step);
-          }
-        }
-        requestAnimationFrame(step);
-      }
+      if (textEl) textEl.innerText = `${newPercent}%`;
+      if (waterCard) waterCard.classList.toggle('goal-reached', newMl >= waterTarget);
     }
 
     function updateDashboardRealtime(updatedLog) {
@@ -433,10 +430,18 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       }
     });
 
-    // Quick log weight prompt
+    // Quick log weight custom Modal prompt
     document.getElementById('btn-quick-log-weight')?.addEventListener('click', async () => {
-      const input = prompt("Nhập cân nặng thực tế hôm nay (kg):", currentW);
-      if (input && !isNaN(input)) {
+      const input = await Modal.prompt({
+        title: '⚖️ Cập Nhật Cân Nặng Thực Tế',
+        message: 'Nhập số cân nặng hiện tại hôm nay của bạn (kg):',
+        placeholder: 'Ví dụ: 65.5',
+        defaultValue: currentW || '',
+        confirmText: 'Lưu Cân Nặng',
+        cancelText: 'Hủy Bỏ'
+      });
+
+      if (input && !isNaN(parseFloat(input))) {
         await DataService.updateWeightLog(todayLog.date, parseFloat(input));
         confetti({ particleCount: 60, spread: 90, origin: { y: 0.5 } });
         renderDashboard(onNavigateTab, onOpenAiCoach);
