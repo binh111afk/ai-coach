@@ -1,4 +1,4 @@
-import { DataService } from '../services/dataService.js';
+import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine } from '../services/dataService.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { renderGeminiIcon } from './ui/Icons.js';
@@ -6,10 +6,11 @@ import { renderGeminiIcon } from './ui/Icons.js';
 export function renderOnboarding(onComplete) {
   const formData = {
     gender: 'male',
-    age: 25,
-    height: 170,
-    currentWeight: 70,
-    targetWeight: 65,
+    age: null,
+    height: null,
+    currentWeight: null,
+    targetWeight: null,
+    targetDays: 60,
     activityLevel: 'moderate'
   };
 
@@ -21,12 +22,12 @@ export function renderOnboarding(onComplete) {
   const modalHtml = `
     <div class="modal-overlay active" id="onboarding-modal">
       <div class="modal-card" style="max-width: 560px;">
-        <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="text-align: center; margin-bottom: 1.25rem;">
           <div style="width: 54px; height: 54px; background: var(--primary-gradient); border-radius: 16px; margin: 0 auto 0.75rem auto; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 8px 20px rgba(117, 86, 217, 0.3);">
             ${renderGeminiIcon({ width: 28, height: 28, strokeWidth: 1.8, color: '#fff' })}
           </div>
           <h2>Thiết Lập Hành Trình Fitness</h2>
-          <p class="text-sm text-muted">AI Coach sẽ tự động tính toán chỉ số BMR, TDEE & thiết kế lộ trình chuẩn cá nhân hóa cho bạn.</p>
+          <p class="text-sm text-muted">Vui lòng tự nhập các chỉ số cá nhân. AI Coach sẽ tự động lập toàn bộ thực đơn & lịch tập luyện cho hành trình của bạn.</p>
         </div>
 
         <!-- Step 1: Physical Parameters -->
@@ -45,30 +46,39 @@ export function renderOnboarding(onComplete) {
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
             <div class="form-group">
-              <label class="form-label">Tuổi</label>
-              <input type="number" class="form-input" id="ob-age" value="25" min="12" max="90">
+              <label class="form-label">Tuổi *</label>
+              <input type="number" class="form-input" id="ob-age" value="" placeholder="Ví dụ: 25" min="12" max="90">
             </div>
             <div class="form-group">
-              <label class="form-label">Chiều cao (cm)</label>
-              <input type="number" class="form-input" id="ob-height" value="170" min="100" max="230">
+              <label class="form-label">Chiều cao (cm) *</label>
+              <input type="number" class="form-input" id="ob-height" value="" placeholder="Ví dụ: 170" min="100" max="230">
             </div>
             <div class="form-group">
-              <label class="form-label">Cân nặng (kg)</label>
-              <input type="number" class="form-input" id="ob-weight" value="70" step="0.1" min="30" max="250">
+              <label class="form-label">Cân nặng (kg) *</label>
+              <input type="number" class="form-input" id="ob-weight" value="" placeholder="Ví dụ: 70" step="0.1" min="30" max="250">
             </div>
           </div>
-          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="btn-step1-next">Tiếp Theo <i data-lucide="arrow-right"></i></button>
+          <div id="ob-step1-error" style="color: var(--danger); font-size: 0.825rem; font-weight: 700; margin-top: 0.5rem; display: none;"></div>
+          <button class="btn btn-primary" style="width: 100%; margin-top: 1.25rem;" id="btn-step1-next">Tiếp Theo <i data-lucide="arrow-right"></i></button>
         </div>
 
         <!-- Step 2: Goal & Activity -->
         <div class="onboarding-step" id="step-2" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/3: Mục tiêu & Vận động</h4>
-          <div class="form-group">
-            <label class="form-label">Cân nặng mục tiêu (kg)</label>
-            <input type="number" class="form-input" id="ob-target-weight" value="65" step="0.1">
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/3: Mục tiêu & Thời gian hành trình</h4>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="form-group">
+              <label class="form-label">Cân nặng mục tiêu (kg) *</label>
+              <input type="number" class="form-input" id="ob-target-weight" value="" placeholder="Ví dụ: 65" step="0.1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Thời gian hành trình (ngày) *</label>
+              <input type="number" class="form-input" id="ob-target-days" value="60" placeholder="Ví dụ: 60" min="10" max="365">
+            </div>
           </div>
+
           <div class="form-group">
-            <label class="form-label">Mức độ vận động hàng ngày (Custom Dropdown)</label>
+            <label class="form-label">Mức độ vận động hàng ngày</label>
             <div id="ob-activity-dropdown-container">
               ${renderDropdown({
                 id: 'ob-activity-dropdown',
@@ -78,15 +88,18 @@ export function renderOnboarding(onComplete) {
               })}
             </div>
           </div>
+          
+          <div id="ob-step2-error" style="color: var(--danger); font-size: 0.825rem; font-weight: 700; margin-top: 0.5rem; display: none;"></div>
+
           <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
             <button class="btn btn-secondary" style="flex: 1;" id="btn-step2-back"><i data-lucide="arrow-left"></i> Quay lại</button>
             <button class="btn btn-primary" style="flex: 1;" id="btn-step2-next">Tính Toán AI <i data-lucide="cpu"></i></button>
           </div>
         </div>
 
-        <!-- Step 3: AI Calculations Summary -->
+        <!-- Step 3: AI Calculations & Journey Plan Summary -->
         <div class="onboarding-step" id="step-3" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 3/3: Kế hoạch AI đề xuất</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 3/3: Kế hoạch AI & Lập toàn bộ lộ trình</h4>
           <div id="ai-calc-results"></div>
           <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
             <button class="btn btn-secondary" style="flex: 1;" id="btn-step3-back"><i data-lucide="arrow-left"></i> Sửa lại</button>
@@ -122,11 +135,23 @@ export function renderOnboarding(onComplete) {
     });
     maleLabel.click();
 
-    // Step 1 -> Step 2
+    // Step 1 -> Step 2 validation
     document.getElementById('btn-step1-next').addEventListener('click', () => {
-      formData.age = parseInt(document.getElementById('ob-age').value) || 25;
-      formData.height = parseFloat(document.getElementById('ob-height').value) || 170;
-      formData.currentWeight = parseFloat(document.getElementById('ob-weight').value) || 70;
+      const ageVal = document.getElementById('ob-age').value.trim();
+      const heightVal = document.getElementById('ob-height').value.trim();
+      const weightVal = document.getElementById('ob-weight').value.trim();
+      const errDiv = document.getElementById('ob-step1-error');
+
+      if (!ageVal || !heightVal || !weightVal) {
+        errDiv.textContent = '⚠️ Vui lòng tự nhập đầy đủ thông tin Tuổi, Chiều cao và Cân nặng!';
+        errDiv.style.display = 'block';
+        return;
+      }
+
+      errDiv.style.display = 'none';
+      formData.age = parseInt(ageVal);
+      formData.height = parseFloat(heightVal);
+      formData.currentWeight = parseFloat(weightVal);
 
       document.getElementById('step-1').style.display = 'none';
       document.getElementById('step-2').style.display = 'block';
@@ -138,22 +163,46 @@ export function renderOnboarding(onComplete) {
       document.getElementById('step-1').style.display = 'block';
     });
 
-    document.getElementById('btn-step2-next').addEventListener('click', () => {
-      formData.targetWeight = parseFloat(document.getElementById('ob-target-weight').value) || 65;
+    const calculateAndShowSummary = () => {
+      const targetWeightVal = document.getElementById('ob-target-weight').value.trim();
+      const targetDaysVal = document.getElementById('ob-target-days').value.trim();
+      const errDiv = document.getElementById('ob-step2-error');
+
+      if (!targetWeightVal) {
+        errDiv.textContent = '⚠️ Vui lòng tự nhập Cân nặng mục tiêu!';
+        errDiv.style.display = 'block';
+        return false;
+      }
+
+      errDiv.style.display = 'none';
+      formData.targetWeight = parseFloat(targetWeightVal);
+      formData.targetDays = parseInt(targetDaysVal) || 60;
 
       // Calculate BMR, TDEE, Deficit, Macros, Water
       const bmr = calculateBMR(formData.gender, formData.currentWeight, formData.height, formData.age);
       const tdee = calculateTDEE(bmr, formData.activityLevel);
-      const targetCalObj = calculateTargetCalories(tdee, formData.currentWeight, formData.targetWeight, 60);
+      const targetCalObj = calculateTargetCalories(tdee, formData.currentWeight, formData.targetWeight, formData.targetDays);
       const macros = calculateMacros(targetCalObj.targetCalories);
       const water = calculateWaterTarget(formData.currentWeight, formData.activityLevel);
+
+      // Check weight loss speed safety
+      const diffKg = formData.currentWeight - formData.targetWeight;
+      let recommendedDays = formData.targetDays;
+      let isTooFast = false;
+
+      if (diffKg > 0) {
+        // Safe rate: max ~0.75kg - 1.0kg / week (approx 0.1kg/day)
+        recommendedDays = Math.max(30, Math.ceil((diffKg * 7700) / 500));
+        if (formData.targetDays < recommendedDays || targetCalObj.targetCalories <= 1200) {
+          isTooFast = true;
+        }
+      }
 
       formData.bmr = bmr;
       formData.tdee = tdee;
       formData.dailyCalorieTarget = targetCalObj.targetCalories;
       formData.macroTarget = macros;
       formData.waterTarget = water;
-      formData.warning = targetCalObj.warning;
 
       // Render summary
       const resultsHtml = `
@@ -180,14 +229,47 @@ export function renderOnboarding(onComplete) {
           <div style="margin-top: 0.75rem; font-size: 0.85rem;">
             💧 Mục tiêu nước uống: <b>${water} ml</b> / ngày
           </div>
-          ${targetCalObj.warning ? `<div style="margin-top: 0.75rem; background: rgba(199, 70, 101, 0.12); color: var(--danger); padding: 0.5rem; border-radius: 8px; font-size: 0.8rem;">⚠️ ${targetCalObj.warning}</div>` : ''}
+
+          ${isTooFast ? `
+            <div style="margin-top: 0.85rem; background: #fef2f2; border: 1.5px solid #fecaca; padding: 0.85rem; border-radius: 12px; color: #991b1b; font-size: 0.825rem; line-height: 1.5;">
+              <div style="font-weight: 800; color: #dc2626; font-size: 0.875rem; margin-bottom: 0.3rem;">
+                ⚠️ Lời Nhắc Nhở An Toàn Sức Khỏe AI Coach
+              </div>
+              Mục tiêu giảm <b>${diffKg.toFixed(1)} kg</b> trong <b>${formData.targetDays} ngày</b> là quá nhanh, dễ dẫn đến mệt mỏi và mất cơ!
+              <br>
+              💡 <b>Thời gian khuyến nghị phù hợp: ${recommendedDays} ngày</b> (để giảm an toàn ~0.5kg - 0.7kg/tuần).
+              <div style="margin-top: 0.6rem;">
+                <button type="button" id="btn-apply-recommended-days" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #dc2626; border-color: #fca5a5; background: #fff;">
+                  ⚡ Áp dụng ngay ${recommendedDays} ngày
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 0.85rem; background: rgba(124, 58, 237, 0.08); border: 1px solid var(--border-highlight); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: var(--accent-purple);">
+            ✨ <b>AI Auto-Planner:</b> Sau khi xác nhận, AI Coach sẽ tự động thiết lập toàn bộ thực đơn 7 ngày, lịch tập luyện & danh sách công việc hàng ngày cho hành trình <b>${formData.targetDays} ngày</b> của bạn!
+          </div>
         </div>
       `;
 
       document.getElementById('ai-calc-results').innerHTML = resultsHtml;
+
+      // Attach button handler if warning exists
+      const applyBtn = document.getElementById('btn-apply-recommended-days');
+      if (applyBtn) {
+        applyBtn.addEventListener('click', () => {
+          document.getElementById('ob-target-days').value = recommendedDays;
+          calculateAndShowSummary();
+        });
+      }
+
       document.getElementById('step-2').style.display = 'none';
       document.getElementById('step-3').style.display = 'block';
-    });
+      if (window.lucide) window.lucide.createIcons();
+      return true;
+    };
+
+    document.getElementById('btn-step2-next').addEventListener('click', calculateAndShowSummary);
 
     // Step 3 Back
     document.getElementById('btn-step3-back').addEventListener('click', () => {
@@ -195,7 +277,7 @@ export function renderOnboarding(onComplete) {
       document.getElementById('step-2').style.display = 'block';
     });
 
-    // Confirm & Save
+    // Confirm & Save -> Auto generate full meal plan, workout schedule & checklist
     document.getElementById('btn-confirm-onboarding').addEventListener('click', async () => {
       const profile = await DataService.getUserProfile();
       profile.gender = formData.gender;
@@ -214,10 +296,43 @@ export function renderOnboarding(onComplete) {
       goal.waterTarget = formData.waterTarget;
       goal.bmr = formData.bmr;
       goal.tdee = formData.tdee;
+      goal.startDate = DataService.getTodayString();
+      goal.targetDate = new Date(Date.now() + formData.targetDays * 86400000).toISOString().split('T')[0];
+      goal.totalJourneyDays = formData.targetDays;
+      goal.targetDays = formData.targetDays;
+      goal.currentJourneyDay = 1;
       await DataService.saveUserGoal(goal);
 
+      // Auto-generate 7-day meal plan & 7-day workout routine
+      const today = DataService.getTodayString();
+      const weeklyMealPlan = generate7DayMealPlan(100000, today, profile.foodAllergies);
+      const weeklyWorkoutRoutine = generate7DayWorkoutRoutine('home', 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg');
+
+      const plan = {
+        id: 'current_plan',
+        dailyBudgetVnd: 100000,
+        workoutType: 'home',
+        homeEquipment: 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg',
+        createdAt: today,
+        targetDays: formData.targetDays,
+        weeklyMealPlan,
+        weeklyWorkoutRoutine
+      };
+      await DataService.saveUserPlan(plan);
+
+      // Pre-populate daily checklist
+      const dailyLog = await DataService.getDailyLog(today);
+      dailyLog.checklist = [
+        { id: 'ch_water', task: `Uống đủ ${formData.waterTarget} ml nước`, done: false },
+        { id: 'ch_calo', task: `Duy trì chỉ tiêu ${formData.dailyCalorieTarget} kcal/ngày`, done: false },
+        { id: 'ch_workout', task: `Hoàn thành bài tập theo lịch trình`, done: false },
+        { id: 'ch_photo', task: `Upload ảnh tiến trình ngày đầu tiên`, done: false }
+      ];
+      await DataService.saveDailyLog(dailyLog);
+
       // Close modal & trigger callback
-      document.getElementById('onboarding-modal').remove();
+      const modalEl = document.getElementById('onboarding-modal');
+      if (modalEl) modalEl.remove();
       if (onComplete) onComplete();
     });
   }

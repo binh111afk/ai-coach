@@ -10,11 +10,14 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
   const levelInfo = getLevelInfo(progress.totalXp);
   const isDark = document.body.classList.contains('dark');
 
-  // Calculate Journey Day (e.g., Ngày 30/100)
+  // Calculate Journey Day (e.g., Ngày 1/185)
   const startMs = new Date(goal.startDate || Date.now()).getTime();
+  const targetMs = goal.targetDate ? new Date(goal.targetDate).getTime() : null;
+  const calculatedTotalDays = targetMs ? Math.max(1, Math.round((targetMs - startMs) / 86400000)) : null;
+
   const daysElapsed = Math.max(1, Math.floor((Date.now() - startMs) / 86400000) + 1);
   const currentDay = goal.currentJourneyDay || daysElapsed;
-  const totalDays = goal.totalJourneyDays || 100;
+  const totalDays = goal.totalJourneyDays || goal.targetDays || (calculatedTotalDays && calculatedTotalDays > 0 ? calculatedTotalDays : 60);
 
   const navHtml = `
     <nav class="navbar">

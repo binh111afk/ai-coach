@@ -233,8 +233,17 @@ export async function renderAiChatPage(onStateUpdated) {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const removeIdx = parseInt(btn.getAttribute('data-index'));
-          attachedFiles.splice(removeIdx, 1);
-          renderPreviewChips();
+          const chipEl = btn.closest('.file-chip');
+          if (chipEl) {
+            chipEl.classList.add('item-deleting');
+            setTimeout(() => {
+              attachedFiles.splice(removeIdx, 1);
+              renderPreviewChips();
+            }, 250);
+          } else {
+            attachedFiles.splice(removeIdx, 1);
+            renderPreviewChips();
+          }
         });
       });
     };
@@ -340,7 +349,19 @@ async function renderChatSessionsSidebar(activeSessionId, onSelectSession, onDel
     });
   });
   sidebarContainer.querySelectorAll('[data-del-session-id]').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); onDeleteSession(btn.getAttribute('data-del-session-id')); });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sId = btn.getAttribute('data-del-session-id');
+      const itemEl = btn.closest('.chat-item');
+      if (itemEl) {
+        itemEl.classList.add('item-deleting');
+        setTimeout(() => {
+          if (onDeleteSession) onDeleteSession(sId);
+        }, 320);
+      } else {
+        if (onDeleteSession) onDeleteSession(sId);
+      }
+    });
   });
 }
 

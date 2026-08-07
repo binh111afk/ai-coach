@@ -130,12 +130,21 @@ export async function renderWorkoutTracker() {
       }
     });
 
-    // Delete workout
+    // Delete workout with smooth animation
     document.querySelectorAll('[data-delete-workout]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = btn.getAttribute('data-delete-workout');
-        await DataService.removeWorkoutLog(todayLog.date, id);
-        renderWorkoutTracker();
+        const card = btn.closest('.card') || btn.closest('.workout-item') || btn.parentElement;
+        if (card) {
+          card.classList.add('item-deleting');
+          setTimeout(async () => {
+            await DataService.removeWorkoutLog(todayLog.date, id);
+            renderWorkoutTracker();
+          }, 320);
+        } else {
+          await DataService.removeWorkoutLog(todayLog.date, id);
+          renderWorkoutTracker();
+        }
       });
     });
 

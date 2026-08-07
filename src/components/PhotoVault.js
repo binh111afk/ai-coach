@@ -303,7 +303,7 @@ export async function renderPhotoVault() {
       }
     });
 
-    // 3. DELETE PHOTO HANDLER
+    // 3. DELETE PHOTO HANDLER with smooth animation
     document.querySelectorAll('[data-delete-photo]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -316,8 +316,17 @@ export async function renderPhotoVault() {
           cancelText: 'Hủy Bỏ'
         });
         if (confirmed) {
-          await DataService.deletePhoto(id);
-          renderPhotoVault();
+          const card = btn.closest('.photo-card') || btn.closest('.card') || btn.parentElement;
+          if (card) {
+            card.classList.add('item-deleting');
+            setTimeout(async () => {
+              await DataService.deletePhoto(id);
+              renderPhotoVault();
+            }, 320);
+          } else {
+            await DataService.deletePhoto(id);
+            renderPhotoVault();
+          }
         }
       });
     });

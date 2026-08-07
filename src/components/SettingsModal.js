@@ -113,11 +113,22 @@ export async function renderSettingsModal(onSaveComplete) {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Họ & Tên</label>
-              <input type="text" class="form-input" id="settings-user-name" value="${profile.name}" style="word-break: break-word;">
+              <input type="text" class="form-input" id="settings-user-name" value="${profile.name || ''}" style="word-break: break-word;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Tuổi</label>
+              <input type="number" class="form-input" id="settings-user-age" value="${profile.age || 25}" min="12" max="100">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Chiều cao (cm)</label>
+              <input type="number" class="form-input" id="settings-user-height" value="${profile.height || 170}" min="100" max="230">
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Cân nặng hiện tại (kg)</label>
-              <input type="number" class="form-input" id="settings-user-weight" value="${profile.currentWeight}">
+              <input type="number" class="form-input" id="settings-user-weight" value="${profile.currentWeight || 70}" step="0.1">
             </div>
           </div>
 
@@ -150,6 +161,7 @@ export async function renderSettingsModal(onSaveComplete) {
   const mountNode = document.getElementById('modal-mount');
   if (mountNode) {
     mountNode.innerHTML = modalHtml;
+    if (window.lucide) window.lucide.createIcons();
 
     // Initialize Dropdown Component Listeners
     initDropdownListeners(mountNode, (val) => {
@@ -164,6 +176,11 @@ export async function renderSettingsModal(onSaveComplete) {
     avatarFileInput?.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        Modal.alert({ title: 'File Quá Lớn', message: 'Vui lòng chọn file ảnh dung lượng dưới 5MB.' });
+        return;
+      }
 
       const filenameLabel = document.getElementById('settings-avatar-filename');
       if (filenameLabel) {
@@ -195,6 +212,8 @@ export async function renderSettingsModal(onSaveComplete) {
     // Save Settings
     document.getElementById('btn-save-settings')?.addEventListener('click', async () => {
       const newName = document.getElementById('settings-user-name').value.trim();
+      const newAge = parseInt(document.getElementById('settings-user-age').value) || profile.age;
+      const newHeight = parseFloat(document.getElementById('settings-user-height').value) || profile.height;
       const newWeight = parseFloat(document.getElementById('settings-user-weight').value);
       const newAllergies = document.getElementById('settings-food-allergies').value.trim();
       const newBudget = parseInt(document.getElementById('settings-daily-budget').value) || 100000;
@@ -202,6 +221,8 @@ export async function renderSettingsModal(onSaveComplete) {
       await DataService.saveSetting('ninerouter_model', currentSelectedModel);
 
       if (newName) profile.name = newName;
+      if (!isNaN(newAge)) profile.age = newAge;
+      if (!isNaN(newHeight)) profile.height = newHeight;
       if (!isNaN(newWeight)) profile.currentWeight = newWeight;
       profile.foodAllergies = newAllergies;
 
@@ -211,6 +232,21 @@ export async function renderSettingsModal(onSaveComplete) {
 
       await DataService.saveUserProfile(profile);
 
+      // Recalculate User Goal math based on updated physical parameters
+      const goal = await DataService.getUserGoal();
+      const bmr = calculateBMR(profile.gender || 'male', profile.currentWeight, profile.height, profile.age);
+      const tdee = calculateTDEE(bmr, profile.activityLevel || 1.2);
+      const targetCalObj = calculateTargetCalories(tdee, profile.currentWeight, goal.targetWeight || profile.currentWeight, 60);
+      const macros = calculateMacros(targetCalObj.targetCalories);
+      const water = calculateWaterTarget(profile.currentWeight, profile.activityLevel || 1.2);
+
+      goal.bmr = bmr;
+      goal.tdee = tdee;
+      goal.dailyCalorieTarget = targetCalObj.targetCalories;
+      goal.macroTarget = macros;
+      goal.waterTarget = water;
+      await DataService.saveUserGoal(goal);
+
       // Re-generate user's 7-day meal plan to respect new budget & food allergies
       const plan = await DataService.getUserPlan();
       plan.dailyBudgetVnd = newBudget;
@@ -219,7 +255,7 @@ export async function renderSettingsModal(onSaveComplete) {
 
       await Modal.success({
         title: 'Đã Lưu Cài Đặt!',
-        message: 'Thông tin cá nhân, ảnh đại diện và ngân sách ăn uống đã được cập nhật thành công!'
+        message: 'Thông tin cá nhân (tuổi, chiều cao, cân nặng), ảnh đại diện và ngân sách ăn uống đã được cập nhật thành công!'
       });
 
       modal.remove();

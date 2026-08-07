@@ -155,12 +155,21 @@ export async function renderMealTracker(onOpenAiCoach) {
       }
     });
 
-    // Delete meal buttons
+    // Delete meal buttons with smooth animation
     document.querySelectorAll('[data-delete-meal]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = btn.getAttribute('data-delete-meal');
-        await DataService.removeMealLog(todayLog.date, id);
-        renderMealTracker(onOpenAiCoach);
+        const card = btn.closest('.card') || btn.closest('.meal-card') || btn.closest('[data-delete-meal]').parentElement;
+        if (card) {
+          card.classList.add('item-deleting');
+          setTimeout(async () => {
+            await DataService.removeMealLog(todayLog.date, id);
+            renderMealTracker(onOpenAiCoach);
+          }, 320);
+        } else {
+          await DataService.removeMealLog(todayLog.date, id);
+          renderMealTracker(onOpenAiCoach);
+        }
       });
     });
 
