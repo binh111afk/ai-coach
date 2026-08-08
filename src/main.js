@@ -31,6 +31,7 @@ async function initApp() {
     renderOnboarding(async () => {
       await refreshAllViews();
     });
+    return;
   }
 
   // Toggle AI full-screen mode on body if starting on AI tab

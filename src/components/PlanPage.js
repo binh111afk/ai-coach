@@ -1,10 +1,10 @@
 import confetti from 'canvas-confetti';
-import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, getMealRecipeDetails } from '../services/dataService.js';
+import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases, getPlanForJourneyDay, getMealRecipeDetails } from '../services/dataService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { Modal } from './ui/Modal.js';
 import { renderGeminiIcon, renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon, renderCalendarIcon } from './ui/Icons.js';
 
-let selectedDateStr = new Date().toISOString().split('T')[0];
+let selectedJourneyDay = 1; // 1-based journey day navigation
 let activeWorkoutTypeSelection = null;
 
 export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
@@ -16,23 +16,31 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   const profile = await DataService.getUserProfile();
   const goal = await DataService.getUserGoal();
   const plan = await DataService.getUserPlan();
+  const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 60;
 
   let currentWorkoutType = activeWorkoutTypeSelection || plan.workoutType || 'home';
   let currentHomeEquipment = plan.homeEquipment || 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg';
 
-  // Ensure weeklyMealPlan has entries
+  // Ensure weeklyMealPlan has entries (backward compat)
   if (!plan.weeklyMealPlan || Object.keys(plan.weeklyMealPlan).length === 0) {
     plan.weeklyMealPlan = generate7DayMealPlan(plan.dailyBudgetVnd || 100000, DataService.getTodayString());
     plan.weeklyWorkoutRoutine = generate7DayWorkoutRoutine(currentWorkoutType, currentHomeEquipment);
     await DataService.saveUserPlan(plan);
   }
 
-  const dateKeys = Object.keys(plan.weeklyMealPlan).sort();
-  if (!dateKeys.includes(selectedDateStr)) {
-    selectedDateStr = dateKeys[0] || DataService.getTodayString();
-  }
+  // Clamp selectedJourneyDay
+  if (selectedJourneyDay < 1) selectedJourneyDay = 1;
+  if (selectedJourneyDay > totalJourneyDays) selectedJourneyDay = totalJourneyDays;
 
-  const activeDayMealPlan = plan.weeklyMealPlan[selectedDateStr] || plan.weeklyMealPlan[dateKeys[0]];
+  // Resolve meal & workout for selected journey day using phase system
+  const { mealEntry: activeDayMealPlan, workout: activeWorkout, phase: activePhase } = getPlanForJourneyDay(plan, selectedJourneyDay);
+
+  // Current phase info for display
+  const phaseLabel = activePhase?.phaseLabel || (plan.journeyPhases?.length > 0 ? plan.journeyPhases[0].phaseLabel : 'Kế Hoạch Hành Trình');
+  const numPhases = plan.journeyPhases?.length || 1;
+
+  // Active workout list: from the phase's weeklyWorkoutRoutine if available
+  const activeWorkoutRoutine = activePhase?.weeklyWorkoutRoutine || plan.weeklyWorkoutRoutine || [];
 
   const totalMealCost = (activeDayMealPlan?.breakfast?.costVnd || 0) +
                         (activeDayMealPlan?.lunch?.costVnd || 0) +
@@ -43,6 +51,9 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
                             (activeDayMealPlan?.lunch?.calories || 0) +
                             (activeDayMealPlan?.dinner?.calories || 0) +
                             (activeDayMealPlan?.snack?.calories || 0);
+
+  const dayOfWeek = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ Nhật'][(selectedJourneyDay - 1) % 7];
+  const activeDayName = activeDayMealPlan?.dayName || dayOfWeek;
 
   const workoutOptions = [
     { value: 'home', label: 'Tập Tại Nhà (Dụng cụ đơn giản / Bodyweight)' },
@@ -58,10 +69,10 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         <div class="card-header">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.6rem;">
-              ${renderGeminiIcon({ width: 22, height: 22, strokeWidth: 1.8, color: 'var(--accent-purple)' })} Kế Hoạch 7 Ngày Theo Ngân Sách & Lịch Tập
+              ${renderGeminiIcon({ width: 22, height: 22, strokeWidth: 1.8, color: 'var(--accent-purple)' })} Kế Hoạch Toàn Bộ Hành Trình ${totalJourneyDays} Ngày
             </h2>
             <p class="text-sm text-muted" style="margin-top: 0.25rem;">
-              AI Coach lập thực đơn 7 ngày theo ngân sách (${(plan.dailyBudgetVnd || 100000).toLocaleString('vi-VN')} VNĐ/ngày) & lịch tập bài bản.
+              AI Coach lập thực đơn theo ngân sách (${(plan.dailyBudgetVnd || 100000).toLocaleString('vi-VN')} VNĐ/ngày) &amp; lịch tập ${numPhases} giai đoạn cho toàn hành trình.
             </p>
           </div>
           <button class="btn btn-ai" id="btn-recalculate-plan">
@@ -96,35 +107,43 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
           <div style="display: flex; align-items: flex-end;">
             <button class="btn btn-primary" style="width: 100%; height: 42px;" id="btn-save-plan-controls">
-              <i data-lucide="check"></i> Cập Nhật Lộ Trình 7 Ngày
+              <i data-lucide="check"></i> Cập Nhật &amp; Tái Sinh Kế Hoạch
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Plan Section 1: 7-Day Meal Plan Box with Date Nav -->
+      <!-- Plan Section 1: Journey Day Meal Plan with Day Nav -->
       <div class="card">
         <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
           <div>
-            <div class="card-title"><i data-lucide="utensils" class="text-purple"></i> Thực Đơn Bữa Ăn 7 Ngày Theo Ngân Sách</div>
-            <div class="text-xs text-muted" style="margin-top: 0.2rem;">Chi phí ngày này: <b style="color: var(--accent-purple);">${totalMealCost.toLocaleString('vi-VN')} VNĐ</b> | Calo: <b>${totalMealCalories} kcal</b></div>
+            <div class="card-title"><i data-lucide="utensils" class="text-purple"></i> Thực Đơn Hành Trình — ${activeDayName}</div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; flex-wrap: wrap;">
+              <span class="badge" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); color: #fff; font-size: 0.75rem; padding: 0.25rem 0.65rem; border-radius: 20px;">
+                📅 Ngày ${selectedJourneyDay}/${totalJourneyDays}
+              </span>
+              <span class="badge badge-secondary" style="font-size: 0.75rem;">
+                🏁 ${phaseLabel}
+              </span>
+              <span class="text-xs text-muted">· Chi phí: <b style="color: var(--accent-purple);">${totalMealCost.toLocaleString('vi-VN')} VNĐ</b> · Calo: <b>${totalMealCalories} kcal</b></span>
+            </div>
           </div>
 
-          <!-- Date Navigation Bar (< prev | Date | next >) -->
+          <!-- Journey Day Navigation Bar -->
           <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-subtle); padding: 0.4rem 0.8rem; border-radius: var(--radius-full); border: 1px solid var(--border-highlight);">
-            <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-date-prev" title="Ngày trước đó" style="width: 32px; height: 32px;">
+            <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-prev" title="Ngày trước" style="width: 32px; height: 32px;" ${selectedJourneyDay <= 1 ? 'disabled' : ''}>
               <i data-lucide="chevron-left"></i>
             </button>
-            <span style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); min-width: 180px; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">
-              ${renderCalendarIcon()} ${activeDayMealPlan?.formattedDate || selectedDateStr}
+            <span style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); min-width: 90px; text-align: center;">
+              ${renderCalendarIcon()} Ngày ${selectedJourneyDay}
             </span>
-            <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-date-next" title="Ngày tiếp theo" style="width: 32px; height: 32px;">
+            <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-next" title="Ngày tiếp theo" style="width: 32px; height: 32px;" ${selectedJourneyDay >= totalJourneyDays ? 'disabled' : ''}>
               <i data-lucide="chevron-right"></i>
             </button>
           </div>
         </div>
 
-        <!-- 4 Meals Grid for Active Date -->
+        <!-- 4 Meals Grid for Active Journey Day -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
           ${renderMealPlanCard('breakfast', 'Bữa Sáng', activeDayMealPlan?.breakfast, renderSunIcon())}
           ${renderMealPlanCard('lunch', 'Bữa Trưa', activeDayMealPlan?.lunch, renderSunsetIcon())}
@@ -139,7 +158,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         </div>
       </div>
 
-      <!-- Plan Section 2: Weekly Workout Routine with Video & Text Guide Modal -->
+      <!-- Plan Section 2: Phase Workout Routine with Video & Text Guide Modal -->
       <div class="schedule-card">
         <div class="schedule-header">
           <div class="icon">
@@ -151,11 +170,11 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
               <circle cx="16" cy="17.5" r="2.2"/>
             </svg>
           </div>
-          <h2>Lịch Tập Luyện Cá Nhân Hóa 7 Ngày Trong Tuần (${currentWorkoutType === 'home' ? 'Tập Tại Nhà' : currentWorkoutType === 'gym' ? 'Phòng Gym' : 'Outdoor'})</h2>
+          <h2>Lịch Tập — ${phaseLabel} (${currentWorkoutType === 'home' ? 'Tập Tại Nhà' : currentWorkoutType === 'gym' ? 'Phòng Gym' : 'Outdoor'})</h2>
         </div>
 
         <div class="days-grid">
-          ${(plan.weeklyWorkoutRoutine || []).map((w, idx) => {
+          ${(activeWorkoutRoutine || []).map((w, idx) => {
             const isRest = w.type === 'Rest' || w.duration === 0;
             return `
               <div class="day-card ${isRest ? 'rest' : ''}">
@@ -326,24 +345,22 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       }
     });
 
-    // Date Navigation Controls (< prev | date | next >)
-    document.getElementById('btn-plan-date-prev')?.addEventListener('click', () => {
-      const idx = dateKeys.indexOf(selectedDateStr);
-      if (idx > 0) {
-        selectedDateStr = dateKeys[idx - 1];
+    // Journey Day Navigation Controls (< prev | day | next >)
+    document.getElementById('btn-plan-day-prev')?.addEventListener('click', () => {
+      if (selectedJourneyDay > 1) {
+        selectedJourneyDay--;
         renderPlanPage(onNavigateTab, onOpenAiCoach);
       }
     });
 
-    document.getElementById('btn-plan-date-next')?.addEventListener('click', () => {
-      const idx = dateKeys.indexOf(selectedDateStr);
-      if (idx < dateKeys.length - 1) {
-        selectedDateStr = dateKeys[idx + 1];
+    document.getElementById('btn-plan-day-next')?.addEventListener('click', () => {
+      if (selectedJourneyDay < totalJourneyDays) {
+        selectedJourneyDay++;
         renderPlanPage(onNavigateTab, onOpenAiCoach);
       }
     });
 
-    // Save Controls & Regenerate 7-Day Meal Plan & Workout Routine
+    // Save Controls & Regenerate full journey phases
     document.getElementById('btn-save-plan-controls')?.addEventListener('click', async () => {
       const budget = parseInt(document.getElementById('plan-budget-input').value) || 100000;
       const homeEquipInput = document.getElementById('plan-home-equipment-input');
@@ -351,11 +368,15 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
       const chosenWorkoutType = activeWorkoutTypeSelection || currentWorkoutType || 'home';
 
+      const profile = await DataService.getUserProfile();
+      const allergies = profile.foodAllergies || '';
       plan.dailyBudgetVnd = budget;
       plan.workoutType = chosenWorkoutType;
       plan.homeEquipment = homeEquipVal;
-      plan.weeklyMealPlan = generate7DayMealPlan(budget, DataService.getTodayString());
+      plan.weeklyMealPlan = generate7DayMealPlan(budget, DataService.getTodayString(), allergies);
       plan.weeklyWorkoutRoutine = generate7DayWorkoutRoutine(chosenWorkoutType, homeEquipVal);
+      // Rebuild full journey phases with new settings
+      plan.journeyPhases = generateFullJourneyPhases(totalJourneyDays, budget, chosenWorkoutType, homeEquipVal, allergies);
 
       await DataService.saveUserPlan(plan);
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
@@ -363,7 +384,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       const locationName = chosenWorkoutType === 'gym' ? 'Phòng Gym' : chosenWorkoutType === 'outdoor' ? 'Outdoor / Công Viên' : 'Tập Tại Nhà';
       await Modal.success({
         title: 'Cập Nhật Lộ Trình Thành Công!',
-        message: `Đã đổi địa điểm tập sang: ${locationName}\nAI Coach đã thiết kế lại 7 bài tập mới phù hợp!`
+        message: `Đã đổi địa điểm tập sang: ${locationName}\nAI Coach đã thiết kế lại ${plan.journeyPhases.length} giai đoạn cho ${totalJourneyDays} ngày hành trình!`
       });
 
       renderPlanPage(onNavigateTab, onOpenAiCoach);
@@ -371,7 +392,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     document.getElementById('btn-recalculate-plan')?.addEventListener('click', onOpenAiCoach);
 
-    // Apply active date meal plan to today's log
+    // Apply active journey day meal plan to today's log
     document.getElementById('btn-apply-meals-to-today')?.addEventListener('click', async () => {
       const today = DataService.getTodayString();
       if (activeDayMealPlan?.breakfast) await DataService.addMealLog(today, { type: 'Breakfast', ...activeDayMealPlan.breakfast });
@@ -382,19 +403,19 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       confetti({ particleCount: 70, spread: 90, origin: { y: 0.5 } });
       await Modal.success({
         title: 'Đã Thêm Vào Nhật Ký!',
-        message: `Đã ghi nhận thực đơn ${activeDayMealPlan?.dayName} (${activeDayMealPlan?.date}) vào nhật ký hôm nay!`
+        message: `Đã ghi nhận thực đơn ${activeDayName} (Ngày ${selectedJourneyDay}/${totalJourneyDays}) vào nhật ký hôm nay!`
       });
       onNavigateTab('meals');
     });
 
-    // Workout Video & Text Guide Modal Handler
+    // Workout Video & Text Guide Modal Handler (uses activeWorkoutRoutine)
     const wgModal = document.getElementById('workout-guide-modal');
     let activeWorkoutItem = null;
 
     document.querySelectorAll('[data-open-workout-guide]').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.getAttribute('data-open-workout-guide'));
-        activeWorkoutItem = plan.weeklyWorkoutRoutine[idx];
+        activeWorkoutItem = activeWorkoutRoutine[idx];
         if (!activeWorkoutItem) return;
 
         document.getElementById('wg-modal-title').innerText = `Hướng Dẫn: ${activeWorkoutItem.title}`;

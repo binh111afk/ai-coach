@@ -53,6 +53,8 @@ export const DataService = {
         targetWeight: profile.currentWeight - 5,
         startDate: this.getTodayString(),
         targetDate: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0],
+        totalJourneyDays: 60,
+        targetDays: 60,
         dailyCalorieTarget: targetCalObj.targetCalories,
         macroTarget: macros,
         waterTarget: water,
@@ -60,6 +62,21 @@ export const DataService = {
         tdee
       };
       await dbManager.put('goals', goal);
+    } else {
+      // Auto-migrate legacy goals missing totalJourneyDays
+      if (!goal.totalJourneyDays && !goal.targetDays) {
+        if (goal.targetDate && goal.startDate) {
+          const start = new Date(goal.startDate).getTime();
+          const target = new Date(goal.targetDate).getTime();
+          const diff = Math.max(10, Math.round((target - start) / 86400000));
+          goal.totalJourneyDays = diff;
+          goal.targetDays = diff;
+        } else {
+          goal.totalJourneyDays = 60;
+          goal.targetDays = 60;
+        }
+        await dbManager.put('goals', goal);
+      }
     }
     return goal;
   },
@@ -73,12 +90,18 @@ export const DataService = {
   // ---------------- USER PLAN (7-DAY MEAL BUDGET & WORKOUT ROUTINE) ----------------
   async getUserPlan() {
     let plan = await dbManager.get('goals', 'current_plan');
+    const profile = await this.getUserProfile();
+    const allergies = profile.foodAllergies || '';
+
     if (!plan) {
       const today = this.getTodayString();
-      const weeklyMealPlan = generate7DayMealPlan(100000, today);
+      const weeklyMealPlan = generate7DayMealPlan(100000, today, allergies);
       const workoutType = 'home';
       const homeEquipment = 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg';
       const weeklyWorkoutRoutine = generate7DayWorkoutRoutine(workoutType, homeEquipment);
+      const goal = await this.getUserGoal();
+      const totalDays = goal.totalJourneyDays || goal.targetDays || 60;
+      const journeyPhases = generateFullJourneyPhases(totalDays, 100000, workoutType, homeEquipment, allergies);
 
       plan = {
         id: 'current_plan',
@@ -87,9 +110,48 @@ export const DataService = {
         homeEquipment,
         createdAt: today,
         weeklyMealPlan,
-        weeklyWorkoutRoutine
+        weeklyWorkoutRoutine,
+        journeyPhases
       };
       await dbManager.put('goals', plan);
+    } else if (allergies) {
+      // Auto-sanitize existing plan if profile has foodAllergies
+      let modified = false;
+      if (plan.journeyPhases && plan.journeyPhases.length > 0) {
+        plan.journeyPhases = plan.journeyPhases.map(phase => {
+          const sanitizedMealPlan = {};
+          Object.entries(phase.weeklyMealPlan || {}).forEach(([dayKey, dayData]) => {
+            if (!dayData) return;
+            sanitizedMealPlan[dayKey] = {
+              ...dayData,
+              breakfast: dayData.breakfast ? sanitizeMealItem(dayData.breakfast, allergies) : null,
+              lunch: dayData.lunch ? sanitizeMealItem(dayData.lunch, allergies) : null,
+              dinner: dayData.dinner ? sanitizeMealItem(dayData.dinner, allergies) : null,
+              snack: dayData.snack ? sanitizeMealItem(dayData.snack, allergies) : null,
+            };
+          });
+          return { ...phase, weeklyMealPlan: sanitizedMealPlan };
+        });
+        modified = true;
+      }
+      if (plan.weeklyMealPlan) {
+        const sanitizedMealPlan = {};
+        Object.entries(plan.weeklyMealPlan).forEach(([dayKey, dayData]) => {
+          if (!dayData) return;
+          sanitizedMealPlan[dayKey] = {
+            ...dayData,
+            breakfast: dayData.breakfast ? sanitizeMealItem(dayData.breakfast, allergies) : null,
+            lunch: dayData.lunch ? sanitizeMealItem(dayData.lunch, allergies) : null,
+            dinner: dayData.dinner ? sanitizeMealItem(dayData.dinner, allergies) : null,
+            snack: dayData.snack ? sanitizeMealItem(dayData.snack, allergies) : null,
+          };
+        });
+        plan.weeklyMealPlan = sanitizedMealPlan;
+        modified = true;
+      }
+      if (modified) {
+        await dbManager.put('goals', plan);
+      }
     }
     return plan;
   },
@@ -105,18 +167,52 @@ export const DataService = {
     let log = await dbManager.get('daily_logs', dateStr);
     if (!log) {
       const goal = await this.getUserGoal();
+      const plan = await this.getUserPlan();
+
+      // Calculate current journeyDay (1-based) from startDate
+      let journeyDay = 1;
+      if (goal.startDate) {
+        const start = new Date(goal.startDate);
+        const current = new Date(dateStr);
+        journeyDay = Math.max(1, Math.floor((current - start) / 86400000) + 1);
+      }
+
+      // Pull dailyChecklist from the matching journey phase
+      let checklist = null;
+      if (plan.journeyPhases && plan.journeyPhases.length > 0) {
+        const totalDays = goal.totalJourneyDays || goal.targetDays || 60;
+        const { phase } = getPlanForJourneyDay(plan, Math.min(journeyDay, totalDays));
+        if (phase && Array.isArray(phase.dailyChecklist) && phase.dailyChecklist.length > 0) {
+          // Clone with done: false so each day starts fresh
+          checklist = phase.dailyChecklist.map(item => ({
+            ...item,
+            id: item.id + '_' + dateStr, // unique per day so past days don't conflict
+            done: false
+          }));
+        }
+      }
+
+      // Fallback: build default checklist from goal targets
+      if (!checklist || checklist.length === 0) {
+        const allergyNote = plan.foodAllergies ? ` (né: ${plan.foodAllergies})` : '';
+        checklist = [
+          { id: `task_water_${dateStr}`,   task: `💧 Uống đủ ${((goal.waterTarget || 2500) / 1000).toFixed(1)}L nước`, done: false },
+          { id: `task_calo_${dateStr}`,    task: `🍽️ Ăn đủ ${goal.dailyCalorieTarget || 1800} kcal${allergyNote}`, done: false },
+          { id: `task_protein_${dateStr}`, task: `💪 Nạp đủ ${goal.macroTarget?.protein || 120}g Protein`, done: false },
+          { id: `task_workout_${dateStr}`, task: `🏋️ Tập luyện theo lịch AI hôm nay`, done: false },
+          { id: `task_log_${dateStr}`,     task: `📝 Ghi nhật ký bữa ăn vào AI Coach`, done: false },
+          { id: `task_photo_${dateStr}`,   task: `📸 Chụp ảnh tiến trình cơ thể`, done: false },
+          { id: `task_sleep_${dateStr}`,   task: `😴 Ngủ đủ 7–8 tiếng tối nay`, done: false }
+        ];
+      }
+
       log = {
         date: dateStr,
         weight: null,
         meals: [],
         workouts: [],
         waterIntake: 0,
-        checklist: [
-          { id: 'task_protein', task: `Nạp đủ ${goal.macroTarget?.protein || 120}g Protein`, done: false },
-          { id: 'task_water', task: `Uống đủ ${((goal.waterTarget || 2500) / 1000).toFixed(1)}L nước`, done: false },
-          { id: 'task_workout', task: 'Tập luyện 30 phút hoặc 8000 bước chân', done: false },
-          { id: 'task_photo', task: 'Chụp 1 ảnh tiến trình cơ thể', done: false }
-        ],
+        checklist,
         xpEarned: 0,
         isRestDay: false
       };
@@ -868,30 +964,68 @@ export function getMealRecipeDetails(meal) {
   };
 }
 
-export function generate7DayMealPlan(budgetVnd = 100000, startDateStr = new Date().toISOString().split('T')[0], foodAllergiesStr = '') {
+export function isDishAllergic(dishName, foodAllergiesStr = '') {
+  if (!foodAllergiesStr || !dishName) return false;
+  const allergies = foodAllergiesStr.toLowerCase();
+  const dish = dishName.toLowerCase();
+
+  const isSeafoodAllergy = allergies.includes('hải sản') ||
+                           allergies.includes('sống dưới nước') ||
+                           allergies.includes('dưới nước') ||
+                           allergies.includes('thủy sản') ||
+                           allergies.includes('tôm') ||
+                           allergies.includes('cá') ||
+                           allergies.includes('mực') ||
+                           allergies.includes('cua');
+
+  if (isSeafoodAllergy && (
+    dish.includes('tôm') || dish.includes('mực') || dish.includes('cá') ||
+    dish.includes('cua') || dish.includes('hàu') || dish.includes('ốc') ||
+    dish.includes('sò') || dish.includes('nghêu') || dish.includes('lươn') || dish.includes('ngao')
+  )) {
+    return true;
+  }
+
+  if (allergies.includes('trứng') && dish.includes('trứng')) return true;
+  if ((allergies.includes('sữa') || allergies.includes('lactose')) && (dish.includes('sữa') || dish.includes('phô mai'))) return true;
+  if (allergies.includes('đậu') && (dish.includes('đậu') || dish.includes('đậu phụ') || dish.includes('đậu nành'))) return true;
+  if ((allergies.includes('heo') || allergies.includes('lợn')) && (dish.includes('heo') || dish.includes('lợn'))) return true;
+  if (allergies.includes('bò') && dish.includes('bò')) return true;
+
+  return false;
+}
+
+export function sanitizeMealItem(meal, foodAllergiesStr = '') {
+  if (!meal || !meal.name) return meal;
+  if (!isDishAllergic(meal.name, foodAllergiesStr)) return getMealRecipeDetails(meal);
+
+  let processed = { ...meal };
+  processed.name = meal.name
+    .replace(/150g tôm hấp sả \+ canh bí đao thịt nạc/gi, '150g ức gà áp chảo + canh bí đao thịt nạc')
+    .replace(/200g tôm rim nhạt \+ canh bầu nấu tôm/gi, '200g thịt thăn lợn luộc + canh bầu nấu thịt băm')
+    .replace(/150g cá thu nướng \/ thịt nạc \+ canh rau mồng tơi/gi, '150g ức gà nạc áp chảo + canh rau mồng tơi thịt băm')
+    .replace(/150g cá ngừ sốt cà chua \+ canh măng chua/gi, '150g thịt thăn bò xào cần tây + canh măng chua')
+    .replace(/200g cá hồi \/ cá diêu hồng hấp \+ đĩa rau củ luộc/gi, '200g ức gà nướng mật ong + đĩa rau củ luộc')
+    .replace(/bún chả cá nướng nhẹ dầu/gi, 'Bún ức gà xé nướng nhẹ dầu')
+    .replace(/150g mực xào ớt chuông \+ canh cải béc xanh/gi, '150g thịt bò xào ớt chuông + canh cải béc xanh')
+    .replace(/canh cua rau đét/gi, 'canh thịt băm rau đét')
+    .replace(/tôm hấp sả|tôm rim nhạt|tôm/gi, 'ức gà áp chảo')
+    .replace(/mực xào ớt chuông|mực/gi, 'thịt thăn bò xào cần tây')
+    .replace(/cá ngừ|cá hồi|cá thu nướng|cá thu|cá diêu hồng|bún chả cá|chả cá|cá/gi, 'ức gà nạc')
+    .replace(/cua|canh cua/gi, 'thịt heo nạc luộc')
+    .replace(/trứng ốp la|trứng chần|trứng cút|trứng/gi, 'thịt bò áp chảo')
+    .replace(/sữa chua nếp cẩm|sữa chua|sữa đậu nành|sữa/gi, 'nước ép táo tươi')
+    .replace(/đậu phụ|đậu nành/gi, 'thịt nạc luộc');
+
+  return getMealRecipeDetails(processed);
+}
+
+export function generate7DayMealPlan(budgetVnd = 100000, startDateStr = new Date().toISOString().split('T')[0], foodAllergiesStr = '', variantOffset = 0) {
   const weekly = {};
   const startDate = new Date(startDateStr);
   const allergies = (foodAllergiesStr || '').toLowerCase();
 
-  const isAllergic = (dishName) => {
-    if (!allergies) return false;
-    const dish = dishName.toLowerCase();
-    return (allergies.includes('hải sản') && (dish.includes('tôm') || dish.includes('mực') || dish.includes('cá') || dish.includes('cua'))) ||
-           (allergies.includes('trứng') && dish.includes('trứng')) ||
-           (allergies.includes('sữa') && (dish.includes('sữa') || dish.includes('phô mai'))) ||
-           (allergies.includes('đậu') && (dish.includes('đậu') || dish.includes('đậu phụ')));
-  };
-
-  const sanitizeMeal = (meal) => {
-    let processed = { ...meal };
-    if (isAllergic(meal.name)) {
-      processed.name = meal.name.replace(/tôm|mực|cá ngừ|cá hồi|cá thu|chả cá|cua/gi, 'ức gà nạc')
-                               .replace(/trứng ốp la|trứng chần|trứng cút|trứng/gi, 'thịt bò áp chảo')
-                               .replace(/sữa chua|sữa đậu nành|sữa/gi, 'nước ép táo tươi')
-                               .replace(/đậu phụ|đậu nành/gi, 'thịt nạc luộc');
-    }
-    return getMealRecipeDetails(processed);
-  };
+  const sanitizeMeal = (meal) => sanitizeMealItem(meal, allergies);
 
   const mealVariants = [
     {
@@ -948,7 +1082,7 @@ export function generate7DayMealPlan(budgetVnd = 100000, startDateStr = new Date
       date: dateStr,
       dayName: dayName.charAt(0).toUpperCase() + dayName.slice(1),
       formattedDate: new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d),
-      ...mealVariants[i % 7]
+      ...mealVariants[(i + variantOffset) % 7]
     };
   }
 
@@ -992,5 +1126,80 @@ export function generate7DayWorkoutRoutine(workoutType = 'home', homeEquipment =
   }
 }
 
+/**
+ * Generate full journey phases (local fallback, no AI).
+ * Each phase = 28 days (4 weeks). Max 4 phases.
+ * Phase content varies by shifting the meal/workout variant offset.
+ */
+export function generateFullJourneyPhases(totalDays = 60, budgetVnd = 100000, workoutType = 'home', homeEquipment = 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg', foodAllergiesStr = '') {
+  const PHASE_DAYS = 28; // 4 weeks per phase
+  const numPhases = Math.min(4, Math.ceil(totalDays / PHASE_DAYS));
+  const today = new Date().toISOString().split('T')[0];
 
+  const phaseLabels = [
+    'Phase 1 - Thích Nghi (Tuần 1-4)',
+    'Phase 2 - Tăng Tiến (Tuần 5-8)',
+    'Phase 3 - Đỉnh Cao (Tuần 9-12)',
+    'Phase 4 - Duy Trì & Biến Thể (Tuần 13+)'
+  ];
 
+  // Workout type variants per phase to add variety
+  const workoutVariants = [
+    workoutType,
+    workoutType,
+    workoutType === 'home' ? 'outdoor' : workoutType,
+    workoutType
+  ];
+
+  const phases = [];
+  for (let p = 0; p < numPhases; p++) {
+    const startDay = p * PHASE_DAYS + 1;
+    const endDay = Math.min((p + 1) * PHASE_DAYS, totalDays);
+    // Shift meal variants per phase so content differs
+    const mealOffset = p * 2; // shift by 2 variants per phase
+    const wType = workoutVariants[p];
+
+    phases.push({
+      phaseIndex: p,
+      phaseLabel: phaseLabels[p] || `Phase ${p + 1}`,
+      startDay,
+      endDay,
+      weeklyMealPlan: generate7DayMealPlan(budgetVnd, today, '', mealOffset),
+      weeklyWorkoutRoutine: generate7DayWorkoutRoutine(wType, homeEquipment)
+    });
+  }
+
+  return phases;
+}
+
+/**
+ * Given a plan and a journeyDay (1-based), return the correct meal plan entry and workout for that day.
+ * Uses journeyPhases if available, otherwise falls back to weeklyMealPlan.
+ */
+export function getPlanForJourneyDay(plan, journeyDay = 1) {
+  // Modern path: journeyPhases array
+  if (plan.journeyPhases && plan.journeyPhases.length > 0) {
+    // Find the matching phase, or use the last phase for overflow
+    let phase = plan.journeyPhases.find(p => journeyDay >= p.startDay && journeyDay <= p.endDay);
+    if (!phase) phase = plan.journeyPhases[plan.journeyPhases.length - 1];
+
+    // dayIndex within the 7-day weekly template (0–6)
+    const dayIndex = (journeyDay - 1) % 7;
+
+    // Meal: pick from the phase's weeklyMealPlan by position
+    const mealKeys = Object.keys(phase.weeklyMealPlan).sort();
+    const mealEntry = phase.weeklyMealPlan[mealKeys[dayIndex]] || null;
+
+    // Workout: pick from weeklyWorkoutRoutine by dayIndex
+    const workout = (phase.weeklyWorkoutRoutine || [])[dayIndex] || null;
+
+    return { mealEntry, workout, phase };
+  }
+
+  // Legacy fallback: weeklyMealPlan keyed by date, weeklyWorkoutRoutine array
+  const dayIndex = (journeyDay - 1) % 7;
+  const mealKeys = Object.keys(plan.weeklyMealPlan || {}).sort();
+  const mealEntry = plan.weeklyMealPlan?.[mealKeys[dayIndex]] || null;
+  const workout = (plan.weeklyWorkoutRoutine || [])[dayIndex] || null;
+  return { mealEntry, workout, phase: null };
+}

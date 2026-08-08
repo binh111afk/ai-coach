@@ -175,92 +175,147 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
   },
 
   /**
-   * Generate 7-day meal plan & workout schedule via real 9router AI API during Onboarding
+   * Generate full N-day journey plan (meal + workout) split into phases via 9router AI.
+   * Each phase = 28-day block (4 weeks). AI generates up to 4 phases in one call.
    */
   async generateFullJourneyPlan(profileData, goalData) {
-    console.log("🚀 [AI Onboarding Plan] Starting API Call...");
+    const totalDays = goalData.totalJourneyDays || goalData.targetDays || 60;
+    const numPhases = Math.min(4, Math.ceil(totalDays / 28));
+
+    console.log(`🚀 [AI Journey Plan] Starting: ${totalDays} days → ${numPhases} phases`);
+
     const apiKey = await DataService.getNinerouterApiKey();
     const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
 
-    console.log("🔑 [AI Onboarding Plan] Key exists:", !!apiKey, "| Model:", selectedModel);
+    console.log('🔑 [AI Journey Plan] Key exists:', !!apiKey, '| Model:', selectedModel);
 
     if (!apiKey) {
-      console.warn("⚠️ 9router API Key missing. Switching to Smart Local Generator.");
+      console.warn('⚠️ 9router API Key missing. Switching to local generator.');
       return null;
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    const phaseDescriptions = [
+      'Phase 1 (Ngày 1-28): Giai đoạn Thích Nghi — calo thấp hơn target ~10%, bài tập nhẹ để cơ thể làm quen',
+      'Phase 2 (Ngày 29-56): Giai đoạn Tăng Tiến — calo đúng mục tiêu, bài tập cường độ vừa tăng dần',
+      'Phase 3 (Ngày 57-84): Giai đoạn Đỉnh Cao — calo target, bài tập cường độ cao, thực đơn đa dạng hơn',
+      'Phase 4 (Ngày 85+): Giai đoạn Duy Trì — biến thể mới, duy trì thành quả và phòng chống cao nguyên'
+    ].slice(0, numPhases).join('\n');
+
+    const phasesExampleJson = Array.from({ length: numPhases }, (_, i) => ({
+      phaseIndex: i,
+      phaseLabel: `Phase ${i + 1}`,
+      startDay: i * 28 + 1,
+      endDay: Math.min((i + 1) * 28, totalDays),
+      weeklyMealPlan: {
+        "day1": { dayName: "Thứ 2", meals: [
+          { type: "Breakfast", name: "Ví dụ", calories: 350, protein: 20, carb: 40, fat: 10, costVnd: 25000 },
+          { type: "Lunch", name: "Ví dụ", calories: 500, protein: 35, carb: 55, fat: 12, costVnd: 45000 },
+          { type: "Dinner", name: "Ví dụ", calories: 420, protein: 30, carb: 35, fat: 11, costVnd: 35000 },
+          { type: "Snack", name: "Ví dụ", calories: 150, protein: 6, carb: 20, fat: 4, costVnd: 10000 }
+        ]}
+      },
+      weeklyWorkoutRoutine: [
+        { day: "Thứ 2", title: "Ví dụ", duration: 45, estBurn: 320, type: "Resistive", instructions: "..." }
+      ]
+    }));
 
     try {
-      const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.
-Hãy tính toán và sinh ra Kế hoạch Thực đơn Dinh dưỡng 7 ngày và Lịch Tập Luyện 7 ngày dạng JSON gọn nhẹ cho người dùng Onboarding:
-- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm
-- Cân nặng hiện tại: ${profileData.currentWeight}kg, Cân nặng mục tiêu: ${goalData.targetWeight}kg
-- Mục tiêu calo hàng ngày: ${goalData.dailyCalorieTarget} kcal/ngày
-- Macro mục tiêu: Protein ${goalData.macroTarget?.protein}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g
-- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}
+      const allergyRule = profileData.foodAllergies
+        ? `\n⚠️ TUYỆT ĐỐI KHÔNG dùng các thực phẩm sau trong BẤT KỲ bữa ăn nào: ${profileData.foodAllergies}.`
+        : '';
+      const waterTarget = goalData.waterTarget || 2000;
+      const calorieTarget = goalData.dailyCalorieTarget || 1800;
+      const proteinTarget = goalData.macroTarget?.protein || 120;
+      const allergyDisplay = profileData.foodAllergies || 'không có dị ứng';
 
-Trả về ĐÚNG KHỐI JSON duy nhất dạng:
-\`\`\`json
-{
-  "weeklyMealPlan": [
-    {
-      "dayIndex": 1,
-      "dayName": "Thứ 2",
-      "meals": [
-        { "type": "Breakfast", "name": "Món sáng AI đề xuất", "calories": 350, "protein": 20, "carb": 40, "fat": 10, "costVnd": 25000, "isDirectEat": false },
-        { "type": "Lunch", "name": "Món trưa AI đề xuất", "calories": 550, "protein": 35, "carb": 60, "fat": 15, "costVnd": 45000, "isDirectEat": false },
-        { "type": "Dinner", "name": "Món tối AI đề xuất", "calories": 450, "protein": 30, "carb": 45, "fat": 12, "costVnd": 30000, "isDirectEat": false }
-      ]
-    }
-  ],
-  "weeklyWorkoutRoutine": [
-    {
-      "dayIndex": 1,
-      "dayName": "Thứ 2",
-      "workoutType": "Resistance Training",
-      "duration": 45,
-      "caloriesBurned": 320,
-      "exercises": ["Chống đẩy 3 sets x 12", "Squat 4 sets x 15", "Plank 3 sets x 45s"]
-    }
-  ]
-}
-\`\`\``;
+      const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.\nHãy sinh kế hoạch TOÀN BỘ hành trình ${totalDays} ngày gồm ${numPhases} giai đoạn (phase) cho người dùng:\n- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm\n- Cân nặng hiện tại: ${profileData.currentWeight}kg → mục tiêu: ${goalData.targetWeight}kg\n- Mục tiêu calo/ngày: ${calorieTarget} kcal\n- Macro: Protein ${proteinTarget}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g\n- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}${allergyRule}\n\nYÊU CẦU TỪNG PHASE:\n${phaseDescriptions}\n\nQUY TẮC:\n1. Mỗi phase có weeklyMealPlan 7 ngày (day1→day7) với 4 bữa/ngày (Breakfast, Lunch, Dinner, Snack), NỘI DUNG KHÁC NHAU HOÀN TOÀN giữa các phase.\n2. Mỗi phase có weeklyWorkoutRoutine 7 bài (kể cả 1-2 ngày nghỉ phục hồi), khác nhau giữa các phase.\n3. Calo mỗi ngày phải gần đúng mục tiêu (±100 kcal).\n4. Thực đơn phải đa dạng, không lặp ngày giống nhau trong cùng 1 phase.\n5. Tên món ăn phải là tiếng Việt cụ thể và thực tế.\n6. TUYỆT ĐỐI không dùng thực phẩm bị kiêng/dị ứng: ${profileData.foodAllergies || 'Không có'}.\n7. Mỗi phase phải có dailyChecklist (5-7 việc cần làm mỗi ngày, phù hợp cường độ phase đó, cụ thể hoá với mục tiêu ${calorieTarget} kcal, ${proteinTarget}g protein, ${waterTarget}ml nước, né ${allergyDisplay}).\n\nTrả về ĐÚNG JSON object duy nhất:\n\`\`\`json\n{\n  "journeyPhases": [\n    {\n      "phaseIndex": 0,\n      "phaseLabel": "Phase 1 - Thích Nghi (Tuần 1-4)",\n      "startDay": 1,\n      "endDay": 28,\n      "dailyChecklist": [\n        { "id": "ch_water", "task": "Uong du nuoc muc tieu", "done": false },\n        { "id": "ch_calo", "task": "An du calo muc tieu", "done": false },\n        { "id": "ch_workout", "task": "Hoan thanh bai tap hom nay", "done": false },\n        { "id": "ch_protein", "task": "Nap du protein", "done": false },\n        { "id": "ch_log", "task": "Ghi nhat ky bua an", "done": false },\n        { "id": "ch_sleep", "task": "Ngu du 7-8 tieng", "done": false }\n      ],\n      "weeklyMealPlan": {\n        "day1": { "dayName": "Thu 2", "breakfast": { "name": "Ten mon sang", "calories": 350, "protein": 20, "carb": 40, "fat": 10, "costVnd": 25000, "isDirectEat": false }, "lunch": { "name": "Ten mon trua", "calories": 500, "protein": 35, "carb": 55, "fat": 12, "costVnd": 45000, "isDirectEat": false }, "dinner": { "name": "Ten mon toi", "calories": 420, "protein": 30, "carb": 35, "fat": 11, "costVnd": 35000, "isDirectEat": false }, "snack": { "name": "Bua phu", "calories": 150, "protein": 6, "carb": 20, "fat": 4, "costVnd": 10000, "isDirectEat": true } },\n        "day2": { "dayName": "Thu 3", "breakfast": {}, "lunch": {}, "dinner": {}, "snack": {} },\n        "day3": { "dayName": "Thu 4" },\n        "day4": { "dayName": "Thu 5" },\n        "day5": { "dayName": "Thu 6" },\n        "day6": { "dayName": "Thu 7" },\n        "day7": { "dayName": "Chu Nhat" }\n      },\n      "weeklyWorkoutRoutine": [\n        { "day": "Thu 2", "title": "Ten bai tap", "duration": 45, "estBurn": 320, "type": "Resistive", "instructions": "1. Buoc 1..." },\n        { "day": "Thu 3", "title": "Bai tap 2", "duration": 40, "estBurn": 280, "type": "Cardio", "instructions": "..." },\n        { "day": "Thu 4", "title": "Bai tap 3", "duration": 45, "estBurn": 300, "type": "Resistive", "instructions": "..." },\n        { "day": "Thu 5", "title": "Nghi Phuc Hoi", "duration": 0, "estBurn": 0, "type": "Rest", "instructions": "Nghi ngoi." },\n        { "day": "Thu 6", "title": "Bai tap 4", "duration": 50, "estBurn": 350, "type": "Resistive", "instructions": "..." },\n        { "day": "Thu 7", "title": "Bai tap 5", "duration": 30, "estBurn": 200, "type": "Cardio", "instructions": "..." },\n        { "day": "Chu Nhat", "title": "Nghi Ngoi Hoan Toan", "duration": 0, "estBurn": 0, "type": "Rest", "instructions": "Nghi ngoi." }\n      ]\n    }\n  ]\n}\n\`\`\``;
 
       const response = await fetch(CONFIG.NINEROUTER_BASE_URL, {
-        method: "POST",
+        method: 'POST',
         signal: controller.signal,
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "HTTP-Referer": window.location.origin,
-          "X-Title": CONFIG.APP_NAME,
-          "Content-Type": "application/json"
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': CONFIG.APP_NAME,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: selectedModel,
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
-          max_tokens: 1800
+          max_tokens: 6000
         })
       });
       clearTimeout(timeoutId);
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.warn('❌ [AI Journey Plan] API error:', response.status);
+        return null;
+      }
+
       const data = await response.json();
-      const content = data.choices[0]?.message?.content || "";
+      const content = data.choices?.[0]?.message?.content || '';
       const jsonMatch = content.match(/```(?:json|JSON)?\s*([\s\S]*?)\s*```/);
       const jsonStr = jsonMatch ? jsonMatch[1] : content.match(/\{[\s\S]*\}/)?.[0];
-      if (jsonStr) {
-        const parsed = JSON.parse(jsonStr);
-        if (parsed.weeklyMealPlan && parsed.weeklyWorkoutRoutine) {
-          return parsed;
-        }
+
+      if (!jsonStr) {
+        console.warn('⚠️ [AI Journey Plan] No JSON in response');
+        return null;
       }
-      return null;
+
+      const parsed = JSON.parse(jsonStr);
+      const phases = parsed.journeyPhases;
+
+      if (!Array.isArray(phases) || phases.length === 0) {
+        console.warn('⚠️ [AI Journey Plan] journeyPhases missing or empty');
+        return null;
+      }
+
+      // Normalize the weeklyMealPlan keys to day1..day7 and validate meals structure
+      const normalizedPhases = phases.map(phase => {
+        const mealPlan = phase.weeklyMealPlan || {};
+        const dayKeys = Object.keys(mealPlan).sort();
+        const normalizedMealPlan = {};
+        dayKeys.forEach((key, idx) => {
+          normalizedMealPlan[`day${idx + 1}`] = mealPlan[key];
+        });
+        return { ...phase, weeklyMealPlan: normalizedMealPlan };
+      });
+
+      // Use the first phase as the current weeklyMealPlan (backward compat) — convert day1..day7 to dateKeys
+      const firstPhase = normalizedPhases[0];
+      const today = new Date().toISOString().split('T')[0];
+      const dateKeyedMealPlan = {};
+      const dayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+      Object.values(firstPhase.weeklyMealPlan).forEach((dayData, idx) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + idx);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayName = dayLabels[idx];
+        dateKeyedMealPlan[dateStr] = {
+          date: dateStr,
+          dayName: dayData.dayName || dayName,
+          formattedDate: new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d),
+          breakfast: dayData.breakfast || null,
+          lunch: dayData.lunch || null,
+          dinner: dayData.dinner || null,
+          snack: dayData.snack || null
+        };
+      });
+
+      console.log(`✅ [AI Journey Plan] Generated ${normalizedPhases.length} phases for ${totalDays} days.`);
+      return {
+        weeklyMealPlan: dateKeyedMealPlan,
+        weeklyWorkoutRoutine: firstPhase.weeklyWorkoutRoutine || [],
+        journeyPhases: normalizedPhases
+      };
+
     } catch (err) {
       clearTimeout(timeoutId);
-      console.warn("AI Onboarding Plan Generation Timeout/Error:", err.message);
+      console.warn('❌ [AI Journey Plan] Error:', err.message);
       return null;
     }
   },
@@ -605,7 +660,8 @@ Trả về ĐÚNG KHỐI JSON duy nhất dạng:
 
       const newBmr = calculateBMR(profile.gender, profile.currentWeight, profile.height, profile.age);
       const newTdee = calculateTDEE(newBmr, profile.activityLevel);
-      const calObj = calculateTargetCalories(newTdee, profile.currentWeight, targetWeight, 60);
+      const totalDays = goal.totalJourneyDays || goal.targetDays || 60;
+      const calObj = calculateTargetCalories(newTdee, profile.currentWeight, targetWeight, totalDays);
       const newMacros = calculateMacros(calObj.targetCalories);
 
       replyText = `Dựa trên chỉ số cá nhân (${profile.height}cm, ${profile.currentWeight}kg) và mục tiêu mới **${targetWeight}kg**:\n` +

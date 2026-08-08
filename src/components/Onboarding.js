@@ -1,4 +1,5 @@
-import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine } from '../services/dataService.js';
+import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases } from '../services/dataService.js';
+import { AiCoachService } from '../services/aiCoachService.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { renderGeminiIcon } from './ui/Icons.js';
@@ -11,7 +12,8 @@ export function renderOnboarding(onComplete) {
     currentWeight: null,
     targetWeight: null,
     targetDays: 60,
-    activityLevel: 'moderate'
+    activityLevel: 'moderate',
+    foodAllergies: ''
   };
 
   const activityOptions = Object.keys(ACTIVITY_MULTIPLIERS).map(key => ({
@@ -32,7 +34,7 @@ export function renderOnboarding(onComplete) {
 
         <!-- Step 1: Physical Parameters -->
         <div class="onboarding-step" id="step-1">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 1/3: Chỉ số cơ thể</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 1/4: Chỉ số cơ thể</h4>
           <div class="form-group">
             <label class="form-label">Giới tính</label>
             <div style="display: flex; gap: 0.75rem;">
@@ -64,7 +66,7 @@ export function renderOnboarding(onComplete) {
 
         <!-- Step 2: Goal & Activity -->
         <div class="onboarding-step" id="step-2" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/3: Mục tiêu & Thời gian hành trình</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/4: Mục tiêu &amp; Thời gian hành trình</h4>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div class="form-group">
@@ -93,13 +95,58 @@ export function renderOnboarding(onComplete) {
 
           <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
             <button class="btn btn-secondary" style="flex: 1;" id="btn-step2-back"><i data-lucide="arrow-left"></i> Quay lại</button>
-            <button class="btn btn-primary" style="flex: 1;" id="btn-step2-next">Tính Toán AI <i data-lucide="cpu"></i></button>
+            <button class="btn btn-primary" style="flex: 1;" id="btn-step2-next">Tiếp Theo <i data-lucide="arrow-right"></i></button>
+          </div>
+        </div>
+
+        <!-- Step 2b: Food Allergies & Preferences -->
+        <div class="onboarding-step" id="step-2b" style="display: none;">
+          <h4 style="margin-bottom: 0.5rem; color: var(--accent-purple);">Bước 3/4: Dị ứng &amp; Sở thích ăn uống</h4>
+          <p class="text-sm text-muted" style="margin-bottom: 1rem;">AI Coach sẽ tự động <b>loại bỏ</b> các món có chứa thực phẩm bạn không dùng được khỏi toàn bộ thực đơn hành trình.</p>
+
+          <!-- Quick-select allergy chips -->
+          <div class="form-group">
+            <label class="form-label">Chọn nhanh dị ứng / kiêng khem (có thể chọn nhiều)</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem;" id="allergy-chips">
+              ${[
+                { id: 'alg_seafood',  label: '🦐 Hải sản', value: 'hải sản' },
+                { id: 'alg_egg',     label: '🥚 Trứng',    value: 'trứng' },
+                { id: 'alg_milk',    label: '🥛 Sữa / Lactose', value: 'sữa' },
+                { id: 'alg_gluten',  label: '🌾 Gluten',   value: 'gluten' },
+                { id: 'alg_peanut',  label: '🥜 Đậu phộng', value: 'đậu phộng' },
+                { id: 'alg_soy',     label: '🫘 Đậu nành', value: 'đậu nành' },
+                { id: 'alg_pork',    label: '🐷 Thịt heo', value: 'thịt heo' },
+                { id: 'alg_beef',    label: '🐄 Thịt bò',  value: 'thịt bò' },
+                { id: 'alg_spicy',   label: '🌶️ Cay',      value: 'đồ cay' },
+                { id: 'alg_vegan',   label: '🥦 Ăn chay',  value: 'ăn chay (không thịt cá)' }
+              ].map(chip => `
+                <button type="button" class="allergy-chip" id="${chip.id}" data-value="${chip.value}"
+                  style="padding: 0.35rem 0.85rem; border-radius: 20px; border: 1.5px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap;">
+                  ${chip.label}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Free-text additional restrictions -->
+          <div class="form-group" style="margin-top: 0.75rem;">
+            <label class="form-label">Ghi thêm dị ứng / kiêng khem khác <span class="text-muted">(tuỳ chọn)</span></label>
+            <input type="text" class="form-input" id="ob-allergy-custom"
+              placeholder="Ví dụ: không ăn cà tím, kiêng đồ ngọt, không ăn nấm..."
+              style="margin-top: 0.35rem;">
+          </div>
+
+          <div id="ob-step2b-allergy-preview" style="margin-top: 0.65rem; font-size: 0.82rem; color: var(--accent-purple); min-height: 1.5rem;"></div>
+
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+            <button class="btn btn-secondary" style="flex: 1;" id="btn-step2b-back"><i data-lucide="arrow-left"></i> Quay lại</button>
+            <button class="btn btn-primary" style="flex: 1;" id="btn-step2b-next">Tính Toán AI <i data-lucide="cpu"></i></button>
           </div>
         </div>
 
         <!-- Step 3: AI Calculations & Journey Plan Summary -->
         <div class="onboarding-step" id="step-3" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 3/3: Kế hoạch AI & Lập toàn bộ lộ trình</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 4/4: Kế hoạch AI &amp; Lập toàn bộ lộ trình</h4>
           <div id="ai-calc-results"></div>
           <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
             <button class="btn btn-secondary" style="flex: 1;" id="btn-step3-back"><i data-lucide="arrow-left"></i> Sửa lại</button>
@@ -157,10 +204,69 @@ export function renderOnboarding(onComplete) {
       document.getElementById('step-2').style.display = 'block';
     });
 
-    // Step 2 Back & Next
+    // Step 2 Back & Next (→ Step 2b allergy)
     document.getElementById('btn-step2-back').addEventListener('click', () => {
       document.getElementById('step-2').style.display = 'none';
       document.getElementById('step-1').style.display = 'block';
+    });
+
+    document.getElementById('btn-step2-next').addEventListener('click', () => {
+      const targetWeightVal = document.getElementById('ob-target-weight').value.trim();
+      const targetDaysVal = document.getElementById('ob-target-days').value.trim();
+      const errDiv = document.getElementById('ob-step2-error');
+      if (!targetWeightVal) {
+        errDiv.textContent = '⚠️ Vui lòng tự nhập Cân nặng mục tiêu!';
+        errDiv.style.display = 'block';
+        return;
+      }
+      errDiv.style.display = 'none';
+      if (targetDaysVal) {
+        formData.targetDays = Math.max(10, parseInt(targetDaysVal) || 60);
+      }
+      document.getElementById('step-2').style.display = 'none';
+      document.getElementById('step-2b').style.display = 'block';
+      if (window.lucide) window.lucide.createIcons();
+    });
+
+    // Step 2b: Allergy chips logic
+    const selectedAllergies = new Set();
+    const updateAllergyPreview = () => {
+      const custom = (document.getElementById('ob-allergy-custom')?.value || '').trim();
+      const chips = [...selectedAllergies].join(', ');
+      const all = [chips, custom].filter(Boolean).join(', ');
+      formData.foodAllergies = all;
+      const preview = document.getElementById('ob-step2b-allergy-preview');
+      if (preview) {
+        preview.textContent = all
+          ? `🚫 AI sẽ né: ${all}`
+          : '✅ Không có dị ứng — AI sẽ lập thực đơn đa dạng tối đa.';
+      }
+    };
+
+    document.querySelectorAll('.allergy-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const val = chip.getAttribute('data-value');
+        if (selectedAllergies.has(val)) {
+          selectedAllergies.delete(val);
+          chip.style.background = 'var(--bg-card)';
+          chip.style.borderColor = 'var(--border-color)';
+          chip.style.color = 'var(--text-main)';
+        } else {
+          selectedAllergies.add(val);
+          chip.style.background = 'rgba(124, 58, 237, 0.12)';
+          chip.style.borderColor = 'var(--accent-purple)';
+          chip.style.color = 'var(--accent-purple)';
+        }
+        updateAllergyPreview();
+      });
+    });
+
+    document.getElementById('ob-allergy-custom')?.addEventListener('input', updateAllergyPreview);
+    updateAllergyPreview(); // init
+
+    document.getElementById('btn-step2b-back').addEventListener('click', () => {
+      document.getElementById('step-2b').style.display = 'none';
+      document.getElementById('step-2').style.display = 'block';
     });
 
     const calculateAndShowSummary = () => {
@@ -169,6 +275,9 @@ export function renderOnboarding(onComplete) {
       const errDiv = document.getElementById('ob-step2-error');
 
       if (!targetWeightVal) {
+        // Guard: go back to step 2 to fill in target weight
+        document.getElementById('step-2b').style.display = 'none';
+        document.getElementById('step-2').style.display = 'block';
         errDiv.textContent = '⚠️ Vui lòng tự nhập Cân nặng mục tiêu!';
         errDiv.style.display = 'block';
         return false;
@@ -205,8 +314,13 @@ export function renderOnboarding(onComplete) {
       formData.waterTarget = water;
 
       // Render summary
+      const allergyBadge = formData.foodAllergies
+        ? `<div style="margin-bottom: 0.65rem; background: #fef3f2; border: 1px solid #fca5a5; padding: 0.55rem 0.85rem; border-radius: 10px; font-size: 0.8rem; color: #dc2626; font-weight: 700;">🚫 Dị ứng / Kiêng khem AI sẽ né: <span style="font-weight: 800;">${formData.foodAllergies}</span></div>`
+        : '';
+
       const resultsHtml = `
         <div style="background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-card); border: 1px solid var(--border-color); font-size: 0.9rem;">
+          ${allergyBadge}
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
             <div>
               <span class="text-muted text-xs">BMR (Calo nền):</span>
@@ -249,12 +363,12 @@ export function renderOnboarding(onComplete) {
           <div style="margin-top: 0.85rem; background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.08)); border: 1.5px solid rgba(245, 158, 11, 0.3); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: #d97706; display: flex; align-items: center; gap: 0.55rem;">
             <i data-lucide="crown" style="width: 22px; height: 22px; flex-shrink: 0; color: #f59e0b;"></i>
             <div>
-              🏆 <b>Hệ Thống Level AI Cá Nhân Hóa:</b> Tự động sinh <b>${Math.max(5, Math.round(formData.targetDays / 10))} Cấp Độ</b> (~1 Level / 10 ngày) & <b>5 Huy Hiệu Cột Mốc</b> cho hành trình <b>${formData.targetDays} Ngày</b>!
+              🏆 <b>Hệ Thống Level AI Cá Nhân Hóa:</b> Tự động sinh <b>${Math.max(5, Math.round(formData.targetDays / 10))} Cấp Độ</b> (~1 Level / 10 ngày) &amp; <b>5 Huy Hiệu Cột Mốc</b> cho hành trình <b>${formData.targetDays} Ngày</b>!
             </div>
           </div>
 
           <div style="margin-top: 0.75rem; background: rgba(124, 58, 237, 0.08); border: 1px solid var(--border-highlight); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: var(--accent-purple);">
-            ✨ <b>AI Auto-Planner:</b> Sau khi xác nhận, AI Coach sẽ tự động thiết lập toàn bộ thực đơn 7 ngày, lịch tập luyện & danh sách công việc hàng ngày cho hành trình <b>${formData.targetDays} ngày</b> của bạn!
+            ✨ <b>AI Auto-Planner:</b> Sau khi xác nhận, AI Coach sẽ tự động thiết lập toàn bộ thực đơn (né ${formData.foodAllergies || 'không có dị ứng'}), lịch tập luyện &amp; checklist hàng ngày cho hành trình <b>${formData.targetDays} ngày</b>!
           </div>
         </div>
       `;
@@ -270,35 +384,301 @@ export function renderOnboarding(onComplete) {
         });
       }
 
-      document.getElementById('step-2').style.display = 'none';
+      // Hide step-2b (current step), show step-3
+      document.getElementById('step-2b').style.display = 'none';
       document.getElementById('step-3').style.display = 'block';
       if (window.lucide) window.lucide.createIcons();
       return true;
     };
 
-    document.getElementById('btn-step2-next').addEventListener('click', calculateAndShowSummary);
+    document.getElementById('btn-step2b-next').addEventListener('click', calculateAndShowSummary);
 
-    // Step 3 Back
+    // Step 3 Back → Step 2b
     document.getElementById('btn-step3-back').addEventListener('click', () => {
       document.getElementById('step-3').style.display = 'none';
-      document.getElementById('step-2').style.display = 'block';
+      document.getElementById('step-2b').style.display = 'block';
     });
 
-    // Confirm & Save -> Auto generate full meal plan, workout schedule & checklist via Real AI API
     document.getElementById('btn-confirm-onboarding').addEventListener('click', async () => {
       const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
-      const step3El = document.getElementById('step-3');
-      if (step3El) {
-        step3El.innerHTML = `
-          <div style="text-align: center; padding: 2.5rem 1rem;">
-            <div style="width: 52px; height: 52px; border: 4px solid var(--border-color, #e2e8f0); border-top-color: var(--accent-purple, #7c3aed); border-radius: 50%; animation: spin 0.85s linear infinite; margin: 0 auto 1.5rem auto; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);"></div>
-            <h3 style="color: var(--accent-purple); font-weight: 900; font-size: 1.25rem;">✨ AI Coach Đang Gọi Mô Hình AI Online...</h3>
-            <div style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.9rem; border-radius: 20px; background: rgba(124, 58, 237, 0.12); color: var(--accent-purple); font-weight: 700; font-size: 0.85rem; margin: 0.75rem 0; border: 1px solid rgba(124, 58, 237, 0.25);">
-              🤖 Mô hình: ${selectedModel}
+      const modalEl = document.getElementById('onboarding-modal');
+      if (modalEl) {
+        modalEl.innerHTML = `
+          <style>
+            .setup-modal-content {
+              width: 100%;
+              max-width: 460px;
+              background: linear-gradient(165deg, #ffffff 0%, #faf5ff 100%);
+              border-radius: 32px;
+              padding: 44px 40px 40px;
+              text-align: center;
+              box-shadow:
+                0 0 0 1px rgba(167, 139, 250, 0.2),
+                0 8px 16px -4px rgba(0, 0, 0, 0.1),
+                0 32px 64px -12px rgba(124, 58, 237, 0.35),
+                0 0 80px rgba(139, 92, 246, 0.15);
+              position: relative;
+              overflow: hidden;
+              animation: modalIn 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+              margin: auto;
+            }
+
+            @keyframes modalIn {
+              from { opacity: 0; transform: scale(0.85) translateY(30px); }
+              to   { opacity: 1; transform: scale(1) translateY(0); }
+            }
+
+            .setup-modal-content::before {
+              content: '';
+              position: absolute;
+              inset: -2px;
+              border-radius: 34px;
+              background: linear-gradient(135deg, #a78bfa, #7c3aed, #c084fc, #a78bfa);
+              background-size: 300% 300%;
+              animation: borderGlow 4s ease infinite;
+              z-index: -1;
+              opacity: 0.6;
+              filter: blur(8px);
+            }
+
+            @keyframes borderGlow {
+              0%, 100% { background-position: 0% 50%; }
+              50% { background-position: 100% 50%; }
+            }
+
+            .setup-modal-content::after {
+              content: '';
+              position: absolute;
+              top: -80px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 280px;
+              height: 280px;
+              background: radial-gradient(circle, rgba(167, 139, 250, 0.25), transparent 65%);
+              pointer-events: none;
+            }
+
+            .icon-wrap {
+              position: relative;
+              width: 88px;
+              height: 88px;
+              margin: 0 auto 24px;
+              z-index: 1;
+            }
+
+            .icon-ring {
+              position: absolute;
+              inset: 0;
+              border-radius: 50%;
+              border: 2px solid transparent;
+              border-top-color: #a78bfa;
+              border-right-color: #7c3aed;
+              animation: spin 1.8s linear infinite;
+            }
+
+            .icon-ring.r2 {
+              inset: -8px;
+              border-top-color: #c4b5fd;
+              border-right-color: transparent;
+              border-bottom-color: #a78bfa;
+              animation-duration: 2.6s;
+              animation-direction: reverse;
+              opacity: 0.5;
+            }
+
+            .icon-ring.r3 {
+              inset: -16px;
+              border-top-color: transparent;
+              border-left-color: #ddd6fe;
+              animation-duration: 3.4s;
+              opacity: 0.3;
+            }
+
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+
+            .setup-icon {
+              position: absolute;
+              inset: 10px;
+              border-radius: 22px;
+              background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #6d28d9 100%);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow:
+                0 8px 24px rgba(124, 58, 237, 0.5),
+                inset 0 1px 0 rgba(255,255,255,0.25);
+              animation: iconPulse 2.5s ease-in-out infinite;
+            }
+
+            @keyframes iconPulse {
+              0%, 100% { transform: scale(1); box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5), inset 0 1px 0 rgba(255,255,255,0.25); }
+              50% { transform: scale(1.06); box-shadow: 0 12px 32px rgba(124, 58, 237, 0.65), inset 0 1px 0 rgba(255,255,255,0.25); }
+            }
+
+            .setup-icon svg {
+              width: 30px;
+              height: 30px;
+              color: #fff;
+              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            }
+
+            .setup-title {
+              font-size: 22px;
+              font-weight: 800;
+              color: #1e1b4b;
+              letter-spacing: -0.03em;
+              margin-bottom: 10px;
+              position: relative;
+              z-index: 1;
+            }
+
+            .setup-desc {
+              font-size: 14.5px;
+              line-height: 1.65;
+              color: #64748b;
+              max-width: 360px;
+              margin: 0 auto 36px;
+              position: relative;
+              z-index: 1;
+            }
+
+            .status-box {
+              background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+              border: 1.5px solid #ddd6fe;
+              border-radius: 18px;
+              padding: 20px 22px;
+              text-align: left;
+              position: relative;
+              z-index: 1;
+              overflow: hidden;
+            }
+
+            .status-box::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: -100%;
+              width: 60%;
+              height: 100%;
+              background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+              animation: shine 2.8s ease-in-out infinite;
+            }
+
+            @keyframes shine {
+              0% { left: -100%; }
+              50%, 100% { left: 150%; }
+            }
+
+            .status-label {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              font-size: 14.5px;
+              font-weight: 700;
+              color: #5b21b6;
+              margin-bottom: 10px;
+              position: relative;
+            }
+
+            .status-label .spark {
+              width: 20px;
+              height: 20px;
+              color: #7c3aed;
+              animation: sparkSpin 2s linear infinite;
+            }
+
+            @keyframes sparkSpin {
+              0% { transform: rotate(0deg) scale(1); }
+              50% { transform: rotate(180deg) scale(1.2); }
+              100% { transform: rotate(360deg) scale(1); }
+            }
+
+            .status-text {
+              font-size: 13.5px;
+              line-height: 1.6;
+              color: #6b7280;
+              position: relative;
+            }
+
+            .progress-track {
+              height: 6px;
+              background: #e9d5ff;
+              border-radius: 99px;
+              margin-top: 24px;
+              overflow: hidden;
+              position: relative;
+              z-index: 1;
+            }
+
+            .progress-fill {
+              height: 100%;
+              width: 15%;
+              border-radius: 99px;
+              background: linear-gradient(90deg, #a78bfa, #7c3aed, #c084fc);
+              background-size: 200% 100%;
+              animation: progressMove 2s ease-in-out infinite, progressGrow 40s ease-out forwards;
+            }
+
+            @keyframes progressMove {
+              0% { background-position: 0% 0%; }
+              100% { background-position: 200% 0%; }
+            }
+
+            @keyframes progressGrow {
+              from { width: 10%; }
+              to { width: 92%; }
+            }
+
+            .progress-label {
+              font-size: 12px;
+              font-weight: 600;
+              color: #a78bfa;
+              margin-top: 10px;
+              position: relative;
+              z-index: 1;
+            }
+          </style>
+
+          <div class="setup-modal-content">
+            <div class="icon-wrap">
+              <div class="icon-ring"></div>
+              <div class="icon-ring r2"></div>
+              <div class="icon-ring r3"></div>
+              <div class="setup-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+                  <path d="M5 19l.75 2.25L8 22l-2.25.75L5 25l-.75-2.25L2 22l2.25-.75L5 19z" opacity="0.6"/>
+                </svg>
+              </div>
             </div>
-            <p class="text-sm text-muted" style="margin-top: 0.5rem; max-width: 420px; margin-left: auto; margin-right: auto; line-height: 1.5;">
-              Đang kết nối 9router AI API để phân tích chỉ số cá nhân và tự động sinh ra Kế Hoạch 7 Ngày dành riêng cho bạn...
+
+            <h1 class="setup-title">Thiết Lập Hành Trình Fitness</h1>
+            <p class="setup-desc">
+              Vui lòng đợi trong giây lát. AI Coach đang lập thực đơn &amp; lịch tập luyện cho hành trình <b>${formData.targetDays} ngày</b> của bạn.
             </p>
+
+            <div class="status-box">
+              <div class="status-label">
+                <svg class="spark" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
+                </svg>
+                AI Coach Đang Gọi Mô Hình AI Online...
+              </div>
+              <div style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.75rem; border-radius: 20px; background: rgba(124, 58, 237, 0.12); color: #7c3aed; font-weight: 700; font-size: 0.78rem; margin-bottom: 0.6rem;">
+                🤖 Mô hình: ${selectedModel}
+              </div>
+              ${formData.foodAllergies ? `<div style="font-size: 0.8rem; color: #dc2626; font-weight: 700; margin-bottom: 0.5rem;">🚫 Đang né thực phẩm: ${formData.foodAllergies}</div>` : ''}
+              <p class="status-text">
+                Đang kết nối 9router AI API để tự động sinh ra Kế Hoạch Thực Đơn Dinh Dưỡng &amp; Lịch Tập Luyện Cá Nhân Hóa dành riêng cho bạn...
+              </p>
+            </div>
+
+            <div class="progress-track">
+              <div class="progress-fill"></div>
+            </div>
+            <div class="progress-label">Đang tạo kế hoạch cá nhân hóa...</div>
           </div>
         `;
       }
@@ -309,6 +689,7 @@ export function renderOnboarding(onComplete) {
       profile.height = formData.height;
       profile.currentWeight = formData.currentWeight;
       profile.activityLevel = formData.activityLevel;
+      profile.foodAllergies = formData.foodAllergies || ''; // Save allergies before AI call
       profile.isOnboarded = true;
       await DataService.saveUserProfile(profile);
 
@@ -336,15 +717,36 @@ export function renderOnboarding(onComplete) {
       // Attempt Real Online AI Generation via AiCoachService
       let weeklyMealPlan = null;
       let weeklyWorkoutRoutine = null;
+      let journeyPhases = null;
 
-      const aiPlan = await AiCoachService.generateFullJourneyPlan(profile, goal);
-      if (aiPlan && aiPlan.weeklyMealPlan && aiPlan.weeklyWorkoutRoutine) {
-        weeklyMealPlan = aiPlan.weeklyMealPlan;
-        weeklyWorkoutRoutine = aiPlan.weeklyWorkoutRoutine;
-      } else {
-        // Smart Local Generator Failsafe
+      try {
+        const aiPlan = await AiCoachService.generateFullJourneyPlan(profile, goal);
+        if (aiPlan && aiPlan.weeklyMealPlan && aiPlan.weeklyWorkoutRoutine) {
+          weeklyMealPlan = aiPlan.weeklyMealPlan;
+          weeklyWorkoutRoutine = aiPlan.weeklyWorkoutRoutine;
+          journeyPhases = aiPlan.journeyPhases || null;
+          console.log(`✅ [Onboarding] AI generated ${journeyPhases?.length || 0} phases for ${formData.targetDays} days.`);
+        } else {
+          console.warn('⚠️ [Onboarding] AI returned null/invalid plan. Falling back to local generator.');
+        }
+      } catch (aiErr) {
+        console.error('❌ [Onboarding] AiCoachService.generateFullJourneyPlan error:', aiErr);
+      }
+
+      // Smart Local Generator Failsafe (if AI failed or timed out)
+      if (!weeklyMealPlan || !weeklyWorkoutRoutine) {
         weeklyMealPlan = generate7DayMealPlan(100000, today, profile.foodAllergies);
         weeklyWorkoutRoutine = generate7DayWorkoutRoutine('home', 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg');
+      }
+      // Always ensure journeyPhases exists (local fallback if AI didn't return it)
+      if (!journeyPhases || journeyPhases.length === 0) {
+        journeyPhases = generateFullJourneyPhases(
+          formData.targetDays,
+          100000,
+          'home',
+          'Thảm yoga, Dây kháng lực, Tạ đơn 5kg'
+        );
+        console.log(`✅ [Onboarding] Local generator: ${journeyPhases.length} phases for ${formData.targetDays} days.`);
       }
 
       const plan = {
@@ -355,23 +757,28 @@ export function renderOnboarding(onComplete) {
         createdAt: today,
         targetDays: formData.targetDays,
         weeklyMealPlan,
-        weeklyWorkoutRoutine
+        weeklyWorkoutRoutine,
+        journeyPhases
       };
       await DataService.saveUserPlan(plan);
 
-      // Pre-populate daily checklist
+      // Pre-populate daily checklist (personalized to user targets & allergy info)
       const dailyLog = await DataService.getDailyLog(today);
+      const allergyNote = formData.foodAllergies ? ` (né: ${formData.foodAllergies})` : '';
       dailyLog.checklist = [
-        { id: 'ch_water', task: `Uống đủ ${formData.waterTarget} ml nước`, done: false },
-        { id: 'ch_calo', task: `Duy trì chỉ tiêu ${formData.dailyCalorieTarget} kcal/ngày`, done: false },
-        { id: 'ch_workout', task: `Hoàn thành bài tập theo lịch trình`, done: false },
-        { id: 'ch_photo', task: `Upload ảnh tiến trình ngày đầu tiên`, done: false }
+        { id: 'ch_water',   task: `💧 Uống đủ ${formData.waterTarget} ml nước trong ngày`, done: false },
+        { id: 'ch_calo',    task: `🍽️ Duy trì chỉ tiêu ${formData.dailyCalorieTarget} kcal/ngày${allergyNote}`, done: false },
+        { id: 'ch_protein', task: `💪 Nạp đủ ${formData.macroTarget?.protein || 120}g Protein`, done: false },
+        { id: 'ch_workout', task: `🏋️ Hoàn thành bài tập theo lịch AI hôm nay`, done: false },
+        { id: 'ch_log',     task: `📝 Ghi nhật ký bữa ăn vào AI Coach`, done: false },
+        { id: 'ch_photo',   task: `📸 Chụp ảnh tiến trình cơ thể ngày đầu tiên`, done: false },
+        { id: 'ch_sleep',   task: `😴 Ngủ đủ 7–8 tiếng để phục hồi cơ bắp`, done: false }
       ];
       await DataService.saveDailyLog(dailyLog);
 
       // Close modal & trigger celebration callback
-      const modalEl = document.getElementById('onboarding-modal');
-      if (modalEl) modalEl.remove();
+      const activeModal = document.getElementById('onboarding-modal');
+      if (activeModal) activeModal.remove();
       confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
       if (onComplete) onComplete();
     });

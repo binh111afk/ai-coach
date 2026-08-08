@@ -237,7 +237,8 @@ export async function renderSettingsModal(onSaveComplete) {
       const goal = await DataService.getUserGoal();
       const bmr = calculateBMR(profile.gender || 'male', profile.currentWeight, profile.height, profile.age);
       const tdee = calculateTDEE(bmr, profile.activityLevel || 1.2);
-      const targetCalObj = calculateTargetCalories(tdee, profile.currentWeight, goal.targetWeight || profile.currentWeight, 60);
+      const totalDays = goal.totalJourneyDays || goal.targetDays || 60;
+      const targetCalObj = calculateTargetCalories(tdee, profile.currentWeight, goal.targetWeight || profile.currentWeight, totalDays);
       const macros = calculateMacros(targetCalObj.targetCalories);
       const water = calculateWaterTarget(profile.currentWeight, profile.activityLevel || 1.2);
 
