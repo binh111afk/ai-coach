@@ -141,6 +141,9 @@ export const DataService = {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       ...meal
     };
+    if (meal && meal.type) {
+      log.meals = log.meals.filter(m => !m.type || m.type.toLowerCase() !== meal.type.toLowerCase());
+    }
     log.meals.push(newMeal);
     await this.saveDailyLog(log);
     return log;
@@ -410,20 +413,53 @@ export const DataService = {
         }
       }
     }
-    return realPhotos.sort((a, b) => new Date(a.date) - new Date(b.date));
+    realPhotos.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Ensure every photo has an explicit journeyDay property (1, 2, 3...)
+    realPhotos.forEach((p, idx) => {
+      if (!p.journeyDay) {
+        p.journeyDay = idx + 1;
+      }
+    });
+
+    return realPhotos;
   },
 
-  async addPhoto(photoDataUrl, weight = null, note = '') {
-    const today = this.getTodayString();
-    const photoItem = {
-      id: 'photo_' + Date.now(),
-      date: today,
-      weight: weight || (await this.getUserProfile()).currentWeight,
-      photoDataUrl,
-      note,
-      createdAt: new Date().toISOString()
-    };
-    await dbManager.put('photos', photoItem);
+  async addPhoto(photoDataUrl, weight = null, note = '', customDate = null, journeyDay = null) {
+    const today = customDate || this.getTodayString();
+    const existingPhotos = await this.getPhotos();
+    let photoItem = null;
+
+    const targetDay = journeyDay ? Number(journeyDay) : 1;
+
+    // Check if a photo for this journey day already exists (or index match)
+    const existing = existingPhotos.find((p, idx) => 
+      (p.journeyDay && Number(p.journeyDay) === targetDay) || (idx + 1) === targetDay
+    );
+
+    if (existing) {
+      existing.photoDataUrl = photoDataUrl;
+      existing.url = photoDataUrl;
+      if (weight) existing.weight = weight;
+      if (note) existing.note = note;
+      if (customDate) existing.date = customDate;
+      existing.journeyDay = targetDay;
+      existing.updatedAt = new Date().toISOString();
+      photoItem = existing;
+      await dbManager.put('photos', photoItem);
+    } else {
+      photoItem = {
+        id: 'photo_' + Date.now(),
+        date: today,
+        weight: weight || (await this.getUserProfile()).currentWeight,
+        photoDataUrl,
+        url: photoDataUrl,
+        note,
+        journeyDay: targetDay,
+        createdAt: new Date().toISOString()
+      };
+      await dbManager.put('photos', photoItem);
+    }
 
     // Auto mark photo task in checklist
     const log = await this.getDailyLog(today);
@@ -458,6 +494,18 @@ export const DataService = {
       window.dispatchEvent(new CustomEvent('achievement:unlocked', { detail: { badgeIds: newBadges } }));
     }
     return { photoItem, newBadges };
+  },
+
+  async updatePhotoTag(photoIdOrJourneyDay, journeyDay, note = '') {
+    const photos = await this.getPhotos();
+    let target = photos.find(p => p.id === photoIdOrJourneyDay || p.journeyDay === journeyDay);
+    if (target) {
+      if (journeyDay) target.journeyDay = journeyDay;
+      if (note) target.note = note;
+      await dbManager.put('photos', target);
+      return target;
+    }
+    return null;
   },
 
   async deletePhoto(id) {
@@ -606,6 +654,60 @@ export const DataService = {
             });
           });
           await this.saveDailyLog(log);
+          break;
+        }
+        case 'LOG_PROGRESS_PHOTO':
+        case 'UPLOAD_PHOTO': {
+          let { photoUrl, photoDataUrl, journeyDay, note, weight, date } = proposedChange.payload || {};
+          const profile = await this.getUserProfile();
+
+          // Failsafe: search recent chat history for uploaded image attachments if photoUrl missing
+          if (!photoUrl && !photoDataUrl) {
+            const history = await this.getChatHistory();
+            for (let i = history.length - 1; i >= 0; i--) {
+              const msg = history[i];
+              if (msg.attachments && msg.attachments.length > 0) {
+                const imgAtt = msg.attachments.find(a => a.dataUrl || a.url);
+                if (imgAtt) {
+                  photoUrl = imgAtt.dataUrl || imgAtt.url;
+                  break;
+                }
+              }
+            }
+          }
+
+          const imgUrl = photoUrl || photoDataUrl || profile.avatar || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80';
+          const dayNote = note || (journeyDay ? `Ảnh tiến trình Ngày ${journeyDay}` : 'Ảnh tiến trình do AI Coach ghi nhận');
+          await this.addPhoto(imgUrl, weight || profile.currentWeight, dayNote, date, journeyDay);
+          break;
+        }
+        case 'UPDATE_PHOTO_TAG':
+        case 'UPDATE_PHOTO': {
+          let { photoId, journeyDay, note, weight, photoUrl } = proposedChange.payload || {};
+          const res = await this.updatePhotoTag(photoId, journeyDay, note);
+          if (!res) {
+            // Failsafe: search recent chat history if photoUrl missing
+            if (!photoUrl) {
+              const history = await this.getChatHistory();
+              for (let i = history.length - 1; i >= 0; i--) {
+                const msg = history[i];
+                if (msg.attachments && msg.attachments.length > 0) {
+                  const imgAtt = msg.attachments.find(a => a.dataUrl || a.url);
+                  if (imgAtt) {
+                    photoUrl = imgAtt.dataUrl || imgAtt.url;
+                    break;
+                  }
+                }
+              }
+            }
+            const profile = await this.getUserProfile();
+            const imgUrl = photoUrl || profile.avatar || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80';
+            await this.addPhoto(imgUrl, weight || profile.currentWeight, note || `Ảnh tiến trình Ngày ${journeyDay || 1}`, null, journeyDay);
+          }
+          break;
+        }
+        case 'COMPARE_PHOTOS': {
+          console.log('[DataService] Photo comparison action approved:', proposedChange.payload);
           break;
         }
         default:

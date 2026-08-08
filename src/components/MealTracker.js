@@ -155,17 +155,17 @@ export async function renderMealTracker(onOpenAiCoach) {
       }
     });
 
-    // Delete meal buttons with smooth animation
+    // Delete meal buttons with smooth notification-swipe animation for individual meal item card
     document.querySelectorAll('[data-delete-meal]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = btn.getAttribute('data-delete-meal');
-        const card = btn.closest('.card') || btn.closest('.meal-card') || btn.closest('[data-delete-meal]').parentElement;
-        if (card) {
-          card.classList.add('item-deleting');
+        const itemCard = btn.closest('.meal-item-card');
+        if (itemCard) {
+          itemCard.classList.add('item-deleting');
           setTimeout(async () => {
             await DataService.removeMealLog(todayLog.date, id);
             renderMealTracker(onOpenAiCoach);
-          }, 320);
+          }, 400);
         } else {
           await DataService.removeMealLog(todayLog.date, id);
           renderMealTracker(onOpenAiCoach);
@@ -209,7 +209,7 @@ function renderMealCategoryCard(title, iconSvg = '', mealsList = []) {
       <div style="display: flex; flex-direction: column; gap: 0.6rem;">
         ${mealsList.length === 0 ? '<div class="text-xs text-muted" style="font-style: italic; padding: 0.5rem 0;">Chưa ghi nhận món ăn nào</div>' : ''}
         ${mealsList.map(m => `
-          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle); padding: 0.75rem 0.9rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <div class="meal-item-card" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle); padding: 0.75rem 0.9rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
             <div>
               <div style="font-weight: 700; font-size: 0.9rem;">${m.name}</div>
               <div class="text-xs text-muted">P:${m.protein}g | C:${m.carb}g | F:${m.fat}g</div>

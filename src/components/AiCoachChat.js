@@ -266,16 +266,17 @@ function parseMarkdown(text = '') {
   if (!text) return '';
   let html = text;
 
-  // Code blocks
+  // Code blocks & inline code
   html = html.replace(/```([\s\S]*?)```/g, '<pre style="background: rgba(0,0,0,0.18); padding: 0.6rem; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; margin: 0.4rem 0;"><code>$1</code></pre>');
-
-  // Inline code
   html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(117, 86, 217, 0.15); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.82rem; color: var(--accent-purple); font-weight: 600;">$1</code>');
 
-  // Markdown Images ![alt](src)
+  // Quotes / Callout Box (> Quote)
+  html = html.replace(/^>\s*(.*$)/gim, '<blockquote class="ai-callout-box">$1</blockquote>');
+
+  // Images
   html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<div style="margin: 0.4rem 0;"><img src="$2" alt="$1" style="max-width: 220px; max-height: 180px; border-radius: 10px; object-fit: cover; border: 2px solid var(--accent-purple);"></div>');
 
-  // Markdown Tables (| Header | Header |)
+  // Tables
   const tableRegex = /(?:\|[^\n]+\|\r?\n){2,}/g;
   html = html.replace(tableRegex, (match) => {
     const lines = match.trim().split('\n').map(l => l.trim()).filter(Boolean);
@@ -304,26 +305,40 @@ function parseMarkdown(text = '') {
     return tableHtml;
   });
 
-  // Headers (### Heading 3, ## Heading 2, # Heading 1)
+  // Remove horizontal dividers ---
+  html = html.replace(/^(?:---|\*\*\*|___)\s*$/gim, '');
+
+  // Headings
   html = html.replace(/^### (.*$)/gim, '<h5 style="margin: 0.4rem 0; font-weight: 800; color: var(--accent-purple); font-size: 0.9rem;">$1</h5>');
   html = html.replace(/^## (.*$)/gim, '<h4 style="margin: 0.5rem 0; font-weight: 800; color: var(--text-main); font-size: 0.95rem;">$1</h4>');
   html = html.replace(/^# (.*$)/gim, '<h3 style="margin: 0.6rem 0; font-weight: 800; color: var(--text-main); font-size: 1.05rem;">$1</h3>');
 
-  // Bold & Italic
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 800; color: var(--text-main);">$1</strong>');
+  // Strict Semantic Bold Keyword Highlighting (ONLY matches exact numbers & units)
+  // 1. Calo
+  html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*(?:kcal|calo|calories))\s*\*\*/gi, '<span class="badge-highlight badge-calo">🔥 $1</span>');
+  // 2. Protein
+  html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*g?\s*(?:protein|đạm))\s*\*\*/gi, '<span class="badge-highlight badge-protein">🥩 $1</span>');
+  // 3. Carb / Fat / Macro
+  html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*g?\s*(?:carb|fat|tinh bột|chất béo))\s*\*\*/gi, '<span class="badge-highlight badge-macro">🥑 $1</span>');
+  // 4. Water / Hydration
+  html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*(?:ml|lít|l))\s*\*\*/gi, '<span class="badge-highlight badge-water">💧 $1</span>');
+  // 5. Journey Day
+  html = html.replace(/\*\*\s*(ngày\s*\d+(?:\/\d+)?)\s*\*\*/gi, '<span class="badge-highlight badge-journey">🚩 $1</span>');
+  // 6. Weight
+  html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*kg)\s*\*\*/gi, '<span class="badge-highlight badge-weight">⚖️ $1</span>');
+  // 7. General bold & italic
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 800; color: var(--accent-purple);">$1</strong>');
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-  // Numbered list items (1. item or 1️⃣ item)
+  // Lists
   html = html.replace(/^(\d+[\.\️⃣]|(?:[1-9]\d?️⃣))\s+(.*)$/gim, '<li style="margin-left: 1.1rem; margin-bottom: 0.25rem;"><strong>$1</strong> $2</li>');
-
-  // Unordered list items (- item or * item)
   html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li style="margin-left: 1.1rem; list-style-type: disc; margin-bottom: 0.25rem;">$1</li>');
-
-  // Group consecutive <li> items into <ul>
   html = html.replace(/(<li.*?>.*?<\/li>\n?)+/g, '<ul style="margin: 0.4rem 0; padding-left: 0.2rem;">$&</ul>');
 
-  // Line breaks
+  // Clean up excess newlines & line breaks
+  html = html.replace(/\n{3,}/g, '\n\n');
   html = html.replace(/\n/g, '<br/>');
+  html = html.replace(/(?:<br\/>\s*){3,}/gi, '<br/><br/>');
 
   return html;
 }

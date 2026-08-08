@@ -14,6 +14,7 @@ const CUSTOM_SCALE_SVG_ICON = `
 
 let activeComparisonResult = null; // Holds current active comparison data or null
 let currentUploadingDataUrl = null; // Holds transient uploading data URL
+let currentLightboxPhoto = null; // Holds photo object currently viewed in Lightbox
 
 export async function renderPhotoVault() {
   const profile = await DataService.getUserProfile();
@@ -26,8 +27,8 @@ export async function renderPhotoVault() {
   let modalSelectedIdA = secondNewestPhoto?.id || '';
   let modalSelectedIdB = newestPhoto?.id || '';
 
-  const photoDropdownOptions = photos.map(p => {
-    const dayNum = calculateJourneyDayNumber(photos, p.date);
+  const photoDropdownOptions = photos.map((p, idx) => {
+    const dayNum = p.journeyDay || (idx + 1);
     return {
       value: p.id,
       label: `Ngày ${dayNum} (${formatDisplayDate(p.date)}${p.weight ? ' - ' + p.weight + 'kg' : ''})`
@@ -72,11 +73,11 @@ export async function renderPhotoVault() {
         ` : `
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem;">
             ${photos.map((p, idx) => {
-              const dayNum = calculateJourneyDayNumber(photos, p.date);
+              const dayNum = p.journeyDay || (idx + 1);
               return `
                 <div class="card" style="padding: 0.6rem; position: relative; overflow: hidden; border: 1px solid var(--border-color); cursor: pointer;" data-zoom-photo-id="${p.id}">
                   <div style="position: relative;">
-                    <img src="${p.photoDataUrl}" alt="Progress Photo" style="width: 100%; height: 220px; object-fit: cover; border-radius: 12px; transition: transform 0.3s ease;">
+                    <img src="${p.photoDataUrl || p.url || p.photoUrl}" alt="Progress Photo" style="width: 100%; height: 220px; object-fit: cover; border-radius: 12px; transition: transform 0.3s ease;">
                     <span class="badge badge-primary" style="position: absolute; top: 8px; left: 8px; font-size: 0.75rem; background: rgba(117, 86, 217, 0.85); color: #fff; backdrop-filter: blur(4px);">
                       Ngày ${dayNum}
                     </span>
@@ -199,20 +200,40 @@ export async function renderPhotoVault() {
 
     <!-- LIGHTBOX MODAL PHÓNG TO ẢNH (IMAGE ZOOM LIGHTBOX) -->
     <div class="modal-overlay" id="lightbox-photo-modal">
-      <div class="modal-card" style="max-width: 850px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff;">
-        <div class="card-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-          <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <h3 style="color: #fff; margin: 0;" id="lightbox-title">Chi Tiết Ảnh Tiến Trình</h3>
-            <span class="badge badge-primary" id="lightbox-journey-badge">Ngày 1</span>
+      <div class="lightbox" id="lightbox-card">
+        <!-- Header -->
+        <div class="lb-header">
+          <div class="lb-title">
+            <h2 id="lightbox-title">Ảnh Tiến Trình Ngày 1</h2>
+            <span class="day-pill" id="lightbox-journey-badge">Ngày 1</span>
           </div>
-          <button class="btn btn-secondary btn-icon" id="btn-close-lightbox-modal" style="background: rgba(255, 255, 255, 0.1); color: #fff; border: 0;">
-            <i data-lucide="x"></i>
+          <button class="btn-close" id="btn-close-lightbox-modal" title="Đóng">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
           </button>
         </div>
 
-        <div style="text-align: center; padding: 1rem 0;">
-          <img id="lightbox-img" src="" style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 14px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
-          <div style="margin-top: 1rem; font-size: 1.1rem; font-weight: 700; color: var(--accent-purple);" id="lightbox-info-text"></div>
+        <!-- Image -->
+        <div class="lb-image">
+          <img id="lightbox-img" src="" alt="Progress Photo" />
+        </div>
+
+        <!-- Meta -->
+        <div class="lb-meta" id="lightbox-meta-container">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Actions -->
+        <div class="lb-actions">
+          <button class="btn-action" id="btn-lightbox-compare">
+            <i data-lucide="columns" style="width: 14px; height: 14px;"></i>
+            So sánh Before / After
+          </button>
+          <button class="btn-action danger" id="btn-lightbox-delete">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            Xóa ảnh
+          </button>
         </div>
       </div>
     </div>
@@ -222,6 +243,14 @@ export async function renderPhotoVault() {
   if (mountNode) {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
+
+    // Teleport popup modals to document.body to break out of parent CSS transform containing block
+    ['upload-photo-modal', 'compare-photos-modal', 'lightbox-photo-modal'].forEach(modalId => {
+      const el = document.getElementById(modalId);
+      if (el && el.parentElement !== document.body) {
+        document.body.appendChild(el);
+      }
+    });
 
     // Custom dropdown listener in popup modal
     initDropdownListeners(mountNode, (selectedVal, dropdownId) => {
@@ -303,6 +332,33 @@ export async function renderPhotoVault() {
       }
     });
 
+    // Lightbox Action 1: Compare Before / After
+    document.getElementById('btn-lightbox-compare')?.addEventListener('click', () => {
+      lightboxModal.classList.remove('active');
+      const compareModal = document.getElementById('compare-photos-modal');
+      if (compareModal) compareModal.classList.add('active');
+    });
+
+    // Lightbox Action 2: Delete Photo
+    document.getElementById('btn-lightbox-delete')?.addEventListener('click', async () => {
+      if (!currentLightboxPhoto) return;
+      const targetPhoto = currentLightboxPhoto;
+      lightboxModal.classList.remove('active');
+
+      const confirmed = await Modal.confirm({
+        title: 'Xóa Ảnh Tiến Trình',
+        message: `Bạn có chắc chắn muốn xóa Ảnh Tiến Trình Ngày ${targetPhoto.journeyDay || 1} (${formatDisplayDate(targetPhoto.date)})? Hành động này không thể hoàn tác.`,
+        type: 'warning',
+        confirmText: 'Đồng Ý Xóa',
+        cancelText: 'Hủy Bỏ'
+      });
+
+      if (confirmed) {
+        await DataService.deletePhoto(targetPhoto.id);
+        renderPhotoVault();
+      }
+    });
+
     // 3. DELETE PHOTO HANDLER with smooth animation
     document.querySelectorAll('[data-delete-photo]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -316,13 +372,13 @@ export async function renderPhotoVault() {
           cancelText: 'Hủy Bỏ'
         });
         if (confirmed) {
-          const card = btn.closest('.photo-card') || btn.closest('.card') || btn.parentElement;
-          if (card) {
-            card.classList.add('item-deleting');
+          const photoCard = btn.closest('.photo-card');
+          if (photoCard) {
+            photoCard.classList.add('item-deleting');
             setTimeout(async () => {
               await DataService.deletePhoto(id);
               renderPhotoVault();
-            }, 320);
+            }, 400);
           } else {
             await DataService.deletePhoto(id);
             renderPhotoVault();
@@ -445,19 +501,40 @@ function updateUploadJourneyDayDisplay(photos, selectedDateStr) {
 }
 
 function openLightboxModal(photo, photos) {
+  currentLightboxPhoto = photo;
   const modal = document.getElementById('lightbox-photo-modal');
   const img = document.getElementById('lightbox-img');
-  const infoText = document.getElementById('lightbox-info-text');
+  const metaContainer = document.getElementById('lightbox-meta-container');
   const badge = document.getElementById('lightbox-journey-badge');
   const title = document.getElementById('lightbox-title');
 
   if (!modal || !img) return;
 
-  const dayNum = calculateJourneyDayNumber(photos, photo.date);
-  img.src = photo.photoDataUrl;
+  const dayNum = photo.journeyDay || calculateJourneyDayNumber(photos, photo.date);
+  img.src = photo.photoDataUrl || photo.url || photo.photoUrl;
   if (badge) badge.innerText = `Ngày ${dayNum}`;
   if (title) title.innerText = `Ảnh Tiến Trình Ngày ${dayNum}`;
-  if (infoText) infoText.innerHTML = `<i data-lucide="calendar" style="width: 15px; height: 15px; display: inline-block; vertical-align: middle;"></i> ${formatDisplayDate(photo.date)} &nbsp; | &nbsp; ${CUSTOM_SCALE_SVG_ICON} ${photo.weight} kg ${photo.note ? ` &nbsp; | &nbsp; <i data-lucide="file-text" style="width: 15px; height: 15px; display: inline-block; vertical-align: middle;"></i> ${photo.note}` : ''}`;
+
+  if (metaContainer) {
+    metaContainer.innerHTML = `
+      <span class="item">
+        <i data-lucide="calendar"></i>
+        ${formatDisplayDate(photo.date)}
+      </span>
+      <span class="sep"></span>
+      <span class="item weight">
+        ${CUSTOM_SCALE_SVG_ICON}
+        ${photo.weight ? photo.weight + ' kg' : 'Chưa nhập'}
+      </span>
+      ${photo.note ? `
+        <span class="sep"></span>
+        <span class="item note">
+          <i data-lucide="file-text"></i>
+          ${photo.note}
+        </span>
+      ` : ''}
+    `;
+  }
 
   modal.classList.add('active');
   if (window.lucide) window.lucide.createIcons();
@@ -499,7 +576,7 @@ function renderComparisonResultCard(result, photos) {
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 1rem;">
         <div class="card" style="padding: 0.6rem; border: 1px solid var(--border-color); text-align: center; cursor: pointer;" data-zoom-photo-id="${photoA.id}">
           <div style="font-weight: 800; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">Mốc 1 (Before — Ngày ${dayNumA})</div>
-          <img src="${photoA.photoDataUrl}" style="width: 100%; height: 300px; object-fit: cover; border-radius: 12px;">
+          <img src="${photoA.photoDataUrl || photoA.url || photoA.photoUrl}" style="width: 100%; height: 300px; object-fit: cover; border-radius: 12px;">
           <div style="margin-top: 0.5rem; font-weight: 800; font-size: 0.95rem; color: var(--accent-purple); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
             <span><i data-lucide="calendar" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i> ${formatDisplayDate(photoA.date)}</span>
             <span>—</span>
@@ -509,7 +586,7 @@ function renderComparisonResultCard(result, photos) {
 
         <div class="card" style="padding: 0.6rem; border: 1px solid var(--border-color); text-align: center; cursor: pointer;" data-zoom-photo-id="${photoB.id}">
           <div style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); margin-bottom: 0.5rem;">Mốc 2 (After — Ngày ${dayNumB})</div>
-          <img src="${photoB.photoDataUrl}" style="width: 100%; height: 300px; object-fit: cover; border-radius: 12px;">
+          <img src="${photoB.photoDataUrl || photoB.url || photoB.photoUrl}" style="width: 100%; height: 300px; object-fit: cover; border-radius: 12px;">
           <div style="margin-top: 0.5rem; font-weight: 800; font-size: 0.95rem; color: var(--accent-purple); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
             <span><i data-lucide="calendar" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i> ${formatDisplayDate(photoB.date)}</span>
             <span>—</span>

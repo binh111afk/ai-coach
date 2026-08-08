@@ -11,6 +11,10 @@ export const AiCoachService = {
     const goal = await DataService.getUserGoal();
     const todayLog = await DataService.getDailyLog();
     const progress = await DataService.getUserProgress();
+    const photos = await DataService.getPhotos();
+    const photosSummary = photos.length > 0
+      ? photos.map(p => `• Ngày ${p.journeyDay || 1} (${p.date}, ${p.weight || profile.currentWeight}kg)`).join('\n')
+      : 'Kho ảnh hiện tại chưa có ảnh nào.';
 
     return `Bạn là AI Coach - "Bộ não" cố vấn sức khỏe, giảm cân, tập luyện và dinh dưỡng thông minh hàng đầu.
 Nhiệm vụ của bạn là lắng nghe, hỗ trợ, phân tích thực đơn, đề xuất điều chỉnh mục tiêu và hướng dẫn người dùng.
@@ -24,6 +28,14 @@ Nhiệm vụ của bạn là lắng nghe, hỗ trợ, phân tích thực đơn, 
 - Chỉ tiêu Nước: ${goal.waterTarget} ml
 - 🚫 Dị ứng / Kiêng khem thực phẩm: ${profile.foodAllergies || 'Không có (Ăn uống bình thường)'}
 - Tiến độ hôm nay (${todayLog.date}): Calo nạp = ${todayLog.meals.reduce((s, m) => s + m.calories, 0)} kcal, Nước = ${todayLog.waterIntake} ml, Level = ${progress.level} (XP: ${progress.totalXp})
+- 📸 Kho Ảnh Tiến Trình hiện có trong hệ thống:
+${photosSummary}
+
+[QUY TẮC ĐỊNH DẠNG VĂN BẢN TRÌNH BÀY (RICH MARKDOWN FORMATTING)]
+1. Chỉ in đậm ĐÚNG con số + đơn vị cụ thể dạng: **500 kcal**, **30g Protein**, **45g Carb**, **15g Fat**, **2500 ml**, **Ngày 1**, **75 kg**. TUYỆT ĐỐI KHÔNG in đậm cả câu dài.
+2. Viết câu văn ngắn gọn, súc tích, giữa các đoạn văn CHỈ CÁCH 1 DÒNG TRỐNG. TUYỆT ĐỐI KHÔNG dùng vạch kẻ ---, KHÔNG dùng quá nhiều dòng trống thừa.
+3. Đặt các Lời Khuyên hay Mẹo Nhỏ trong khung trích dẫn dạng:
+   > 💡 **Lời khuyên AI Coach:** [Nội dung lời khuyên đắt giá]
 
 [QUY TẮC VỀ GỢI Ý THỰC ĐƠN & CÔNG THỨC MÓN ĂN]
 Khi bạn tư vấn thực đơn hoặc đề xuất món ăn, bạn PHẢI cung cấp đầy đủ thông tin:
@@ -33,15 +45,15 @@ Khi bạn tư vấn thực đơn hoặc đề xuất món ăn, bạn PHẢI cung
 - Giá ước tính tổng bữa ăn (costVnd).
 
 [QUY TẮC BẮT BUỘC VỀ ĐỀ XUẤT THAY ĐỔI - APPROVAL FLOW]
-BẤT CỨ KHI NÀO người dùng yêu cầu hoặc bạn muốn đề xuất BẤT KỲ thay đổi nào vào dữ liệu (ăn bữa ăn, đổi mục tiêu nước, thêm bài tập, thay đổi mục tiêu giảm cân/calo, tạo checklist):
+BẤT CỨ KHI NÀO người dùng yêu cầu hoặc bạn muốn đề xuất BẤT KỲ thay đổi nào vào dữ liệu (bữa ăn, đổi mục tiêu nước, thêm bài tập, thay đổi mục tiêu calo, tạo checklist, lưu/gán nhãn Kho Ảnh tiến trình):
 1. Lời văn trả lời của bạn PHẢI LÀ MỘT VĂN BẢN HOÀN CHỈNH, ĐẦY ĐỦ Ý NGHĨA VÀ KẾT THÚC BẰNG DẤU CÂU TRÒN TRỊA (dấu chấm .). Tuyệt đối KHÔNG được viết câu dở dang trước khi chèn khối JSON.
-2. Bạn BẮT BUỘC PHẢI CHÈN KHỐI JSON chuẩn ở cuối câu trả lời dạng \`\`\`json { "proposedChange": { ... } } \`\`\` để hệ thống hiển thị thẻ Thẻ xác nhận với 2 nút [Đồng ý] và [Từ chối] cho người dùng bấm.
+2. Bạn BẮT BUỘC PHẢI CHÈN KHỐI JSON chuẩn ở cuối câu trả lời dạng \`\`\`json { "proposedChange": { ... } } \`\`\` để hệ thống hiển thị thẻ Xác nhận với 2 nút [Đồng ý] và [Từ chối] cho người dùng bấm.
 
 \`\`\`json
 {
   "proposedChange": {
-    "id": "prop_\${Date.now()}",
-    "type": "UPDATE_GOAL" | "LOG_MEAL" | "LOG_WORKOUT" | "UPDATE_WATER_GOAL" | "GENERATE_CHECKLIST",
+    "id": "prop_1700000000000",
+    "type": "UPDATE_GOAL (hoặc LOG_MEAL, LOG_WORKOUT, UPDATE_WATER_GOAL, GENERATE_CHECKLIST, LOG_PROGRESS_PHOTO, UPDATE_PHOTO_TAG, COMPARE_PHOTOS)",
     "title": "Tiêu đề mô tả thay đổi",
     "details": [
       { "field": "Tên chỉ số", "from": "Giá trị cũ", "to": "Giá trị mới" }
@@ -53,9 +65,9 @@ BẤT CỨ KHI NÀO người dùng yêu cầu hoặc bạn muốn đề xuất B
 }
 \`\`\`
 
-[VÍ DỤ CÁC LOẠI PAYLOAD]
+[VÍ DỤ CÁC LOẠI PAYLOAD HỆ THỐNG HỖ TRỢ]
 1. LOG_MEAL:
-"payload": { "date": "${todayLog.date}", "meal": { "type": "Breakfast"|"Lunch"|"Dinner"|"Snack", "name": "Ức gà áp chảo + Cơm lứt", "costVnd": 45000, "calories": 450, "protein": 40, "carb": 45, "fat": 8, "isDirectEat": false, "ingredients": [{ "name": "Ức gà tươi", "amount": "150g", "estPriceVnd": 25000 }, { "name": "Gạo lứt", "amount": "80g", "estPriceVnd": 10000 }, { "name": "Rau củ", "amount": "150g", "estPriceVnd": 10000 }], "instructions": ["1. Ức gà ướp gia vị tỏi tỏi tiêu 10 phút.", "2. Áp chảo mỗi mặt 5-6 phút ở lửa vừa.", "3. Nấu cơm lứt dẻo dùng kèm rau luộc."] } }
+"payload": { "date": "${todayLog.date}", "meal": { "type": "Breakfast"|"Lunch"|"Dinner"|"Snack", "name": "Ức gà áp chảo + Cơm lứt", "costVnd": 45000, "calories": 450, "protein": 40, "carb": 45, "fat": 8, "isDirectEat": false, "ingredients": [{ "name": "Ức gà tươi", "amount": "150g", "estPriceVnd": 25000 }, { "name": "Gạo lứt", "amount": "80g", "estPriceVnd": 10000 }], "instructions": ["1. Áp chảo ức gà.", "2. Dùng kèm cơm lứt."] } }
 
 2. LOG_WORKOUT:
 "payload": { "date": "${todayLog.date}", "workout": { "type": "Chạy bộ", "duration": 30, "intensity": "Moderate", "caloriesBurned": 280 } }
@@ -66,20 +78,32 @@ BẤT CỨ KHI NÀO người dùng yêu cầu hoặc bạn muốn đề xuất B
 4. UPDATE_GOAL:
 "payload": { "dailyCalorieTarget": 1800, "waterTarget": 3500, "targetWeight": 65, "targetDate": "2026-10-01", "macroTarget": { "protein": 135, "carb": 180, "fat": 50 } }
 
+5. LOG_PROGRESS_PHOTO (Lưu / Gán thẻ Ảnh Tiến Trình vào Kho Ảnh):
+"payload": { "journeyDay": 1, "note": "Ảnh tiến trình Ngày 1", "weight": ${profile.currentWeight} }
+
+6. UPDATE_PHOTO_TAG (Cập nhật thông tin / Ngày hành trình của Ảnh Tiến Trình):
+"payload": { "journeyDay": 1, "note": "Gán nhãn Ảnh Tiến Trình Ngày 1" }
+
+[QUY TẮC NGHIÊM NGẶT: THÀNH THẬT VỀ NĂNG LỰC HỆ THỐNG (HONESTY DIRECTIVE)]
+1. Bạn CÓ THỂ tác động và thay đổi các dữ liệu: Bữa ăn, Bài tập, Mục tiêu Calo/Nước/Cân nặng, Checklist và KHO ẢNH TIẾN TRÌNH.
+2. Nếu người dùng yêu cầu một tính năng HOÀN TOÀN KHÔNG CÓ TRONG HỆ THỐNG (ví dụ: chuyển tiền ngân hàng, mua hàng sắm đồ online, đặt lịch khám bác sĩ ngoài đời real-time, điều khiển thiết bị nhà thông minh...):
+   - Bạn PHẢI THÀNH THẬT NÓI RẰNG: "Rất tiếc, tôi chưa có tính năng [tên tính năng]. Tôi là AI Coach hỗ trợ quản lý dinh dưỡng, tập luyện, chỉ số sức khỏe và Kho Ảnh tiến trình."
+   - TUYỆT ĐỐI KHÔNG tự bịa ra Thẻ xác nhận giả (proposedChange) hoặc hứa hẹn làm những việc hệ thống không có khả năng thực thi.
+
 Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuyên nghiệp!`;
   },
 
   /**
    * Send message to 9router AI API
    */
-  async sendMessage(userMessage, conversationHistory = []) {
+  async sendMessage(userMessage, conversationHistory = [], attachments = []) {
     const apiKey = await DataService.getNinerouterApiKey();
     const selectedModel = await DataService.getSelectedModel();
 
     // Fallback to Smart Local Parser if API Key is missing in .env
     if (!apiKey) {
       console.warn("9router API key missing in .env. Using Smart Local Parser Fallback.");
-      return await this.smartLocalFallback(userMessage);
+      return await this.smartLocalFallback(userMessage, attachments);
     }
 
     try {
@@ -127,7 +151,14 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       const aiContent = data.choices[0]?.message?.content || "Xin lỗi, tôi không thể xử lý câu trả lời lúc này.";
 
       // Parse potential proposedChange JSON from AI text response (with intelligent fallback)
-      const { textResponse, proposedChange } = await this.extractProposedChange(aiContent, userMessage);
+      let { textResponse, proposedChange } = await this.extractProposedChange(aiContent, userMessage);
+
+      // If user uploaded an actual image file, attach its exact Base64 dataUrl into photo proposedChange payload
+      const attachedImg = Array.isArray(attachments) ? attachments.find(f => f.dataUrl || f.url) : null;
+      if (attachedImg && proposedChange && (proposedChange.type === 'LOG_PROGRESS_PHOTO' || proposedChange.type === 'UPLOAD_PHOTO' || proposedChange.type === 'UPDATE_PHOTO_TAG')) {
+        proposedChange.payload = proposedChange.payload || {};
+        proposedChange.payload.photoUrl = attachedImg.dataUrl || attachedImg.url;
+      }
 
       return {
         role: "assistant",
@@ -137,10 +168,100 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
     } catch (err) {
       console.error("9router API Error:", err);
-      // Fallback on error to ensure flawless UX
-      const fallbackResult = await this.smartLocalFallback(userMessage);
+      const fallbackResult = await this.smartLocalFallback(userMessage, attachments);
       fallbackResult.content = `*(Lưu ý: Không thể gọi 9router API [${err.message}]. Hệ thống chuyển sang AI Parser nội bộ)*\n\n` + fallbackResult.content;
       return fallbackResult;
+    }
+  },
+
+  /**
+   * Generate 7-day meal plan & workout schedule via real 9router AI API during Onboarding
+   */
+  async generateFullJourneyPlan(profileData, goalData) {
+    console.log("🚀 [AI Onboarding Plan] Starting API Call...");
+    const apiKey = await DataService.getNinerouterApiKey();
+    const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
+
+    console.log("🔑 [AI Onboarding Plan] Key exists:", !!apiKey, "| Model:", selectedModel);
+
+    if (!apiKey) {
+      console.warn("⚠️ 9router API Key missing. Switching to Smart Local Generator.");
+      return null;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.
+Hãy tính toán và sinh ra Kế hoạch Thực đơn Dinh dưỡng 7 ngày và Lịch Tập Luyện 7 ngày dạng JSON gọn nhẹ cho người dùng Onboarding:
+- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm
+- Cân nặng hiện tại: ${profileData.currentWeight}kg, Cân nặng mục tiêu: ${goalData.targetWeight}kg
+- Mục tiêu calo hàng ngày: ${goalData.dailyCalorieTarget} kcal/ngày
+- Macro mục tiêu: Protein ${goalData.macroTarget?.protein}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g
+- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}
+
+Trả về ĐÚNG KHỐI JSON duy nhất dạng:
+\`\`\`json
+{
+  "weeklyMealPlan": [
+    {
+      "dayIndex": 1,
+      "dayName": "Thứ 2",
+      "meals": [
+        { "type": "Breakfast", "name": "Món sáng AI đề xuất", "calories": 350, "protein": 20, "carb": 40, "fat": 10, "costVnd": 25000, "isDirectEat": false },
+        { "type": "Lunch", "name": "Món trưa AI đề xuất", "calories": 550, "protein": 35, "carb": 60, "fat": 15, "costVnd": 45000, "isDirectEat": false },
+        { "type": "Dinner", "name": "Món tối AI đề xuất", "calories": 450, "protein": 30, "carb": 45, "fat": 12, "costVnd": 30000, "isDirectEat": false }
+      ]
+    }
+  ],
+  "weeklyWorkoutRoutine": [
+    {
+      "dayIndex": 1,
+      "dayName": "Thứ 2",
+      "workoutType": "Resistance Training",
+      "duration": 45,
+      "caloriesBurned": 320,
+      "exercises": ["Chống đẩy 3 sets x 12", "Squat 4 sets x 15", "Plank 3 sets x 45s"]
+    }
+  ]
+}
+\`\`\``;
+
+      const response = await fetch(CONFIG.NINEROUTER_BASE_URL, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": CONFIG.APP_NAME,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+          max_tokens: 1800
+        })
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/```(?:json|JSON)?\s*([\s\S]*?)\s*```/);
+      const jsonStr = jsonMatch ? jsonMatch[1] : content.match(/\{[\s\S]*\}/)?.[0];
+      if (jsonStr) {
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.weeklyMealPlan && parsed.weeklyWorkoutRoutine) {
+          return parsed;
+        }
+      }
+      return null;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn("AI Onboarding Plan Generation Timeout/Error:", err.message);
+      return null;
     }
   },
 
@@ -207,6 +328,24 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       }
     }
 
+    // Intercept LOG_PROGRESS_PHOTO proposedChange to verify overwrite status against IndexedDB
+    if (proposedChange && (proposedChange.type === 'LOG_PROGRESS_PHOTO' || proposedChange.type === 'UPLOAD_PHOTO')) {
+      const targetDay = Number(proposedChange.payload?.journeyDay || 1);
+      const existingPhotos = await DataService.getPhotos();
+      const existingPhoto = existingPhotos.find((p, idx) => 
+        (p.journeyDay && Number(p.journeyDay) === targetDay) || (idx + 1) === targetDay
+      );
+      if (existingPhoto) {
+        proposedChange.title = `[⚠️ GHI ĐÈ] Thay thế Ảnh Tiến Trình Ngày ${targetDay}`;
+        proposedChange.details = [
+          { field: `Ảnh Tiến Trình Ngày ${targetDay}`, from: `Ảnh cũ (Tải lên ngày ${existingPhoto.date})`, to: `Bức ảnh mới (Ghi đè)` }
+        ];
+        if (!textResponse.includes('CẢNH BÁO GHI ĐÈ') && !textResponse.includes('thay thế')) {
+          textResponse = `⚠️ **CẢNH BÁO GHI ĐÈ ẢNH TIẾN TRÌNH:**\nHệ thống phát hiện trong Kho Ảnh hiện **đã có 1 ảnh** thuộc **Ngày ${targetDay}** (tải lên ngày ${existingPhoto.date}).\n\nNếu bạn bấm **[Đồng Ý]**, hệ thống sẽ **ghi đè & thay thế** bức ảnh cũ Ngày ${targetDay} bằng bức ảnh mới này.\n\n` + textResponse;
+        }
+      }
+    }
+
     // Clean up trailing incomplete phrases
     textResponse = textResponse
       .replace(/(?:Hãy nhìn|Dưới đây|Như sau|Bảng đề xuất|Chi tiết đề xuất|Sau đây|Dù ăn gà rán|Tham khảo)[\s::]*$/gi, '')
@@ -219,11 +358,12 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
    * Smart Local Fallback Parser when API Key is not set or network fails.
    * Performs NLP pattern matching for food, water, workouts, and goal adjustments.
    */
-  async smartLocalFallback(userMessage) {
+  async smartLocalFallback(userMessage, attachments = []) {
     const text = userMessage.toLowerCase().trim();
     const today = DataService.getTodayString();
     const profile = await DataService.getUserProfile();
     const goal = await DataService.getUserGoal();
+    const attachedImg = Array.isArray(attachments) ? attachments.find(f => f.dataUrl || f.url) : null;
 
     let replyText = "";
     let proposedChange = null;
@@ -285,20 +425,40 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         ? `\n\n💡 **Lời khuyên AI Coach:** Đừng lo lắng nếu lỡ ăn vượt thực đơn! Để duy trì thâm hụt calo cả tuần, bạn chỉ cần:\n1️⃣ Đi bộ nhanh / Tập nhẹ 25-30 phút hôm nay để bù ~200 kcal.\n2️⃣ Bữa sáng ngày mai ăn nhẹ nhàng (yến mạch/trứng luộc) để cân bằng lại!`
         : `\n\nBấm **[Đồng ý]** bên dưới để cập nhật bữa ăn này vào nhật ký nhé!`;
 
-      replyText = `Tôi đã ghi nhận bữa ăn **"${foodName}"** của bạn:\n- **Ước tính Calo:** ~${cal} kcal\n- **Macro:** Protein: ${p}g | Carb: ${c}g | Fat: ${f}g${adviceTip}`;
-      proposedChange = {
-        id: 'prop_' + Date.now(),
-        type: 'LOG_MEAL',
-        title: `Đề xuất ghi nhận Bữa ${mealType === 'Breakfast' ? 'Sáng' : mealType === 'Lunch' ? 'Trưa' : mealType === 'Dinner' ? 'Tối' : 'Phụ'} (${foodName})`,
-        details: [
-          { field: 'Món ăn thực tế', from: 'Thực đơn AI cũ', to: foodName },
-          { field: 'Calo & Macro', from: '-', to: `${cal} kcal (P:${p}g, C:${c}g, F:${f}g)` }
-        ],
-        payload: {
-          date: today,
-          meal: { type: mealType, name: foodName, calories: cal, protein: p, carb: c, fat: f }
-        }
-      };
+      const todayLog = await DataService.getDailyLog(today);
+      const existingMeal = (todayLog.meals || []).find(m => m.type && m.type.toLowerCase() === mealType.toLowerCase());
+      const mealTypeLabel = mealType === 'Breakfast' ? 'Sáng' : mealType === 'Lunch' ? 'Trưa' : mealType === 'Dinner' ? 'Tối' : 'Phụ';
+
+      if (existingMeal) {
+        replyText = `⚠️ **CẢNH BÁO GHI ĐÈ BỮA ĂN:**\nHôm nay bạn **đã ghi nhận Bữa ${mealTypeLabel}** là **"${existingMeal.name}"** (~${existingMeal.calories} kcal).\n\nBạn có muốn **thay thế / ghi đè** bằng món **"${foodName}"** (~${cal} kcal) không? Bấm **[Đồng ý]** bên dưới để xác nhận ghi đè nhé!`;
+        proposedChange = {
+          id: 'prop_' + Date.now(),
+          type: 'LOG_MEAL',
+          title: `[⚠️ GHI ĐÈ] Thay thế Bữa ${mealTypeLabel} bằng ${foodName}`,
+          details: [
+            { field: `Bữa ${mealTypeLabel} Hôm Nay`, from: `${existingMeal.name} (${existingMeal.calories} kcal)`, to: `${foodName} (${cal} kcal - Ghi đè)` }
+          ],
+          payload: {
+            date: today,
+            meal: { type: mealType, name: foodName, calories: cal, protein: p, carb: c, fat: f }
+          }
+        };
+      } else {
+        replyText = `Tôi đã ghi nhận bữa ăn **"${foodName}"** của bạn:\n- **Ước tính Calo:** ~${cal} kcal\n- **Macro:** Protein: ${p}g | Carb: ${c}g | Fat: ${f}g${adviceTip}`;
+        proposedChange = {
+          id: 'prop_' + Date.now(),
+          type: 'LOG_MEAL',
+          title: `Đề xuất ghi nhận Bữa ${mealTypeLabel} (${foodName})`,
+          details: [
+            { field: 'Món ăn thực tế', from: 'Thực đơn AI cũ', to: foodName },
+            { field: 'Calo & Macro', from: '-', to: `${cal} kcal (P:${p}g, C:${c}g, F:${f}g)` }
+          ],
+          payload: {
+            date: today,
+            meal: { type: mealType, name: foodName, calories: cal, protein: p, carb: c, fat: f }
+          }
+        };
+      }
     }
     // Pattern 3: Log Workout ("chạy bộ 30 phút", "tập gym 45 phút")
     else if (text.includes("tập") || text.includes("chạy") || text.includes("gym") || text.includes("cardio") || text.includes("bơi")) {
@@ -352,6 +512,58 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
           }
         };
       }
+    }
+    // Pattern 3.8: Photo Vault Actions ("lưu ảnh tiến trình ngày 1", "đây là ảnh ngày 1", "đặt làm ảnh ngày 1", "kho ảnh")
+    else if (text.includes("ảnh") || text.includes("kho ảnh") || text.includes("tiến trình") || text.includes("ngày 1") || text.includes("ngày một")) {
+      const dayMatch = text.match(/ngày\s*(\d+)/i);
+      let dayNum = 1;
+      if (dayMatch && dayMatch[1]) dayNum = parseInt(dayMatch[1]);
+      else if (text.includes("ngày 1") || text.includes("ngày một")) dayNum = 1;
+      else dayNum = goal.currentJourneyDay || 1;
+
+      const existingPhotos = await DataService.getPhotos();
+      const existingPhoto = existingPhotos.find(p => p.journeyDay === dayNum);
+
+      if (existingPhoto) {
+        replyText = `⚠️ **CẢNH BÁO GHI ĐÈ ẢNH TIẾN TRÌNH:**\nHệ thống phát hiện trong Kho Ảnh hiện **đã có 1 ảnh** thuộc **Ngày ${dayNum}** (tải lên ngày ${existingPhoto.date}).\n\nBạn có muốn **ghi đè & thay thế** bức ảnh cũ Ngày ${dayNum} bằng bức ảnh mới này không? Bấm **[Đồng ý]** bên dưới để xác nhận ghi đè nhé!`;
+        proposedChange = {
+          id: 'prop_' + Date.now(),
+          type: 'LOG_PROGRESS_PHOTO',
+          title: `[⚠️ GHI ĐÈ] Thay thế Ảnh Tiến Trình Ngày ${dayNum}`,
+          details: [
+            { field: `Ảnh Tiến Trình Ngày ${dayNum}`, from: `Ảnh cũ (Tải lên ngày ${existingPhoto.date})`, to: `Bức ảnh mới (Ghi đè)` }
+          ],
+          payload: {
+            journeyDay: dayNum,
+            photoUrl: attachedImg ? (attachedImg.dataUrl || attachedImg.url) : null,
+            note: `Ảnh tiến trình Ngày ${dayNum} do AI Coach ghi nhận (Đã ghi đè)`,
+            weight: profile.currentWeight,
+            isOverwrite: true
+          }
+        };
+      } else {
+        replyText = `Tôi đã tiếp nhận yêu cầu về **Kho Ảnh Tiến Trình**!\nTôi đề xuất lưu / gán nhãn **Ảnh Tiến Trình Ngày ${dayNum}** vào Kho Ảnh của bạn.\n\nHãy bấm **[Đồng ý]** bên dưới để áp dụng vào Kho Ảnh ngay nhé!`;
+        proposedChange = {
+          id: 'prop_' + Date.now(),
+          type: 'LOG_PROGRESS_PHOTO',
+          title: `Đề xuất Lưu & Gán Thẻ Ảnh Tiến Trình (Ngày ${dayNum})`,
+          details: [
+            { field: 'Kho Ảnh Tiến Trình', from: '-', to: `Lưu Ảnh Tiến Trình Ngày ${dayNum}` },
+            { field: 'Cân nặng ghi nhận', from: '-', to: `${profile.currentWeight} kg` }
+          ],
+          payload: {
+            journeyDay: dayNum,
+            photoUrl: attachedImg ? (attachedImg.dataUrl || attachedImg.url) : null,
+            note: `Ảnh tiến trình Ngày ${dayNum} do AI Coach ghi nhận`,
+            weight: profile.currentWeight
+          }
+        };
+      }
+    }
+    // Pattern 3.9: Unsupported feature query ("chuyển tiền", "mua sắm", "bác sĩ ngoài đời", "ngân hàng")
+    else if (text.includes("chuyển tiền") || text.includes("mua hàng") || text.includes("đặt hàng") || text.includes("bác sĩ") || text.includes("ngân hàng")) {
+      replyText = `Rất tiếc, tôi **chưa có tính năng** xử lý các dịch vụ/giao dịch ngoài ứng dụng này. 🤖\n\nTôi có toàn quyền truy cập và hỗ trợ tốt nhất các chức năng:\n- 🥗 **Dinh Dưỡng:** Ghi nhận & Phân tích bữa ăn (Calo/Macro)\n- 🏋️‍♂️ **Tập Luyện:** Ghi nhận bài tập & calo tiêu hao\n- 💧 **Chỉ Số:** Cập nhật mục tiêu Calo, Nước & Cân nặng\n- 📸 **Kho Ảnh:** Lưu, cập nhật nhãn & quản lý Ảnh Tiến Trình theo Ngày\n- 📋 **Checklist:** Tạo danh sách công việc hàng ngày`;
+      proposedChange = null;
     }
     // Pattern 4: Plan generation with daily budget & workout location ("ngân sách 100k", "lập kế hoạch 80.000đ/ngày")
     else if (text.includes("kế hoạch") || text.includes("ngân sách") || text.includes("tiền") || text.includes("vnđ") || text.includes("k/ngày")) {

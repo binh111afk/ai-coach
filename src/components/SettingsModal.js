@@ -1,4 +1,5 @@
 import { DataService, generate7DayMealPlan } from '../services/dataService.js';
+import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges } from '../services/gamificationService.js';
 import { CONFIG } from '../config.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { Modal } from './ui/Modal.js';
@@ -245,6 +246,12 @@ export async function renderSettingsModal(onSaveComplete) {
       goal.dailyCalorieTarget = targetCalObj.targetCalories;
       goal.macroTarget = macros;
       goal.waterTarget = water;
+
+      if (!goal.journeyLevels || goal.journeyLevels.length === 0) {
+        const gami = generateJourneyLevelsAndBadges(goal.totalJourneyDays || goal.targetDays || 60);
+        goal.journeyLevels = gami.levels;
+        goal.journeyBadges = gami.badges;
+      }
       await DataService.saveUserGoal(goal);
 
       // Re-generate user's 7-day meal plan to respect new budget & food allergies

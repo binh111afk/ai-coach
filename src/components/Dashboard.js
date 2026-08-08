@@ -397,10 +397,10 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
         const itemRow = btn.closest('.checklist-item-row');
 
         if (itemRow) {
-          // 1. Add removing animation class (fades out, shrinks height to 0, elements below slide up smoothly)
-          itemRow.classList.add('checklist-item-removing');
+          // Add notification-style swipe & collapse delete animation class
+          itemRow.classList.add('item-deleting');
 
-          // 2. Wait 350ms for transition before removing DOM element and updating IndexedDB
+          // Wait 400ms for swipe transition before removing DOM element and updating IndexedDB
           setTimeout(async () => {
             itemRow.remove();
             const updatedLog = await DataService.deleteChecklistItem(todayLog.date, taskId);
@@ -413,7 +413,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
             }
 
             updateDashboardRealtime(updatedLog);
-          }, 350);
+          }, 400);
         }
       });
     });

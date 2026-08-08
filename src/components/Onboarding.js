@@ -1,5 +1,5 @@
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine } from '../services/dataService.js';
-import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
+import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { renderGeminiIcon } from './ui/Icons.js';
 
@@ -246,7 +246,14 @@ export function renderOnboarding(onComplete) {
             </div>
           ` : ''}
 
-          <div style="margin-top: 0.85rem; background: rgba(124, 58, 237, 0.08); border: 1px solid var(--border-highlight); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: var(--accent-purple);">
+          <div style="margin-top: 0.85rem; background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.08)); border: 1.5px solid rgba(245, 158, 11, 0.3); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: #d97706; display: flex; align-items: center; gap: 0.55rem;">
+            <i data-lucide="crown" style="width: 22px; height: 22px; flex-shrink: 0; color: #f59e0b;"></i>
+            <div>
+              🏆 <b>Hệ Thống Level AI Cá Nhân Hóa:</b> Tự động sinh <b>${Math.max(5, Math.round(formData.targetDays / 10))} Cấp Độ</b> (~1 Level / 10 ngày) & <b>5 Huy Hiệu Cột Mốc</b> cho hành trình <b>${formData.targetDays} Ngày</b>!
+            </div>
+          </div>
+
+          <div style="margin-top: 0.75rem; background: rgba(124, 58, 237, 0.08); border: 1px solid var(--border-highlight); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: var(--accent-purple);">
             ✨ <b>AI Auto-Planner:</b> Sau khi xác nhận, AI Coach sẽ tự động thiết lập toàn bộ thực đơn 7 ngày, lịch tập luyện & danh sách công việc hàng ngày cho hành trình <b>${formData.targetDays} ngày</b> của bạn!
           </div>
         </div>
@@ -277,8 +284,25 @@ export function renderOnboarding(onComplete) {
       document.getElementById('step-2').style.display = 'block';
     });
 
-    // Confirm & Save -> Auto generate full meal plan, workout schedule & checklist
+    // Confirm & Save -> Auto generate full meal plan, workout schedule & checklist via Real AI API
     document.getElementById('btn-confirm-onboarding').addEventListener('click', async () => {
+      const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
+      const step3El = document.getElementById('step-3');
+      if (step3El) {
+        step3El.innerHTML = `
+          <div style="text-align: center; padding: 2.5rem 1rem;">
+            <div style="width: 52px; height: 52px; border: 4px solid var(--border-color, #e2e8f0); border-top-color: var(--accent-purple, #7c3aed); border-radius: 50%; animation: spin 0.85s linear infinite; margin: 0 auto 1.5rem auto; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);"></div>
+            <h3 style="color: var(--accent-purple); font-weight: 900; font-size: 1.25rem;">✨ AI Coach Đang Gọi Mô Hình AI Online...</h3>
+            <div style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.9rem; border-radius: 20px; background: rgba(124, 58, 237, 0.12); color: var(--accent-purple); font-weight: 700; font-size: 0.85rem; margin: 0.75rem 0; border: 1px solid rgba(124, 58, 237, 0.25);">
+              🤖 Mô hình: ${selectedModel}
+            </div>
+            <p class="text-sm text-muted" style="margin-top: 0.5rem; max-width: 420px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+              Đang kết nối 9router AI API để phân tích chỉ số cá nhân và tự động sinh ra Kế Hoạch 7 Ngày dành riêng cho bạn...
+            </p>
+          </div>
+        `;
+      }
+
       const profile = await DataService.getUserProfile();
       profile.gender = formData.gender;
       profile.age = formData.age;
@@ -287,6 +311,8 @@ export function renderOnboarding(onComplete) {
       profile.activityLevel = formData.activityLevel;
       profile.isOnboarded = true;
       await DataService.saveUserProfile(profile);
+
+      const journeyGamification = generateJourneyLevelsAndBadges(formData.targetDays);
 
       const goal = await DataService.getUserGoal();
       goal.startWeight = formData.currentWeight;
@@ -301,12 +327,25 @@ export function renderOnboarding(onComplete) {
       goal.totalJourneyDays = formData.targetDays;
       goal.targetDays = formData.targetDays;
       goal.currentJourneyDay = 1;
+      goal.journeyLevels = journeyGamification.levels;
+      goal.journeyBadges = journeyGamification.badges;
       await DataService.saveUserGoal(goal);
 
-      // Auto-generate 7-day meal plan & 7-day workout routine
       const today = DataService.getTodayString();
-      const weeklyMealPlan = generate7DayMealPlan(100000, today, profile.foodAllergies);
-      const weeklyWorkoutRoutine = generate7DayWorkoutRoutine('home', 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg');
+
+      // Attempt Real Online AI Generation via AiCoachService
+      let weeklyMealPlan = null;
+      let weeklyWorkoutRoutine = null;
+
+      const aiPlan = await AiCoachService.generateFullJourneyPlan(profile, goal);
+      if (aiPlan && aiPlan.weeklyMealPlan && aiPlan.weeklyWorkoutRoutine) {
+        weeklyMealPlan = aiPlan.weeklyMealPlan;
+        weeklyWorkoutRoutine = aiPlan.weeklyWorkoutRoutine;
+      } else {
+        // Smart Local Generator Failsafe
+        weeklyMealPlan = generate7DayMealPlan(100000, today, profile.foodAllergies);
+        weeklyWorkoutRoutine = generate7DayWorkoutRoutine('home', 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg');
+      }
 
       const plan = {
         id: 'current_plan',
@@ -330,9 +369,10 @@ export function renderOnboarding(onComplete) {
       ];
       await DataService.saveDailyLog(dailyLog);
 
-      // Close modal & trigger callback
+      // Close modal & trigger celebration callback
       const modalEl = document.getElementById('onboarding-modal');
       if (modalEl) modalEl.remove();
+      confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
       if (onComplete) onComplete();
     });
   }

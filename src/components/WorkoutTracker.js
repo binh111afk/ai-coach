@@ -59,7 +59,7 @@ export async function renderWorkoutTracker() {
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           ${todayLog.workouts.length === 0 ? '<div class="text-muted text-sm" style="font-style: italic; padding: 1rem 0; text-align: center;">Chưa có bài tập nào được ghi nhận hôm nay. Hãy thêm bài tập hoặc gõ câu mô tả tự nhiên ở trên!</div>' : ''}
           ${todayLog.workouts.map(w => `
-            <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+            <div class="workout-item-card" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
               <div>
                 <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">${w.type}</div>
                 <div class="text-xs text-muted">Thời lượng: <b>${w.duration} phút</b> | Cường độ: ${w.intensity || 'Medium'} | Giờ tập: ${w.time || 'Hôm nay'}</div>
@@ -130,17 +130,17 @@ export async function renderWorkoutTracker() {
       }
     });
 
-    // Delete workout with smooth animation
+    // Delete workout with smooth notification-swipe animation for individual item card
     document.querySelectorAll('[data-delete-workout]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = btn.getAttribute('data-delete-workout');
-        const card = btn.closest('.card') || btn.closest('.workout-item') || btn.parentElement;
-        if (card) {
-          card.classList.add('item-deleting');
+        const itemCard = btn.closest('.workout-item-card');
+        if (itemCard) {
+          itemCard.classList.add('item-deleting');
           setTimeout(async () => {
             await DataService.removeWorkoutLog(todayLog.date, id);
             renderWorkoutTracker();
-          }, 320);
+          }, 400);
         } else {
           await DataService.removeWorkoutLog(todayLog.date, id);
           renderWorkoutTracker();

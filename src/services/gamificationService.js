@@ -354,17 +354,147 @@ export function calculateWaterTarget(weightKg, activityLevel = 'moderate') {
   return Math.round(baseMl + bonus);
 }
 
-export function getLevelInfo(totalXp = 0) {
-  let currentLevel = LEVELS[0];
-  let nextLevel = LEVELS[1];
-  for (let i = 0; i < LEVELS.length; i++) {
-    if (totalXp >= LEVELS[i].minXp) {
-      currentLevel = LEVELS[i];
-      nextLevel = LEVELS[i + 1] || null;
+/**
+ * DYNAMIC AI JOURNEY LEVEL & BADGE GENERATOR
+ * Dynamically computes levels & achievements based on targetDays (e.g. 100 days = 10 levels, 200 days = 20 levels).
+ */
+export function generateJourneyLevelsAndBadges(targetDays = 60) {
+  const days = Math.max(10, parseInt(targetDays) || 60);
+  const numLevels = Math.max(5, Math.min(30, Math.round(days / 10)));
+  const daysPerLevel = Math.max(1, Math.round(days / numLevels));
+
+  const icons = ["sprout", "dumbbell", "graduation-cap", "zap", "shield-check", "flame", "apple", "trophy", "medal", "crown", "swords", "award", "crosshair", "target", "star", "heart-pulse", "mountain-snow", "gem", "rocket", "sparkles"];
+  const colors = ["#94a3b8", "#60a5fa", "#34d399", "#a3e635", "#f59e0b", "#fb923c", "#f87171", "#c084fc", "#e879f9", "#fbbf24", "#38bdf8", "#4ade80", "#facc15", "#fb7185", "#a78bfa", "#f43f5e", "#10b981", "#8b5cf6", "#ec4899", "#f59e0b"];
+
+  const titles = [
+    "Tân Binh Khởi Đầu",
+    "Người Khởi Đầu Kỷ Luật",
+    "Thói Quen Hình Thành",
+    "Bứt Phá Năng Lượng",
+    "Chiến Binh Kiên Trì",
+    "Chuyên Gia Đốt Mỡ",
+    "Bậc Thầy Dinh Dưỡng",
+    "Vận Động Viên Bền Bỉ",
+    "Chinh Phục Nửa Chặng Đường",
+    "Bứt Phá Giới Hạn",
+    "Vua Kỷ Luật Fitness",
+    "Cơ Thể Thép Iron Body",
+    "Thắp Sáng Ngọn Lửa",
+    "Tốc Độ Chinh Phục",
+    "Sức Mạnh Vượt Trội",
+    "Tiến Gần Cột Mốc",
+    "Thánh Tập Luyện",
+    "Chinh Phục Đỉnh Cao",
+    "Bậc Thầy Thể Hình",
+    "Huyền Thoại Fitness"
+  ];
+
+  const levels = [];
+  const xpPerLevelBase = 350; // Average ~35 XP per day over 10 days = 350 XP per level
+
+  for (let i = 1; i <= numLevels; i++) {
+    const minXp = i === 1 ? 0 : Math.round((i - 1) * xpPerLevelBase + Math.pow(i - 1, 1.25) * 40);
+    const dayMilestone = i === numLevels ? days : Math.min(days, i * daysPerLevel);
+    const titleIndex = Math.min(titles.length - 1, Math.floor(((i - 1) / (numLevels - 1 || 1)) * (titles.length - 1)));
+    const iconIndex = (i - 1) % icons.length;
+    const colorIndex = (i - 1) % colors.length;
+
+    let levelName = titles[titleIndex];
+    if (i === numLevels) {
+      levelName = `Huyền Thoại ${days} Ngày`;
+    } else if (i === Math.round(numLevels / 2)) {
+      levelName = `Chinh Phục 50% Hành Trình`;
+    }
+
+    levels.push({
+      level: i,
+      name: levelName,
+      minXp,
+      dayMilestone,
+      icon: icons[iconIndex],
+      color: colors[colorIndex],
+      description: `Đạt cột mốc ngày ${dayMilestone}/${days} trong hành trình`
+    });
+  }
+
+  // Dynamic Journey Badges
+  const milestoneBadges = [
+    {
+      id: `journey_start_${days}`,
+      name: `Tân Binh ${days} Ngày`,
+      icon: 'flag',
+      description: `Bắt đầu lộ trình ${days} ngày được AI cá nhân hóa`
+    },
+    {
+      id: `journey_quarter_${days}`,
+      name: `Chinh Phục 25%`,
+      icon: 'sparkles',
+      description: `Hoàn thành 25% chặng đường (${Math.round(days * 0.25)} ngày)`
+    },
+    {
+      id: `journey_half_${days}`,
+      name: `Cột Mốc 50% Hành Trình`,
+      icon: 'target',
+      description: `Vượt qua nửa chặng đường (${Math.round(days * 0.5)} ngày)`
+    },
+    {
+      id: `journey_three_quarter_${days}`,
+      name: `Bứt Phá 75%`,
+      icon: 'flame',
+      description: `Hoàn thành 75% chặng đường (${Math.round(days * 0.75)} ngày)`
+    },
+    {
+      id: `journey_master_${days}`,
+      name: `Huyền Thoại ${days} Ngày`,
+      icon: 'crown',
+      description: `Hoàn thành 100% mục tiêu hành trình ${days} ngày!`
+    }
+  ];
+
+  return {
+    targetDays: days,
+    numLevels,
+    levels,
+    badges: milestoneBadges
+  };
+}
+
+export function getAllBadges(customBadges = []) {
+  const merged = [...BADGES];
+  if (customBadges && Array.isArray(customBadges)) {
+    customBadges.forEach(cb => {
+      if (!merged.some(b => b.id === cb.id)) {
+        merged.push(cb);
+      }
+    });
+  }
+  return merged;
+}
+
+export function getLevelInfo(totalXp = 0, customLevels = null) {
+  const activeLevels = (customLevels && Array.isArray(customLevels) && customLevels.length > 0) ? customLevels : LEVELS;
+  let currentLevel = activeLevels[0];
+  let nextLevel = activeLevels[1] || null;
+
+  for (let i = 0; i < activeLevels.length; i++) {
+    if (totalXp >= activeLevels[i].minXp) {
+      currentLevel = activeLevels[i];
+      nextLevel = activeLevels[i + 1] || null;
     }
   }
+
   const xpInCurrentLevel = totalXp - currentLevel.minXp;
   const xpNeededForNext = nextLevel ? nextLevel.minXp - currentLevel.minXp : 1000;
   const progressPercent = Math.min(100, Math.round((xpInCurrentLevel / xpNeededForNext) * 100));
-  return { currentLevel, nextLevel, totalXp, xpInCurrentLevel, xpNeededForNext, progressPercent };
+
+  return {
+    currentLevel,
+    nextLevel,
+    totalXp,
+    xpInCurrentLevel,
+    xpNeededForNext,
+    progressPercent,
+    maxLevel: activeLevels.length,
+    allLevels: activeLevels
+  };
 }

@@ -1,5 +1,5 @@
 import { DataService } from '../services/dataService.js';
-import { getLevelInfo, BADGES, LEVELS } from '../services/gamificationService.js';
+import { getLevelInfo, getAllBadges, BADGES, LEVELS } from '../services/gamificationService.js';
 
 function renderBadgeCard(b, isUnlocked) {
   return `
@@ -19,10 +19,12 @@ function renderBadgeCard(b, isUnlocked) {
 
 export async function renderGamificationPage() {
   const progress = await DataService.getUserProgress();
-  const levelInfo = getLevelInfo(progress.totalXp);
+  const goal = await DataService.getUserGoal();
+  const levelInfo = getLevelInfo(progress.totalXp, goal.journeyLevels);
+  const allBadges = getAllBadges(goal.journeyBadges);
 
   // Sort badges: Unlocked badges FIRST, followed by locked badges
-  const sortedBadges = [...BADGES].sort((a, b) => {
+  const sortedBadges = [...allBadges].sort((a, b) => {
     const aUnlocked = progress.badges.includes(a.id);
     const bUnlocked = progress.badges.includes(b.id);
     if (aUnlocked && !bUnlocked) return -1;
@@ -98,7 +100,7 @@ export async function renderGamificationPage() {
       <!-- Badges Showcase -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i data-lucide="award" style="color: var(--accent-amber);"></i> Bộ Sưu Tập Huy Hiệu (${progress.badges.length}/${BADGES.length})</div>
+          <div class="card-title"><i data-lucide="award" style="color: var(--accent-amber);"></i> Bộ Sưu Tập Huy Hiệu (${progress.badges.length}/${sortedBadges.length})</div>
         </div>
 
         <!-- Desktop: 14 initial badges + smooth expandable section for remaining -->
@@ -106,7 +108,7 @@ export async function renderGamificationPage() {
           <div class="badges-desktop-initial">
             ${initial14BadgesHtml}
           </div>
-          ${BADGES.length > 14 ? `
+          ${sortedBadges.length > 14 ? `
             <div class="badges-desktop-more" id="desktop-badges-more-container">
               <div class="badges-desktop-more-inner">
                 ${remainingBadgesHtml}
@@ -114,7 +116,7 @@ export async function renderGamificationPage() {
             </div>
             <button class="btn btn-secondary" id="btn-expand-desktop-badges" style="width: 100%; margin-top: 1rem; justify-content: center; gap: 0.5rem; font-weight: 700;">
               <i data-lucide="chevron-down" class="expand-icon" style="width: 16px; height: 16px; transition: transform 0.3s ease;"></i>
-              <span id="btn-expand-desktop-text">Xem thêm ${BADGES.length - 14} huy hiệu còn lại</span>
+              <span id="btn-expand-desktop-text">Xem thêm ${sortedBadges.length - 14} huy hiệu còn lại</span>
             </button>
           ` : ''}
         </div>
@@ -124,10 +126,10 @@ export async function renderGamificationPage() {
           <div class="badges-preview-row">
             ${previewBadgesHtml}
           </div>
-          ${BADGES.length > 4 ? `
+          ${sortedBadges.length > 4 ? `
             <button class="btn btn-secondary" id="btn-view-all-badges" style="width: 100%; margin-top: 0.85rem; justify-content: center; gap: 0.4rem;">
               <i data-lucide="grid-2x2" style="width: 15px; height: 15px;"></i>
-              Xem tất cả ${BADGES.length} huy hiệu
+              Xem tất cả ${sortedBadges.length} huy hiệu
             </button>
           ` : ''}
         </div>
@@ -144,12 +146,12 @@ export async function renderGamificationPage() {
               <path d="M15 6v15"/>
             </svg>
           </div>
-          <h2>Lộ Trình 10 Cấp Độ Fitness</h2>
+          <h2>Lộ Trình ${levelInfo.maxLevel} Cấp Độ Fitness (${goal.totalJourneyDays || goal.targetDays || 60} Ngày)</h2>
         </div>
 
         <!-- Levels Grid -->
         <div class="levels-grid">
-          ${LEVELS.map(l => {
+          ${levelInfo.allLevels.map(l => {
             const isCurrent = levelInfo.currentLevel.level === l.level;
             const isCompleted = levelInfo.currentLevel.level > l.level;
             const statusClass = isCurrent ? 'current' : (isCompleted ? 'completed' : 'locked');
@@ -158,6 +160,7 @@ export async function renderGamificationPage() {
               <div class="level-item ${statusClass}">
                 <div class="level-badge">Lvl ${l.level}</div>
                 <div class="level-name" title="${l.name}">${l.name}</div>
+                <div style="font-size: 0.725rem; color: var(--text-muted); margin-top: 0.15rem; font-weight: 600;">Cột mốc: Ngày ${l.dayMilestone || l.level * 10}</div>
                 <div class="level-xp">
                   ${isCurrent ? `
                     <svg viewBox="0 0 24 24" fill="currentColor">
