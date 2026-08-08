@@ -34,7 +34,7 @@ export function renderOnboarding(onComplete) {
 
         <!-- Step 1: Physical Parameters -->
         <div class="onboarding-step" id="step-1">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 1/4: Chỉ số cơ thể</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 1/5: Chỉ số cơ thể</h4>
           <div class="form-group">
             <label class="form-label">Giới tính</label>
             <div style="display: flex; gap: 0.75rem;">
@@ -66,7 +66,7 @@ export function renderOnboarding(onComplete) {
 
         <!-- Step 2: Goal & Activity -->
         <div class="onboarding-step" id="step-2" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/4: Mục tiêu &amp; Thời gian hành trình</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/5: Mục tiêu &amp; Thời gian hành trình</h4>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div class="form-group">
@@ -101,7 +101,7 @@ export function renderOnboarding(onComplete) {
 
         <!-- Step 2b: Food Allergies & Preferences -->
         <div class="onboarding-step" id="step-2b" style="display: none;">
-          <h4 style="margin-bottom: 0.5rem; color: var(--accent-purple);">Bước 3/4: Dị ứng &amp; Sở thích ăn uống</h4>
+          <h4 style="margin-bottom: 0.5rem; color: var(--accent-purple);">Bước 3/5: Dị ứng &amp; Sở thích ăn uống</h4>
           <p class="text-sm text-muted" style="margin-bottom: 1rem;">AI Coach sẽ tự động <b>loại bỏ</b> các món có chứa thực phẩm bạn không dùng được khỏi toàn bộ thực đơn hành trình.</p>
 
           <!-- Quick-select allergy chips -->
@@ -146,10 +146,23 @@ export function renderOnboarding(onComplete) {
 
         <!-- Step 3: AI Calculations & Journey Plan Summary -->
         <div class="onboarding-step" id="step-3" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 4/4: Kế hoạch AI &amp; Lập toàn bộ lộ trình</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 4/5: Kết quả tính toán AI &amp; Chỉ số</h4>
           <div id="ai-calc-results"></div>
           <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
-            <button class="btn btn-secondary" style="flex: 1;" id="btn-step3-back"><i data-lucide="arrow-left"></i> Sửa lại</button>
+            <button class="btn btn-secondary" style="flex: 1;" id="btn-step3-back"><i data-lucide="arrow-left"></i> Quay lại</button>
+            <button class="btn btn-primary" style="flex: 1.5;" id="btn-step3-next">Kiểm Tra Thông Tin <i data-lucide="arrow-right"></i></button>
+          </div>
+        </div>
+
+        <!-- Step 4: Review All Entered & Selected Information -->
+        <div class="onboarding-step" id="step-4" style="display: none;">
+          <h4 style="margin-bottom: 0.5rem; color: var(--accent-purple);">Bước 5/5: Kiểm tra &amp; Xác nhận thông tin</h4>
+          <p class="text-sm text-muted" style="margin-bottom: 1rem;">Vui lòng rà soát lại các chỉ số bạn đã nhập/chọn trước khi AI Coach thiết lập toàn bộ hành trình.</p>
+          
+          <div id="ob-review-content"></div>
+
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+            <button class="btn btn-secondary" style="flex: 1;" id="btn-step4-back"><i data-lucide="arrow-left"></i> Quay lại</button>
             <button class="btn btn-primary" style="flex: 1.5;" id="btn-confirm-onboarding">Bắt Đầu Hành Trình! <i data-lucide="rocket"></i></button>
           </div>
         </div>
@@ -397,6 +410,88 @@ export function renderOnboarding(onComplete) {
     document.getElementById('btn-step3-back').addEventListener('click', () => {
       document.getElementById('step-3').style.display = 'none';
       document.getElementById('step-2b').style.display = 'block';
+    });
+
+    // Step 3 Next → Step 4 Review (Bước 5/5)
+    const showReviewStep = () => {
+      const genderText = formData.gender === 'male' ? 'Nam' : 'Nữ';
+      const actObj = ACTIVITY_MULTIPLIERS[formData.activityLevel] || {};
+      const actText = actObj.label || 'Vừa phải';
+      const allergyText = formData.foodAllergies
+        ? `<span style="color: #dc2626; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Né: ${formData.foodAllergies}</span>`
+        : '<span style="color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Không có dị ứng (Thực đơn đa dạng)</span>';
+
+      const reviewHtml = `
+        <div style="background: var(--bg-subtle); padding: 1.1rem; border-radius: var(--radius-card); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.875rem; text-align: left;">
+          
+          <!-- Section 1: Physical parameters -->
+          <div style="background: var(--bg-card); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-color);">
+            <div style="font-weight: 800; color: var(--accent-purple); margin-bottom: 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> 1. Chỉ số cá nhân
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; color: var(--text-main);">
+              <div>• Giới tính: <b>${genderText}</b></div>
+              <div>• Tuổi: <b>${formData.age} tuổi</b></div>
+              <div>• Chiều cao: <b>${formData.height} cm</b></div>
+              <div>• Cân nặng hiện tại: <b>${formData.currentWeight} kg</b></div>
+            </div>
+          </div>
+
+          <!-- Section 2: Goals & Journey Duration -->
+          <div style="background: var(--bg-card); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-color);">
+            <div style="font-weight: 800; color: var(--accent-blue); margin-bottom: 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> 2. Mục tiêu &amp; Thời gian hành trình
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; color: var(--text-main);">
+              <div>• Cân nặng mục tiêu: <b style="color: var(--accent-purple);">${formData.targetWeight} kg</b></div>
+              <div>• Thời gian hành trình: <b style="color: var(--accent-blue);">${formData.targetDays} ngày</b></div>
+            </div>
+            <div style="margin-top: 0.35rem; font-size: 0.825rem; color: var(--text-muted);">
+              • Vận động: <b>${actText}</b>
+            </div>
+          </div>
+
+          <!-- Section 3: Food allergies & restrictions -->
+          <div style="background: var(--bg-card); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-color);">
+            <div style="font-weight: 800; color: #dc2626; margin-bottom: 0.35rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#dc2626" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 3. Dị ứng &amp; Sở thích ăn uống
+            </div>
+            <div style="font-size: 0.85rem; line-height: 1.4;">
+              ${allergyText}
+            </div>
+          </div>
+
+          <!-- Section 4: AI Calorie & Macro Target -->
+          <div style="background: rgba(124, 58, 237, 0.08); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-highlight);">
+            <div style="font-weight: 800; color: var(--accent-purple); margin-bottom: 0.35rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg> 4. Chỉ số dinh dưỡng AI
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <span>Mục tiêu Calo:</span>
+              <b style="font-size: 1.05rem; color: var(--accent-purple);">${formData.dailyCalorieTarget} kcal/ngày</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);">
+              <span>Protein: <b style="color: var(--accent-purple);">${formData.macroTarget?.protein}g</b></span>
+              <span>Carb: <b style="color: var(--accent-blue);">${formData.macroTarget?.carb}g</b></span>
+              <span>Fat: <b style="color: var(--accent-amber);">${formData.macroTarget?.fat}g</b></span>
+              <span>Nước: <b>${formData.waterTarget}ml</b></span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('ob-review-content').innerHTML = reviewHtml;
+      document.getElementById('step-3').style.display = 'none';
+      document.getElementById('step-4').style.display = 'block';
+      if (window.lucide) window.lucide.createIcons();
+    };
+
+    document.getElementById('btn-step3-next').addEventListener('click', showReviewStep);
+
+    // Step 4 Back → Step 3
+    document.getElementById('btn-step4-back').addEventListener('click', () => {
+      document.getElementById('step-4').style.display = 'none';
+      document.getElementById('step-3').style.display = 'block';
     });
 
     document.getElementById('btn-confirm-onboarding').addEventListener('click', async () => {

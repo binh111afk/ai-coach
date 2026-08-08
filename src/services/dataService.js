@@ -1172,6 +1172,14 @@ export function generateFullJourneyPhases(totalDays = 60, budgetVnd = 100000, wo
   return phases;
 }
 
+export function normalizeWorkoutRoutine(routine) {
+  if (Array.isArray(routine)) return routine;
+  if (routine && typeof routine === 'object') {
+    return Object.values(routine);
+  }
+  return [];
+}
+
 /**
  * Given a plan and a journeyDay (1-based), return the correct meal plan entry and workout for that day.
  * Uses journeyPhases if available, otherwise falls back to weeklyMealPlan.
@@ -1187,11 +1195,12 @@ export function getPlanForJourneyDay(plan, journeyDay = 1) {
     const dayIndex = (journeyDay - 1) % 7;
 
     // Meal: pick from the phase's weeklyMealPlan by position
-    const mealKeys = Object.keys(phase.weeklyMealPlan).sort();
-    const mealEntry = phase.weeklyMealPlan[mealKeys[dayIndex]] || null;
+    const mealKeys = Object.keys(phase.weeklyMealPlan || {}).sort();
+    const mealEntry = phase.weeklyMealPlan ? phase.weeklyMealPlan[mealKeys[dayIndex]] : null;
 
     // Workout: pick from weeklyWorkoutRoutine by dayIndex
-    const workout = (phase.weeklyWorkoutRoutine || [])[dayIndex] || null;
+    const workoutRoutine = normalizeWorkoutRoutine(phase.weeklyWorkoutRoutine);
+    const workout = workoutRoutine[dayIndex] || null;
 
     return { mealEntry, workout, phase };
   }
@@ -1200,6 +1209,7 @@ export function getPlanForJourneyDay(plan, journeyDay = 1) {
   const dayIndex = (journeyDay - 1) % 7;
   const mealKeys = Object.keys(plan.weeklyMealPlan || {}).sort();
   const mealEntry = plan.weeklyMealPlan?.[mealKeys[dayIndex]] || null;
-  const workout = (plan.weeklyWorkoutRoutine || [])[dayIndex] || null;
+  const workoutRoutine = normalizeWorkoutRoutine(plan.weeklyWorkoutRoutine);
+  const workout = workoutRoutine[dayIndex] || null;
   return { mealEntry, workout, phase: null };
 }

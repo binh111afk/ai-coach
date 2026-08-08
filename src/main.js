@@ -83,32 +83,49 @@ async function renderActiveView() {
     mountNode.classList.add(slideClass);
   }
 
-  switch (currentTab) {
-    case 'dashboard':
-      await renderDashboard(handleTabChange, handleOpenAiCoach);
-      break;
-    case 'plan':
-      await renderPlanPage(handleTabChange, handleOpenAiCoach);
-      break;
-    case 'meals':
-      await renderMealTracker(handleOpenAiCoach);
-      break;
-    case 'workouts':
-      await renderWorkoutTracker();
-      break;
-    case 'photos':
-      await renderPhotoVault();
-      break;
-    case 'gamification':
-      await renderGamificationPage();
-      break;
-    case 'ai':
-      await renderAiChatPage(async () => {
-        await refreshAllViews();
-      });
-      break;
-    default:
-      await renderDashboard(handleTabChange, handleOpenAiCoach);
+  try {
+    switch (currentTab) {
+      case 'dashboard':
+        await renderDashboard(handleTabChange, handleOpenAiCoach);
+        break;
+      case 'plan':
+        await renderPlanPage(handleTabChange, handleOpenAiCoach);
+        break;
+      case 'meals':
+        await renderMealTracker(handleOpenAiCoach);
+        break;
+      case 'workouts':
+        await renderWorkoutTracker();
+        break;
+      case 'photos':
+        await renderPhotoVault();
+        break;
+      case 'gamification':
+        await renderGamificationPage();
+        break;
+      case 'ai':
+        await renderAiChatPage(async () => {
+          await refreshAllViews();
+        });
+        break;
+      default:
+        await renderDashboard(handleTabChange, handleOpenAiCoach);
+    }
+  } catch (err) {
+    console.error(`❌ Error rendering tab "${currentTab}":`, err);
+    if (mountNode) {
+      mountNode.innerHTML = `
+        <div class="card" style="text-align: center; padding: 3rem 1.5rem; max-width: 520px; margin: 2rem auto; border: 1px solid var(--border-highlight);">
+          <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">⚠️</div>
+          <h3 style="color: var(--accent-purple); font-weight: 800; margin-bottom: 0.5rem;">Không Thể Tải Tab "${currentTab.toUpperCase()}"</h3>
+          <p class="text-sm text-muted" style="margin-bottom: 1.25rem;">Lỗi: ${err.message || err}</p>
+          <button class="btn btn-primary" onclick="window.location.reload()">
+            <i data-lucide="refresh-cw"></i> Tải Lại Trang
+          </button>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+    }
   }
 }
 

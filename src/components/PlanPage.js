@@ -39,8 +39,16 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   const phaseLabel = activePhase?.phaseLabel || (plan.journeyPhases?.length > 0 ? plan.journeyPhases[0].phaseLabel : 'Kế Hoạch Hành Trình');
   const numPhases = plan.journeyPhases?.length || 1;
 
-  // Active workout list: from the phase's weeklyWorkoutRoutine if available
-  const activeWorkoutRoutine = activePhase?.weeklyWorkoutRoutine || plan.weeklyWorkoutRoutine || [];
+  // Active workout list: normalize to Array if AI returned an object or array
+  const rawRoutine = activePhase?.weeklyWorkoutRoutine || plan.weeklyWorkoutRoutine || [];
+  const activeWorkoutRoutine = Array.isArray(rawRoutine)
+    ? rawRoutine
+    : (rawRoutine && typeof rawRoutine === 'object')
+      ? Object.values(rawRoutine)
+      : [];
+
+  const activeWorkoutIndex = (selectedJourneyDay - 1) % 7;
+  const currentDayWorkout = activeWorkoutRoutine[activeWorkoutIndex] || activeWorkout || null;
 
   const totalMealCost = (activeDayMealPlan?.breakfast?.costVnd || 0) +
                         (activeDayMealPlan?.lunch?.costVnd || 0) +
@@ -56,7 +64,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   const activeDayName = activeDayMealPlan?.dayName || dayOfWeek;
 
   const workoutOptions = [
-    { value: 'home', label: 'Tập Tại Nhà (Dụng cụ đơn giản / Bodyweight)' },
+    { value: 'home', label: 'Tập Tại Nhà' },
     { value: 'gym', label: 'Tập Tại Phòng Gym (Đầy đủ máy tạ)' },
     { value: 'outdoor', label: 'Tập Outdoor / Chạy Bộ & Công Viên' }
   ];
@@ -76,7 +84,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             </p>
           </div>
           <button class="btn btn-ai" id="btn-recalculate-plan">
-            <i data-lucide="wand-2"></i> Lập Kế Hoạch Mới
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h-2"/><path d="M17.8 5.2 16.4 6.6"/><path d="M22 2l-2.5 2.5"/><path d="M8 21l9-9"/><path d="M2 15l2.5-2.5"/><path d="M5.2 17.8 6.6 16.4"/></svg> Lập Kế Hoạch Mới
           </button>
         </div>
 
@@ -101,29 +109,81 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
           <!-- Dynamic Home Equipment Input Field -->
           <div class="form-group" id="home-equipment-container" style="margin-bottom: 0; display: ${currentWorkoutType === 'home' ? 'flex' : 'none'};">
-            <label class="form-label">Dụng Cụ Tập Có Sẵn Tại Nhà 🏋️‍♂️</label>
+            <label class="form-label" style="display: flex; align-items: center; gap: 0.35rem;">
+              Dụng Cụ Tập Có Sẵn Tại Nhà <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>
+            </label>
             <input type="text" class="form-input" id="plan-home-equipment-input" value="${currentHomeEquipment}" placeholder="Ví dụ: Thảm yoga, Dây kháng lực, Tạ đơn 5kg...">
           </div>
 
           <div style="display: flex; align-items: flex-end;">
             <button class="btn btn-primary" style="width: 100%; height: 42px;" id="btn-save-plan-controls">
-              <i data-lucide="check"></i> Cập Nhật &amp; Tái Sinh Kế Hoạch
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><polyline points="20 6 9 17 4 12"/></svg> Cập Nhật &amp; Tái Sinh Kế Hoạch
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Plan Section 1: Journey Day Meal Plan with Day Nav -->
+      <!-- Plan Section 1: AI Journey Phase Roadmap Grid -->
+      <div class="card" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.04), rgba(59, 130, 246, 0.03)); border: 1.5px solid rgba(124, 58, 237, 0.2);">
+        <div class="card-header" style="margin-bottom: 1rem;">
+          <div>
+            <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); font-size: 1.15rem;">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg> Sơ Đồ Lộ Trình ${(plan.journeyPhases || []).length} Giai Đoạn AI (${totalJourneyDays} Ngày)
+            </div>
+            <p class="text-sm text-muted" style="margin-top: 0.2rem;">
+              AI Coach tự động phân bổ lộ trình ${totalJourneyDays} ngày thành các giai đoạn tăng tiến calo &amp; bài tập giúp tối ưu hóa kết quả.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+          ${(plan.journeyPhases || []).map((p, idx) => {
+            const isCurrentPhase = activePhase?.phaseIndex === p.phaseIndex;
+            return `
+              <div class="phase-card-item" data-select-phase-start="${p.startDay}"
+                style="background: ${isCurrentPhase ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(168, 85, 247, 0.08))' : 'var(--bg-card)'}; 
+                       border: 1.5px solid ${isCurrentPhase ? 'var(--accent-purple)' : 'var(--border-color)'}; 
+                       border-radius: 16px; padding: 1.1rem; cursor: pointer; transition: all 0.2s ease; position: relative;">
+                
+                ${isCurrentPhase ? `
+                  <span class="badge" style="position: absolute; top: -10px; right: 12px; background: linear-gradient(135deg, var(--accent-purple), #9333ea); color: #fff; font-size: 0.72rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3); display: inline-flex; align-items: center; gap: 0.3rem;">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="#fbbf24" stroke="#fbbf24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg> Giai Đoạn Hiện Tại
+                  </span>
+                ` : ''}
+
+                <div style="font-size: 0.78rem; font-weight: 800; color: var(--accent-purple); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">
+                  GIAI ĐOẠN ${p.phaseIndex + 1} (NGÀY ${p.startDay} - ${p.endDay})
+                </div>
+
+                <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">
+                  ${p.phaseLabel}
+                </div>
+
+                <div style="font-size: 0.825rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.85rem;">
+                  • Lịch tập 7 bài luân phiên<br>
+                  • Thực đơn 4 bữa/ngày đa dạng calo
+                </div>
+
+                <button class="btn ${isCurrentPhase ? 'btn-primary' : 'btn-secondary'} btn-sm" style="width: 100%; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;">
+                  ${isCurrentPhase ? '⚡ Đang Xem Giai Đoạn Này' : `Xem Ngày ${p.startDay} <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`}
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Plan Section 2: Journey Day Meal Plan with Day Nav -->
       <div class="card">
         <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
           <div>
-            <div class="card-title"><i data-lucide="utensils" class="text-purple"></i> Thực Đơn Hành Trình — ${activeDayName}</div>
+            <div class="card-title"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><path d="M18 2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V2"/><path d="M12 2v20"/><path d="M12 12H6a2 2 0 0 0-2 2v8"/><path d="M12 12h6a2 2 0 0 1 2 2v8"/></svg> Thực Đơn Hành Trình — ${activeDayName}</div>
             <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; flex-wrap: wrap;">
               <span class="badge" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); color: #fff; font-size: 0.75rem; padding: 0.25rem 0.65rem; border-radius: 20px;">
-                📅 Ngày ${selectedJourneyDay}/${totalJourneyDays}
+                Ngày ${selectedJourneyDay}/${totalJourneyDays}
               </span>
               <span class="badge badge-secondary" style="font-size: 0.75rem;">
-                🏁 ${phaseLabel}
+                ${phaseLabel}
               </span>
               <span class="text-xs text-muted">· Chi phí: <b style="color: var(--accent-purple);">${totalMealCost.toLocaleString('vi-VN')} VNĐ</b> · Calo: <b>${totalMealCalories} kcal</b></span>
             </div>
@@ -132,13 +192,13 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           <!-- Journey Day Navigation Bar -->
           <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-subtle); padding: 0.4rem 0.8rem; border-radius: var(--radius-full); border: 1px solid var(--border-highlight);">
             <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-prev" title="Ngày trước" style="width: 32px; height: 32px;" ${selectedJourneyDay <= 1 ? 'disabled' : ''}>
-              <i data-lucide="chevron-left"></i>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <span style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); min-width: 90px; text-align: center;">
               ${renderCalendarIcon()} Ngày ${selectedJourneyDay}
             </span>
             <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-next" title="Ngày tiếp theo" style="width: 32px; height: 32px;" ${selectedJourneyDay >= totalJourneyDays ? 'disabled' : ''}>
-              <i data-lucide="chevron-right"></i>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
         </div>
@@ -153,36 +213,90 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
         <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
           <button class="btn btn-primary btn-sm" id="btn-apply-meals-to-today">
-            <i data-lucide="plus-circle"></i> Ghi Nhận Thực Đơn Ngày Này Vào Nhật Ký
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Ghi Nhận Thực Đơn Ngày Này Vào Nhật Ký
           </button>
         </div>
       </div>
 
-      <!-- Plan Section 2: Phase Workout Routine with Video & Text Guide Modal -->
+      <!-- Plan Section 2: Phase Workout Routine synchronized with Selected Journey Day -->
       <div class="schedule-card">
-        <div class="schedule-header">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6.5 6.5h11"/>
-              <path d="M6.5 17.5h11"/>
-              <path d="M4 12h16"/>
-              <circle cx="8" cy="6.5" r="2.2"/>
-              <circle cx="16" cy="17.5" r="2.2"/>
-            </svg>
+        <div class="schedule-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.5 6.5h11"/>
+                <path d="M6.5 17.5h11"/>
+                <path d="M4 12h16"/>
+                <circle cx="8" cy="6.5" r="2.2"/>
+                <circle cx="16" cy="17.5" r="2.2"/>
+              </svg>
+            </div>
+            <div>
+              <h2 style="margin: 0; font-size: 1.15rem;">Lịch Tập Hành Trình — ${activeDayName}</h2>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem; flex-wrap: wrap;">
+                <span class="badge" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); color: #fff; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 20px;">
+                  Ngày ${selectedJourneyDay}/${totalJourneyDays}
+                </span>
+                <span class="badge badge-secondary" style="font-size: 0.75rem;">
+                  ${phaseLabel}
+                </span>
+                <span class="text-xs text-muted">(${currentWorkoutType === 'home' ? 'Tập Tại Nhà' : currentWorkoutType === 'gym' ? 'Phòng Gym' : 'Outdoor'})</span>
+              </div>
+            </div>
           </div>
-          <h2>Lịch Tập — ${phaseLabel} (${currentWorkoutType === 'home' ? 'Tập Tại Nhà' : currentWorkoutType === 'gym' ? 'Phòng Gym' : 'Outdoor'})</h2>
         </div>
 
+        ${currentDayWorkout ? `
+          <!-- Featured Active Day Workout Banner -->
+          <div style="margin: 1.25rem 0 1.5rem 0; background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(59, 130, 246, 0.06)); border: 1.5px solid var(--accent-purple); border-radius: 18px; padding: 1.25rem; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <div style="font-size: 0.78rem; font-weight: 800; color: var(--accent-purple); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="#f59e0b" stroke="#f59e0b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Bài Tập AI Đề Xuất Cho Ngày ${selectedJourneyDay} (${activeDayName})
+                </div>
+                <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">
+                  ${currentDayWorkout.title}
+                </h3>
+                <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap;">
+                  <span style="display: inline-flex; align-items: center; gap: 0.3rem;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> <b>${currentDayWorkout.duration} phút</b></span>
+                  <span style="display: inline-flex; align-items: center; gap: 0.3rem;"><svg viewBox="0 0 24 24" width="15" height="15" fill="#ef4444" stroke="#ef4444"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg> Đốt <b>~${currentDayWorkout.estBurn} kcal</b></span>
+                  <span style="display: inline-flex; align-items: center; gap: 0.3rem;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg> Loại: <b>${currentDayWorkout.type || 'Resistive'}</b></span>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
+                ${currentDayWorkout.duration > 0 ? `
+                  <button class="btn btn-primary btn-sm" data-open-workout-guide="${activeWorkoutIndex}" style="font-weight: 700;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg> Xem Hướng Dẫn &amp; Tập Ngay
+                  </button>
+                ` : `
+                  <span class="badge badge-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> Ngày Nghỉ Phục Hồi Cơ Bắp
+                  </span>
+                `}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 7-Day Routine Grid -->
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Lịch tập tuần này (${phaseLabel}):
+        </div>
         <div class="days-grid">
           ${(activeWorkoutRoutine || []).map((w, idx) => {
             const isRest = w.type === 'Rest' || w.duration === 0;
+            const isActiveDay = idx === activeWorkoutIndex;
             return `
-              <div class="day-card ${isRest ? 'rest' : ''}">
+              <div class="day-card ${isRest ? 'rest' : ''}" style="${isActiveDay ? 'border: 2px solid var(--accent-purple); background: rgba(124, 58, 237, 0.05); box-shadow: 0 0 16px rgba(124, 58, 237, 0.2);' : ''}">
                 <div class="day-top">
-                  <span class="day-name">${w.day}</span>
+                  <span class="day-name" style="${isActiveDay ? 'color: var(--accent-purple); font-weight: 800; display: inline-flex; align-items: center; gap: 0.25rem;' : ''}">
+                    ${isActiveDay ? `<svg viewBox="0 0 24 24" width="14" height="14" fill="#f59e0b" stroke="#f59e0b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ${w.day}` : w.day}
+                  </span>
                   <span class="day-duration">${w.duration} phút</span>
                 </div>
-                <div class="day-title">${w.title}</div>
+                <div class="day-title" style="${isActiveDay ? 'color: var(--accent-purple); font-weight: 800;' : ''}">${w.title}</div>
+                ${isActiveDay ? `<div style="font-size: 0.72rem; font-weight: 800; color: var(--accent-purple); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.25rem;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Ngày ${selectedJourneyDay} đang chọn</div>` : ''}
                 <div class="day-footer">
                   <span class="day-kcal"><span>Đốt:</span> ~${w.estBurn} kcal</span>
                   ${w.duration > 0 ? `
@@ -211,35 +325,35 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       <div class="modal-card" style="max-width: 680px;">
         <div class="card-header">
           <h3 id="wg-modal-title">Hướng Dẫn Bài Tập</h3>
-          <button class="btn btn-secondary btn-icon" id="btn-close-wg-modal"><i data-lucide="x"></i></button>
+          <button class="btn btn-secondary btn-icon" id="btn-close-wg-modal"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
 
         <!-- Embedded YouTube Video Container -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; flex-wrap: wrap; gap: 0.5rem;">
           <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: inline-flex; align-items: center; gap: 0.45rem;">
-            <i data-lucide="play-circle" style="width: 18px; height: 18px; color: var(--accent-purple);"></i> Video Hướng Dẫn Động Tác:
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-purple);"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg> Video Hướng Dẫn Động Tác:
           </span>
           <a id="wg-youtube-search-btn" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="font-size: 0.78rem; gap: 0.35rem; padding: 0.35rem 0.75rem; text-decoration: none;">
-            <i data-lucide="external-link" style="width: 14px; height: 14px;"></i> Mở Xem Trên YouTube ↗
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Mở Xem Trên YouTube ↗
           </a>
         </div>
         <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius-control); background: #000; margin-bottom: 0.4rem;">
           <iframe id="wg-modal-iframe" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
-        <div class="text-xs text-muted" style="margin-bottom: 1.1rem; font-style: italic;">
-          💡 Bấm <b>"Mở Xem Trên YouTube ↗"</b> để xem fullHD trực tiếp trên app/web YouTube.
+        <div class="text-xs text-muted" style="margin-bottom: 1.1rem; font-style: italic; display: flex; align-items: center; gap: 0.35rem;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--accent-purple)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Bấm <b>"Mở Xem Trên YouTube ↗"</b> để xem fullHD trực tiếp trên app/web YouTube.
         </div>
 
         <!-- Text Instructions -->
         <div style="background: var(--bg-subtle); padding: 1.1rem; border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
           <h4 style="color: var(--accent-purple); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-            <i data-lucide="file-text" style="width: 18px; height: 18px;"></i> Nội Dung Hướng Dẫn Thực Hiện:
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Nội Dung Hướng Dẫn Thực Hiện:
           </h4>
           <div id="wg-modal-instructions" style="font-size: 0.9rem; line-height: 1.6; white-space: pre-line; color: var(--text-main);"></div>
         </div>
 
         <button class="btn btn-primary" style="width: 100%;" id="btn-start-confirm-workout">
-          <i data-lucide="check-circle-2"></i> Bắt Đầu Tập & Ghi Nhận Đã Tập Vào Nhật Ký
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Bắt Đầu Tập &amp; Ghi Nhận Đã Tập Vào Nhật Ký
         </button>
       </div>
     </div>
@@ -252,7 +366,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             <span class="badge badge-secondary" id="rd-modal-type-badge" style="margin-bottom: 0.25rem;">Bữa Ăn</span>
             <h3 id="rd-modal-title" style="color: var(--accent-purple); font-size: 1.2rem;">Tên Món Ăn</h3>
           </div>
-          <button class="btn btn-secondary btn-icon" id="btn-close-rd-modal"><i data-lucide="x"></i></button>
+          <button class="btn btn-secondary btn-icon" id="btn-close-rd-modal"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
 
         <!-- Khối 1: Nguyên liệu cần mua & Giá ước tính -->
@@ -291,7 +405,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         <div id="rd-modal-video-section" style="margin-bottom: 1.25rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; flex-wrap: wrap; gap: 0.5rem;">
             <h4 style="color: var(--text-main); font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 0.45rem; margin: 0;">
-              <i data-lucide="video" style="width: 18px; height: 18px; color: #ef4444;"></i> Video Hướng Dẫn Chế Biến:
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> Video Hướng Dẫn Chế Biến:
             </h4>
             <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
               <a id="rd-tiktok-search-btn" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="font-size: 0.78rem; gap: 0.4rem; padding: 0.35rem 0.75rem; text-decoration: none; display: inline-flex; align-items: center; background: rgba(0,0,0,0.06);">
@@ -313,7 +427,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         <div style="display: flex; gap: 0.75rem;">
           <button class="btn btn-secondary" style="flex: 1;" id="btn-close-rd-modal-bottom">Đóng</button>
           <button class="btn btn-primary" style="flex: 1.5;" id="btn-apply-single-meal-to-today">
-            <i data-lucide="plus-circle"></i> Ghi Nhận Món Này Vào Nhật Ký
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Ghi Nhận Món Này Vào Nhật Ký
           </button>
         </div>
       </div>
@@ -343,6 +457,18 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           equipContainer.style.display = (selectedVal === 'home') ? 'flex' : 'none';
         }
       }
+    });
+
+    // Phase selection handler
+    document.querySelectorAll('[data-select-phase-start]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        // Prevent click if clicking child buttons that already handled it
+        const startDay = parseInt(card.getAttribute('data-select-phase-start'));
+        if (startDay) {
+          selectedJourneyDay = startDay;
+          renderPlanPage(onNavigateTab, onOpenAiCoach);
+        }
+      });
     });
 
     // Journey Day Navigation Controls (< prev | day | next >)
@@ -528,7 +654,7 @@ function formatIngredientAmount(amount) {
           if (activeRecipeMeal.isDirectEat) {
             instContainer.innerHTML = `
               <div style="background: rgba(117, 86, 217, 0.12); padding: 0.85rem 1rem; border-radius: 12px; border: 1px solid rgba(117, 86, 217, 0.25); color: var(--accent-purple); font-weight: 700; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
-                <i data-lucide="apple" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/></svg>
                 Món ăn dùng trực tiếp — Không cần chế biến đứng bếp (Rửa sạch hoặc mở hộp dùng ngay).
               </div>
             `;
