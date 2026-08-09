@@ -3,21 +3,77 @@ import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { Modal } from './ui/Modal.js';
 
+let selectedWorkoutJourneyDay = null; // 1-based journey day navigation
+
 export async function renderWorkoutTracker() {
   const profile = await DataService.getUserProfile();
-  const todayLog = await DataService.getDailyLog();
+  const goal = await DataService.getUserGoal();
+  const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 60;
+  const todayStr = DataService.getTodayString();
+
+  // Calculate current journey day (1-based) from goal.startDate
+  let currentJourneyDay = 1;
+  if (goal.startDate) {
+    const start = new Date(goal.startDate);
+    const today = new Date(todayStr);
+    currentJourneyDay = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+  }
+
+  if (selectedWorkoutJourneyDay === null) {
+    selectedWorkoutJourneyDay = Math.min(currentJourneyDay, totalJourneyDays);
+  }
+
+  // Clamp selectedWorkoutJourneyDay
+  if (selectedWorkoutJourneyDay < 1) selectedWorkoutJourneyDay = 1;
+  if (selectedWorkoutJourneyDay > totalJourneyDays) selectedWorkoutJourneyDay = totalJourneyDays;
+
+  // Resolve active date string for selected journey day
+  let activeDateStr = todayStr;
+  if (goal.startDate) {
+    const d = new Date(goal.startDate);
+    d.setDate(d.getDate() + (selectedWorkoutJourneyDay - 1));
+    activeDateStr = d.toISOString().split('T')[0];
+  }
+
+  const todayLog = await DataService.getDailyLog(activeDateStr);
   const totalBurned = todayLog.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
 
   const html = `
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
       <!-- Header Banner & Rest Day Toggle -->
       <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.9), rgba(251, 250, 255, 0.9)); border: 1px solid var(--border-highlight);">
-        <div class="card-header">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="dumbbell" style="color: var(--accent-amber);"></i> Theo Dõi Tập Luyện & Vận Động</h2>
             <p class="text-sm text-muted" style="margin-top: 0.25rem;">Ghi nhận bài tập, tính toán Calo Out chính xác dựa trên chỉ số cơ thể (${profile.currentWeight}kg).</p>
           </div>
-          <div style="display: flex; gap: 0.75rem;">
+          
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <!-- Day Switcher Navigation Widget (Capsule Pill Style) -->
+            <div class="day-nav">
+              <button class="btn-nav" id="btn-workout-day-prev" ${selectedWorkoutJourneyDay <= 1 ? 'disabled' : ''} title="Ngày trước">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </button>
+
+              <div class="label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Ngày ${selectedWorkoutJourneyDay}/${totalJourneyDays}
+              </div>
+
+              <button class="btn-nav" id="btn-workout-day-next" ${selectedWorkoutJourneyDay >= totalJourneyDays ? 'disabled' : ''} title="Ngày sau">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
             <button class="btn ${todayLog.isRestDay ? 'btn-primary' : 'btn-secondary'}" id="btn-toggle-rest-day">
               <i data-lucide="moon"></i> ${todayLog.isRestDay ? 'Đang Đánh Dấu Ngày Nghỉ' : 'Đánh Dấu Ngày Nghỉ'}
             </button>
@@ -39,7 +95,7 @@ export async function renderWorkoutTracker() {
         <div class="card">
           <span class="text-xs text-muted" style="font-weight: 800;">TỔNG CALO TIÊU HAO (OUT)</span>
           <div style="font-size: 1.8rem; font-weight: 900; color: var(--accent-amber);">${totalBurned} <span class="text-xs text-muted">kcal</span></div>
-          <div class="text-xs text-muted" style="margin-top: 0.25rem;">Hôm nay từ ${todayLog.workouts.length} hoạt động</div>
+          <div class="text-xs text-muted" style="margin-top: 0.25rem;">Ngày ${selectedWorkoutJourneyDay} từ ${todayLog.workouts.length} hoạt động</div>
         </div>
         <div class="card">
           <span class="text-xs text-muted" style="font-weight: 800;">TRẠNG THÁI STREAK</span>
@@ -54,10 +110,10 @@ export async function renderWorkoutTracker() {
       <!-- Logged Workouts List -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i data-lucide="list"></i> Danh Sách Bài Tập Hôm Nay</div>
+          <div class="card-title"><i data-lucide="list"></i> Danh Sách Bài Tập Ngày ${selectedWorkoutJourneyDay}</div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-          ${todayLog.workouts.length === 0 ? '<div class="text-muted text-sm" style="font-style: italic; padding: 1rem 0; text-align: center;">Chưa có bài tập nào được ghi nhận hôm nay. Hãy thêm bài tập hoặc gõ câu mô tả tự nhiên ở trên!</div>' : ''}
+          ${todayLog.workouts.length === 0 ? '<div class="text-muted text-sm" style="font-style: italic; padding: 1rem 0; text-align: center;">Chưa có bài tập nào được ghi nhận cho ngày này. Hãy thêm bài tập hoặc gõ câu mô tả tự nhiên ở trên!</div>' : ''}
           ${todayLog.workouts.map(w => `
             <div class="workout-item-card" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
               <div>
@@ -106,6 +162,21 @@ export async function renderWorkoutTracker() {
   if (mountNode) {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
+
+    // Day Switcher Navigation Handlers
+    document.getElementById('btn-workout-day-prev')?.addEventListener('click', () => {
+      if (selectedWorkoutJourneyDay > 1) {
+        selectedWorkoutJourneyDay--;
+        renderWorkoutTracker();
+      }
+    });
+
+    document.getElementById('btn-workout-day-next')?.addEventListener('click', () => {
+      if (selectedWorkoutJourneyDay < totalJourneyDays) {
+        selectedWorkoutJourneyDay++;
+        renderWorkoutTracker();
+      }
+    });
 
     // Toggle Rest Day
     document.getElementById('btn-toggle-rest-day')?.addEventListener('click', async () => {

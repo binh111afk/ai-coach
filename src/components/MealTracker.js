@@ -4,10 +4,39 @@ import { AiCoachService } from '../services/aiCoachService.js';
 import { Modal } from './ui/Modal.js';
 import { renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon } from './ui/Icons.js';
 
+let selectedMealJourneyDay = null; // 1-based journey day navigation
+
 export async function renderMealTracker(onOpenAiCoach) {
   const goal = await DataService.getUserGoal();
-  const todayLog = await DataService.getDailyLog();
   const plan = await DataService.getUserPlan();
+  const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 60;
+  const todayStr = DataService.getTodayString();
+
+  // Calculate current journey day (1-based) from goal.startDate
+  let currentJourneyDay = 1;
+  if (goal.startDate) {
+    const start = new Date(goal.startDate);
+    const today = new Date(todayStr);
+    currentJourneyDay = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+  }
+
+  if (selectedMealJourneyDay === null) {
+    selectedMealJourneyDay = Math.min(currentJourneyDay, totalJourneyDays);
+  }
+
+  // Clamp selectedMealJourneyDay
+  if (selectedMealJourneyDay < 1) selectedMealJourneyDay = 1;
+  if (selectedMealJourneyDay > totalJourneyDays) selectedMealJourneyDay = totalJourneyDays;
+
+  // Resolve active date string for selected journey day
+  let activeDateStr = todayStr;
+  if (goal.startDate) {
+    const d = new Date(goal.startDate);
+    d.setDate(d.getDate() + (selectedMealJourneyDay - 1));
+    activeDateStr = d.toISOString().split('T')[0];
+  }
+
+  const todayLog = await DataService.getDailyLog(activeDateStr);
   const dailyBudget = plan.dailyBudgetVnd || 100000;
 
   const caloriesIn = todayLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
@@ -31,16 +60,44 @@ export async function renderMealTracker(onOpenAiCoach) {
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
       <!-- Header Banner & AI Natural Language Prompt Box -->
       <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.9), rgba(251, 250, 255, 0.9)); border: 1px solid var(--border-highlight);">
-        <div class="card-header">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="utensils" class="text-purple"></i> Theo Dõi Bữa Ăn & Dinh Dưỡng</h2>
             <p class="text-sm text-muted" style="margin-top: 0.25rem;">
               Ngân sách ăn uống: <b style="color: var(--accent-purple);">${dailyBudget.toLocaleString('vi-VN')} VNĐ/ngày</b> | Nhập thủ công hoặc gõ mô tả tự nhiên để AI tự phân tích calo & macro!
             </p>
           </div>
-          <button class="btn btn-primary" id="btn-open-add-meal-modal">
-            <i data-lucide="plus"></i> Thêm Món Ăn Mới
-          </button>
+
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <!-- Day Switcher Navigation Widget (Capsule Pill Style) -->
+            <div class="day-nav">
+              <button class="btn-nav" id="btn-meal-day-prev" ${selectedMealJourneyDay <= 1 ? 'disabled' : ''} title="Ngày trước">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </button>
+
+              <div class="label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Ngày ${selectedMealJourneyDay}/${totalJourneyDays}
+              </div>
+
+              <button class="btn-nav" id="btn-meal-day-next" ${selectedMealJourneyDay >= totalJourneyDays ? 'disabled' : ''} title="Ngày sau">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
+            <button class="btn btn-primary" id="btn-open-add-meal-modal">
+              <i data-lucide="plus"></i> Thêm Món Ăn Mới
+            </button>
+          </div>
         </div>
 
         <!-- Quick AI Food Parser Bar -->
@@ -137,6 +194,21 @@ export async function renderMealTracker(onOpenAiCoach) {
   if (mountNode) {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
+
+    // Day Switcher Navigation Handlers
+    document.getElementById('btn-meal-day-prev')?.addEventListener('click', () => {
+      if (selectedMealJourneyDay > 1) {
+        selectedMealJourneyDay--;
+        renderMealTracker(onOpenAiCoach);
+      }
+    });
+
+    document.getElementById('btn-meal-day-next')?.addEventListener('click', () => {
+      if (selectedMealJourneyDay < totalJourneyDays) {
+        selectedMealJourneyDay++;
+        renderMealTracker(onOpenAiCoach);
+      }
+    });
 
     // Natural Language Food Quick Parse
     document.getElementById('btn-quick-parse-food')?.addEventListener('click', async () => {
