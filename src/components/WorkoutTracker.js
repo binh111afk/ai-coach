@@ -2,6 +2,7 @@ import confetti from 'canvas-confetti';
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { Modal } from './ui/Modal.js';
+import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 
 let selectedWorkoutJourneyDay = null; // 1-based journey day navigation
 
@@ -129,33 +130,6 @@ export async function renderWorkoutTracker() {
         </div>
       </div>
     </div>
-
-    <!-- Modal Form Thêm Bài Tập -->
-    <div class="modal-overlay" id="add-workout-modal">
-      <div class="modal-card" style="max-width: 480px;">
-        <div class="card-header">
-          <h3>Ghi Nhận Bài Tập Mới</h3>
-          <button class="btn btn-secondary btn-icon" id="btn-close-workout-modal"><i data-lucide="x"></i></button>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Loại Bài Tập</label>
-          <select class="form-select" id="workout-type-input">
-            <option value="Chạy Bộ Outdoor">Chạy Bộ Outdoor (MET ~8.0)</option>
-            <option value="Tập Tạ / Gym Resistance">Tập Tạ / Gym Resistance (MET ~5.5)</option>
-            <option value="Cardio HIIT">Cardio HIIT (MET ~7.5)</option>
-            <option value="Đi Bộ Nhanh">Đi Bộ Nhanh (MET ~3.8)</option>
-            <option value="Bơi Lội">Bơi Lội (MET ~6.8)</option>
-            <option value="Đạp Xe">Đạp Xe (MET ~6.0)</option>
-            <option value="Yoga / Stretching">Yoga / Stretching (MET ~2.5)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Thời Lượng (Phút)</label>
-          <input type="number" class="form-input" id="workout-duration-input" value="30" min="5" max="300">
-        </div>
-        <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="btn-save-workout">Lưu Bài Tập</button>
-      </div>
-    </div>
   `;
 
   const mountNode = document.getElementById('view-mount');
@@ -239,28 +213,89 @@ export async function renderWorkoutTracker() {
       });
     });
 
-    // Modal controls
-    const modal = document.getElementById('add-workout-modal');
-    document.getElementById('btn-open-workout-modal')?.addEventListener('click', () => modal.classList.add('active'));
-    document.getElementById('btn-close-workout-modal')?.addEventListener('click', () => modal.classList.remove('active'));
-
-    document.getElementById('btn-save-workout')?.addEventListener('click', async () => {
-      const type = document.getElementById('workout-type-input').value;
-      const duration = parseInt(document.getElementById('workout-duration-input').value) || 30;
-
-      // Calculate MET burn
-      let met = 5.0;
-      if (type.includes('Chạy')) met = 8.0;
-      else if (type.includes('Cardio')) met = 7.5;
-      else if (type.includes('Gym')) met = 5.5;
-      else if (type.includes('Bơi')) met = 6.8;
-      else if (type.includes('Đi Bộ')) met = 3.8;
-
-      const caloriesBurned = Math.round((duration / 60) * met * profile.currentWeight);
-
-      await DataService.addWorkoutLog(todayLog.date, { type, duration, intensity: 'Moderate', caloriesBurned });
-      modal.classList.remove('active');
-      renderWorkoutTracker();
+    // Open Modal Teleported to #modal-mount
+    document.getElementById('btn-open-workout-modal')?.addEventListener('click', () => {
+      openAddWorkoutModal(todayLog.date, profile.currentWeight, () => renderWorkoutTracker());
     });
   }
+}
+
+function openAddWorkoutModal(dateStr, userWeight, onSaveSuccess) {
+  const modalMount = document.getElementById('modal-mount');
+  if (!modalMount) return;
+
+  let currentWorkoutType = 'Chạy Bộ Outdoor';
+
+  const workoutOptions = [
+    { value: 'Chạy Bộ Outdoor', label: 'Chạy Bộ Outdoor (MET ~8.0)' },
+    { value: 'Tập Tạ / Gym Resistance', label: 'Tập Tạ / Gym Resistance (MET ~5.5)' },
+    { value: 'Cardio HIIT', label: 'Cardio HIIT (MET ~7.5)' },
+    { value: 'Đi Bộ Nhanh', label: 'Đi Bộ Nhanh (MET ~3.8)' },
+    { value: 'Bơi Lội', label: 'Bơi Lội (MET ~6.8)' },
+    { value: 'Đạp Xe', label: 'Đạp Xe (MET ~6.0)' },
+    { value: 'Yoga / Stretching', label: 'Yoga / Stretching (MET ~2.5)' }
+  ];
+
+  const modalHtml = `
+    <div class="modal-overlay active" id="add-workout-modal">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="card-header">
+          <h3>Ghi Nhận Bài Tập Mới</h3>
+          <button class="btn btn-secondary btn-icon" id="btn-close-workout-modal"><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Loại Bài Tập</label>
+          <div id="workout-type-dropdown-container">
+            ${renderDropdown({
+              id: 'workout-type-dropdown',
+              options: workoutOptions,
+              value: currentWorkoutType,
+              placeholder: 'Chọn bài tập...'
+            })}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Thời Lượng (Phút)</label>
+          <input type="number" class="form-input" id="workout-duration-input" value="30" min="5" max="300">
+        </div>
+        <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="btn-save-workout">Lưu Bài Tập</button>
+      </div>
+    </div>
+  `;
+
+  modalMount.innerHTML = modalHtml;
+  if (window.lucide) window.lucide.createIcons();
+
+  initDropdownListeners(modalMount, (val) => {
+    currentWorkoutType = val;
+  });
+
+  const modal = document.getElementById('add-workout-modal');
+  const closeModal = () => {
+    modal.remove();
+  };
+
+  document.getElementById('btn-close-workout-modal')?.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.getElementById('btn-save-workout')?.addEventListener('click', async () => {
+    const type = currentWorkoutType;
+    const duration = parseInt(document.getElementById('workout-duration-input').value) || 30;
+
+    // Calculate MET burn
+    let met = 5.0;
+    if (type.includes('Chạy')) met = 8.0;
+    else if (type.includes('Cardio')) met = 7.5;
+    else if (type.includes('Gym')) met = 5.5;
+    else if (type.includes('Bơi')) met = 6.8;
+    else if (type.includes('Đi Bộ')) met = 3.8;
+
+    const caloriesBurned = Math.round((duration / 60) * met * (userWeight || 70));
+
+    await DataService.addWorkoutLog(dateStr, { type, duration, intensity: 'Moderate', caloriesBurned });
+    closeModal();
+    if (onSaveSuccess) onSaveSuccess();
+  });
 }

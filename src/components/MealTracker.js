@@ -2,6 +2,7 @@ import confetti from 'canvas-confetti';
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { Modal } from './ui/Modal.js';
+import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon } from './ui/Icons.js';
 
 let selectedMealJourneyDay = null; // 1-based journey day navigation
@@ -146,48 +147,6 @@ export async function renderMealTracker(onOpenAiCoach) {
         ${renderMealCategoryCard('Bữa Phụ / Snack', renderAppleIcon({ width: 22, height: 22 }), mealsByCategory.Snack)}
       </div>
     </div>
-
-    <!-- Modal Form Thêm Món Ăn -->
-    <div class="modal-overlay" id="add-meal-modal">
-      <div class="modal-card" style="max-width: 500px;">
-        <div class="card-header">
-          <h3>Thêm Món Ăn Mới</h3>
-          <button class="btn btn-secondary btn-icon" id="btn-close-meal-modal"><i data-lucide="x"></i></button>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Bữa Ăn</label>
-          <select class="form-select" id="meal-type-input">
-            <option value="Breakfast">Bữa Sáng</option>
-            <option value="Lunch" selected>Bữa Trưa</option>
-            <option value="Dinner">Bữa Tối</option>
-            <option value="Snack">Bữa Phụ / Snack</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Tên Món Ăn</label>
-          <input type="text" class="form-input" id="meal-name-input" placeholder="Ví dụ: Ức gà áp chảo + Cơm lứt">
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem;">
-          <div class="form-group">
-            <label class="form-label">Calo</label>
-            <input type="number" class="form-input" id="meal-cal-input" placeholder="350">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Protein(g)</label>
-            <input type="number" class="form-input" id="meal-p-input" placeholder="30">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Carb(g)</label>
-            <input type="number" class="form-input" id="meal-c-input" placeholder="40">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Fat(g)</label>
-            <input type="number" class="form-input" id="meal-f-input" placeholder="8">
-          </div>
-        </div>
-        <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="btn-save-meal">Lưu Bữa Ăn</button>
-      </div>
-    </div>
   `;
 
   const mountNode = document.getElementById('view-mount');
@@ -266,24 +225,99 @@ export async function renderMealTracker(onOpenAiCoach) {
       });
     });
 
-    // Modal controls
-    const modal = document.getElementById('add-meal-modal');
-    document.getElementById('btn-open-add-meal-modal')?.addEventListener('click', () => modal.classList.add('active'));
-    document.getElementById('btn-close-meal-modal')?.addEventListener('click', () => modal.classList.remove('active'));
-
-    document.getElementById('btn-save-meal')?.addEventListener('click', async () => {
-      const type = document.getElementById('meal-type-input').value;
-      const name = document.getElementById('meal-name-input').value || 'Món ăn dinh dưỡng';
-      const calories = parseInt(document.getElementById('meal-cal-input').value) || 0;
-      const protein = parseInt(document.getElementById('meal-p-input').value) || 0;
-      const carb = parseInt(document.getElementById('meal-c-input').value) || 0;
-      const fat = parseInt(document.getElementById('meal-f-input').value) || 0;
-
-      await DataService.addMealLog(todayLog.date, { type, name, calories, protein, carb, fat });
-      modal.classList.remove('active');
-      renderMealTracker(onOpenAiCoach);
+    // Open Modal Teleported to #modal-mount
+    document.getElementById('btn-open-add-meal-modal')?.addEventListener('click', () => {
+      openAddMealModal(todayLog.date, () => renderMealTracker(onOpenAiCoach));
     });
   }
+}
+
+function openAddMealModal(dateStr, onSaveSuccess) {
+  const modalMount = document.getElementById('modal-mount');
+  if (!modalMount) return;
+
+  let currentType = 'Lunch';
+
+  const mealOptions = [
+    { value: 'Breakfast', label: 'Bữa Sáng (Breakfast)' },
+    { value: 'Lunch', label: 'Bữa Trưa (Lunch)' },
+    { value: 'Dinner', label: 'Bữa Tối (Dinner)' },
+    { value: 'Snack', label: 'Bữa Phụ (Snack)' }
+  ];
+
+  const modalHtml = `
+    <div class="modal-overlay active" id="add-meal-modal">
+      <div class="modal-card" style="max-width: 500px;">
+        <div class="card-header">
+          <h3>Thêm Món Ăn Mới</h3>
+          <button class="btn btn-secondary btn-icon" id="btn-close-meal-modal"><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Loại Bữa Ăn</label>
+          <div id="meal-type-dropdown-container">
+            ${renderDropdown({
+              id: 'meal-type-dropdown',
+              options: mealOptions,
+              value: currentType,
+              placeholder: 'Chọn bữa ăn...'
+            })}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tên Món Ăn</label>
+          <input type="text" class="form-input" id="meal-name-input" placeholder="Ví dụ: Ức gà áp chảo + Cơm lứt">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem;">
+          <div class="form-group">
+            <label class="form-label">Calo</label>
+            <input type="number" class="form-input" id="meal-cal-input" placeholder="350">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Protein(g)</label>
+            <input type="number" class="form-input" id="meal-p-input" placeholder="30">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Carb(g)</label>
+            <input type="number" class="form-input" id="meal-c-input" placeholder="40">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fat(g)</label>
+            <input type="number" class="form-input" id="meal-f-input" placeholder="8">
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="btn-save-meal">Lưu Bữa Ăn</button>
+      </div>
+    </div>
+  `;
+
+  modalMount.innerHTML = modalHtml;
+  if (window.lucide) window.lucide.createIcons();
+
+  initDropdownListeners(modalMount, (val) => {
+    currentType = val;
+  });
+
+  const modal = document.getElementById('add-meal-modal');
+  const closeModal = () => {
+    modal.remove();
+  };
+
+  document.getElementById('btn-close-meal-modal')?.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.getElementById('btn-save-meal')?.addEventListener('click', async () => {
+    const name = document.getElementById('meal-name-input').value.trim() || 'Món ăn dinh dưỡng';
+    const calories = parseInt(document.getElementById('meal-cal-input').value) || 0;
+    const protein = parseInt(document.getElementById('meal-p-input').value) || 0;
+    const carb = parseInt(document.getElementById('meal-c-input').value) || 0;
+    const fat = parseInt(document.getElementById('meal-f-input').value) || 0;
+
+    await DataService.addMealLog(dateStr, { type: currentType, name, calories, protein, carb, fat });
+    closeModal();
+    if (onSaveSuccess) onSaveSuccess();
+  });
 }
 
 function renderMealCategoryCard(title, iconSvg = '', mealsList = []) {
