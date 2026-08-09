@@ -806,6 +806,22 @@ export const DataService = {
           console.log('[DataService] Photo comparison action approved:', proposedChange.payload);
           break;
         }
+        case 'UPDATE_DAILY_SCHEDULE': {
+          const plan = await this.getUserPlan();
+          const { dailySchedule, phaseIndex } = proposedChange.payload || {};
+          if (Array.isArray(dailySchedule) && dailySchedule.length > 0) {
+            if (typeof phaseIndex === 'number' && plan.journeyPhases?.[phaseIndex]) {
+              plan.journeyPhases[phaseIndex].dailySchedule = dailySchedule;
+            } else {
+              plan.dailySchedule = dailySchedule;
+              if (plan.journeyPhases && plan.journeyPhases.length > 0) {
+                plan.journeyPhases.forEach(p => { p.dailySchedule = dailySchedule; });
+              }
+            }
+            await this.saveUserPlan(plan);
+          }
+          break;
+        }
         default:
           console.warn('Unknown proposed change type:', proposedChange.type);
       }
@@ -1131,7 +1147,7 @@ export function generate7DayWorkoutRoutine(workoutType = 'home', homeEquipment =
  * Each phase = 28 days (4 weeks). Max 4 phases.
  * Phase content varies by shifting the meal/workout variant offset.
  */
-export function generateFullJourneyPhases(totalDays = 60, budgetVnd = 100000, workoutType = 'home', homeEquipment = 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg', foodAllergiesStr = '') {
+export function generateFullJourneyPhases(totalDays = 60, budgetVnd = 100000, workoutType = 'home', homeEquipment = 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg', foodAllergiesStr = '', preferredWorkoutTimes = []) {
   const PHASE_DAYS = 28; // 4 weeks per phase
   const numPhases = Math.min(4, Math.ceil(totalDays / PHASE_DAYS));
   const today = new Date().toISOString().split('T')[0];
@@ -1158,18 +1174,112 @@ export function generateFullJourneyPhases(totalDays = 60, budgetVnd = 100000, wo
     // Shift meal variants per phase so content differs
     const mealOffset = p * 2; // shift by 2 variants per phase
     const wType = workoutVariants[p];
+    const weeklyMealPlan = generate7DayMealPlan(budgetVnd, today, '', mealOffset);
+    const weeklyWorkoutRoutine = generate7DayWorkoutRoutine(wType, homeEquipment);
+    const firstMealDay = Object.values(weeklyMealPlan)[0];
+    const firstWorkoutDay = weeklyWorkoutRoutine[0];
 
     phases.push({
       phaseIndex: p,
       phaseLabel: phaseLabels[p] || `Phase ${p + 1}`,
       startDay,
       endDay,
-      weeklyMealPlan: generate7DayMealPlan(budgetVnd, today, '', mealOffset),
-      weeklyWorkoutRoutine: generate7DayWorkoutRoutine(wType, homeEquipment)
+      weeklyMealPlan,
+      weeklyWorkoutRoutine,
+      dailySchedule: generateDailySchedule(firstMealDay, firstWorkoutDay, preferredWorkoutTimes)
     });
   }
 
   return phases;
+}
+
+/**
+ * Dynamic 24-Hour Daily Schedule Generator.
+ * Constructs a structured daily routine based on active day's meals, workout, and user's preferred workout times.
+ */
+export function generateDailySchedule(dayMealPlan, workoutItem, preferredWorkoutTimes = []) {
+  const bf = dayMealPlan?.breakfast || { name: 'Thực đơn sáng', calories: 350, protein: 20, carb: 40, fat: 10 };
+  const lu = dayMealPlan?.lunch || { name: 'Thực đơn trưa', calories: 500, protein: 35, carb: 55, fat: 12 };
+  const sn = dayMealPlan?.snack || { name: 'Bữa phụ tăng năng lượng', calories: 150, protein: 6, carb: 20, fat: 4 };
+  const dn = dayMealPlan?.dinner || { name: 'Thực đơn tối', calories: 420, protein: 30, carb: 35, fat: 11 };
+
+  const isRest = workoutItem?.type === 'Rest';
+  const workoutTitle = workoutItem?.title || 'Tập luyện thể hình';
+  const workoutDuration = workoutItem?.duration || 45;
+  const estBurn = workoutItem?.estBurn || 300;
+
+  // Resolve workout time slot based on user's preferredWorkoutTimes if set
+  let workoutTime = '17:30';
+  if (Array.isArray(preferredWorkoutTimes) && preferredWorkoutTimes.length > 0) {
+    const firstPref = preferredWorkoutTimes[0];
+    const match = firstPref.match(/(\d{2}:\d{2})/);
+    if (match) {
+      workoutTime = match[1];
+    }
+  }
+
+  const items = [
+    {
+      time: '06:30',
+      activity: 'Thức Dậy & Uống Nước Ấm Khởi Động',
+      category: 'habit',
+      icon: 'sun',
+      desc: 'Uống 300 - 500ml nước ấm để kích hoạt hệ tiêu hóa, thực hiện 5 phút dãn cơ nhẹ nhàng.'
+    },
+    {
+      time: '07:30',
+      activity: `Bữa Sáng Dinh Dưỡng: ${bf.name}`,
+      category: 'meal',
+      icon: 'coffee',
+      desc: `${bf.calories || 350} kcal | Protein: ${bf.protein || 20}g, Carb: ${bf.carb || 40}g, Fat: ${bf.fat || 10}g`
+    },
+    {
+      time: '09:30',
+      activity: 'Bổ Sung Nước & Giải Tỏa Căng Thẳng',
+      category: 'habit',
+      icon: 'droplet',
+      desc: 'Uống thêm 500ml nước lọc. Đứng dậy đi lại 5 phút giải tỏa mệt mỏi.'
+    },
+    {
+      time: '12:00',
+      activity: `Bữa Trưa Năng Lượng: ${lu.name}`,
+      category: 'meal',
+      icon: 'utensils',
+      desc: `${lu.calories || 500} kcal | Protein: ${lu.protein || 35}g, Carb: ${lu.carb || 55}g, Fat: ${lu.fat || 12}g`
+    },
+    {
+      time: '15:30',
+      activity: `Bữa Phụ Nhẹ: ${sn.name}`,
+      category: 'meal',
+      icon: 'apple',
+      desc: `${sn.calories || 150} kcal | Protein: ${sn.protein || 6}g, Carb: ${sn.carb || 20}g, Fat: ${sn.fat || 4}g`
+    },
+    {
+      time: workoutTime,
+      activity: isRest ? `Phục Hồi: ${workoutTitle}` : `Tập Luyện (${workoutTime}): ${workoutTitle}`,
+      category: 'workout',
+      icon: 'dumbbell',
+      desc: isRest
+        ? 'Ngày nghỉ phục hồi cơ bắp. Thực hiện dãn cơ nhẹ hoặc đi bộ thư giãn.'
+        : `Thời lượng ${workoutDuration} phút | Ước tính đốt ${estBurn} kcal. Tập đúng khung giờ bạn chọn.`
+    },
+    {
+      time: '19:00',
+      activity: `Bữa Tối Phục Hồi: ${dn.name}`,
+      category: 'meal',
+      icon: 'utensils',
+      desc: `${dn.calories || 420} kcal | Protein: ${dn.protein || 30}g, Carb: ${dn.carb || 35}g, Fat: ${dn.fat || 11}g`
+    },
+    {
+      time: '22:30',
+      activity: 'Thư Giãn & Đi Ngủ Phục Hồi',
+      category: 'habit',
+      icon: 'moon',
+      desc: 'Hạn chế thiết bị điện tử, đi ngủ đúng giờ để đảm bảo 7 - 8 tiếng ngủ ngon giúp phục hồi cơ thể.'
+    }
+  ];
+
+  return items.sort((a, b) => a.time.localeCompare(b.time));
 }
 
 export function normalizeWorkoutRoutine(routine) {
@@ -1185,10 +1295,14 @@ export function normalizeWorkoutRoutine(routine) {
  * Uses journeyPhases if available, otherwise falls back to weeklyMealPlan.
  */
 export function getPlanForJourneyDay(plan, journeyDay = 1) {
+  let mealEntry = null;
+  let workout = null;
+  let phase = null;
+
   // Modern path: journeyPhases array
   if (plan.journeyPhases && plan.journeyPhases.length > 0) {
     // Find the matching phase, or use the last phase for overflow
-    let phase = plan.journeyPhases.find(p => journeyDay >= p.startDay && journeyDay <= p.endDay);
+    phase = plan.journeyPhases.find(p => journeyDay >= p.startDay && journeyDay <= p.endDay);
     if (!phase) phase = plan.journeyPhases[plan.journeyPhases.length - 1];
 
     // dayIndex within the 7-day weekly template (0–6)
@@ -1196,20 +1310,25 @@ export function getPlanForJourneyDay(plan, journeyDay = 1) {
 
     // Meal: pick from the phase's weeklyMealPlan by position
     const mealKeys = Object.keys(phase.weeklyMealPlan || {}).sort();
-    const mealEntry = phase.weeklyMealPlan ? phase.weeklyMealPlan[mealKeys[dayIndex]] : null;
+    mealEntry = phase.weeklyMealPlan ? phase.weeklyMealPlan[mealKeys[dayIndex]] : null;
 
     // Workout: pick from weeklyWorkoutRoutine by dayIndex
     const workoutRoutine = normalizeWorkoutRoutine(phase.weeklyWorkoutRoutine);
-    const workout = workoutRoutine[dayIndex] || null;
-
-    return { mealEntry, workout, phase };
+    workout = workoutRoutine[dayIndex] || null;
+  } else {
+    // Legacy fallback: weeklyMealPlan keyed by date, weeklyWorkoutRoutine array
+    const dayIndex = (journeyDay - 1) % 7;
+    const mealKeys = Object.keys(plan.weeklyMealPlan || {}).sort();
+    mealEntry = plan.weeklyMealPlan?.[mealKeys[dayIndex]] || null;
+    const workoutRoutine = normalizeWorkoutRoutine(plan.weeklyWorkoutRoutine);
+    workout = workoutRoutine[dayIndex] || null;
   }
 
-  // Legacy fallback: weeklyMealPlan keyed by date, weeklyWorkoutRoutine array
-  const dayIndex = (journeyDay - 1) % 7;
-  const mealKeys = Object.keys(plan.weeklyMealPlan || {}).sort();
-  const mealEntry = plan.weeklyMealPlan?.[mealKeys[dayIndex]] || null;
-  const workoutRoutine = normalizeWorkoutRoutine(plan.weeklyWorkoutRoutine);
-  const workout = workoutRoutine[dayIndex] || null;
-  return { mealEntry, workout, phase: null };
+  // Always generate dailySchedule from actual mealEntry & workout for the selected day
+  // so the schedule meals stay in sync with the meal plan panel below.
+  // We use phase.dailySchedule only to pull the preferred workout time if set.
+  const preferredTimes = plan?.preferredWorkoutTimes || [];
+  const dailySchedule = generateDailySchedule(mealEntry, workout, preferredTimes);
+
+  return { mealEntry, workout, phase, dailySchedule };
 }

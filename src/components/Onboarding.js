@@ -1,8 +1,9 @@
-import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases } from '../services/dataService.js';
+import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases, sanitizeMealItem } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { renderGeminiIcon } from './ui/Icons.js';
+import confetti from 'canvas-confetti';
 
 export function renderOnboarding(onComplete) {
   const formData = {
@@ -13,7 +14,8 @@ export function renderOnboarding(onComplete) {
     targetWeight: null,
     targetDays: 60,
     activityLevel: 'moderate',
-    foodAllergies: ''
+    foodAllergies: '',
+    preferredWorkoutTimes: ['17:30 - 18:30']
   };
 
   const activityOptions = Object.keys(ACTIVITY_MULTIPLIERS).map(key => ({
@@ -29,7 +31,7 @@ export function renderOnboarding(onComplete) {
             ${renderGeminiIcon({ width: 28, height: 28, strokeWidth: 1.8, color: '#fff' })}
           </div>
           <h2>Thiết Lập Hành Trình Fitness</h2>
-          <p class="text-sm text-muted">Vui lòng tự nhập các chỉ số cá nhân. AI Coach sẽ tự động lập toàn bộ thực đơn & lịch tập luyện cho hành trình của bạn.</p>
+          <p class="text-sm text-muted">Vui lòng tự nhập các chỉ số cá nhân. AI Coach sẽ tự động lập toàn bộ thực đơn &amp; lịch tập luyện cho hành trình của bạn.</p>
         </div>
 
         <!-- Step 1: Physical Parameters -->
@@ -66,7 +68,7 @@ export function renderOnboarding(onComplete) {
 
         <!-- Step 2: Goal & Activity -->
         <div class="onboarding-step" id="step-2" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/5: Mục tiêu &amp; Thời gian hành trình</h4>
+          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/5: Mục tiêu, Thời gian &amp; Khung giờ tập</h4>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div class="form-group">
@@ -88,6 +90,32 @@ export function renderOnboarding(onComplete) {
                 value: formData.activityLevel,
                 placeholder: 'Chọn mức độ vận động...'
               })}
+            </div>
+          </div>
+
+          <!-- Preferred Workout Time Multi-select Chips -->
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label" style="display: flex; align-items: center; gap: 0.35rem;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Khung giờ bạn có thể tập luyện hàng ngày <span class="text-muted">(có thể chọn nhiều)</span>
+            </label>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.4rem;" id="ob-workout-time-chips">
+              ${[
+                { id: 'wt_6am',   label: '🌅 06:00 - 07:00 (Sáng sớm)', value: '06:00 - 07:00' },
+                { id: 'wt_7am',   label: '☀️ 07:00 - 08:00 (Buổi sáng)', value: '07:00 - 08:00' },
+                { id: 'wt_12pm',  label: '🌤️ 12:00 - 13:00 (Nghỉ trưa)', value: '12:00 - 13:00' },
+                { id: 'wt_1630',  label: '🌆 16:30 - 17:30 (Chiều mát)', value: '16:30 - 17:30' },
+                { id: 'wt_1730',  label: '🌇 17:30 - 18:30 (Tối sớm)', value: '17:30 - 18:30' },
+                { id: 'wt_19pm',  label: '🌙 19:00 - 20:00 (Buổi tối)', value: '19:00 - 20:00' },
+                { id: 'wt_20pm',  label: '🌃 20:00 - 21:00 (Tối muộn)', value: '20:00 - 21:00' }
+              ].map(chip => {
+                const isSel = formData.preferredWorkoutTimes.includes(chip.value);
+                return `
+                  <button type="button" class="workout-time-chip ${isSel ? 'active' : ''}" id="${chip.id}" data-value="${chip.value}"
+                    style="padding: 0.38rem 0.8rem; border-radius: 20px; border: 1.5px solid ${isSel ? 'var(--accent-purple)' : 'var(--border-color)'}; background: ${isSel ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)'}; color: ${isSel ? 'var(--accent-purple)' : 'var(--text-main)'}; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap;">
+                    ${chip.label}
+                  </button>
+                `;
+              }).join('')}
             </div>
           </div>
           
@@ -223,6 +251,27 @@ export function renderOnboarding(onComplete) {
       document.getElementById('step-1').style.display = 'block';
     });
 
+    // Step 2: Workout time chips logic
+    document.querySelectorAll('.workout-time-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const val = chip.getAttribute('data-value');
+        const idx = formData.preferredWorkoutTimes.indexOf(val);
+        if (idx > -1) {
+          if (formData.preferredWorkoutTimes.length > 1) {
+            formData.preferredWorkoutTimes.splice(idx, 1);
+            chip.style.background = 'var(--bg-card)';
+            chip.style.borderColor = 'var(--border-color)';
+            chip.style.color = 'var(--text-main)';
+          }
+        } else {
+          formData.preferredWorkoutTimes.push(val);
+          chip.style.background = 'rgba(124, 58, 237, 0.15)';
+          chip.style.borderColor = 'var(--accent-purple)';
+          chip.style.color = 'var(--accent-purple)';
+        }
+      });
+    });
+
     document.getElementById('btn-step2-next').addEventListener('click', () => {
       const targetWeightVal = document.getElementById('ob-target-weight').value.trim();
       const targetDaysVal = document.getElementById('ob-target-days').value.trim();
@@ -327,13 +376,8 @@ export function renderOnboarding(onComplete) {
       formData.waterTarget = water;
 
       // Render summary
-      const allergyBadge = formData.foodAllergies
-        ? `<div style="margin-bottom: 0.65rem; background: #fef3f2; border: 1px solid #fca5a5; padding: 0.55rem 0.85rem; border-radius: 10px; font-size: 0.8rem; color: #dc2626; font-weight: 700;">🚫 Dị ứng / Kiêng khem AI sẽ né: <span style="font-weight: 800;">${formData.foodAllergies}</span></div>`
-        : '';
-
       const resultsHtml = `
         <div style="background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-card); border: 1px solid var(--border-color); font-size: 0.9rem;">
-          ${allergyBadge}
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
             <div>
               <span class="text-muted text-xs">BMR (Calo nền):</span>
@@ -348,13 +392,23 @@ export function renderOnboarding(onComplete) {
             <span class="text-muted text-xs">Mục tiêu Calo hàng ngày:</span>
             <div style="font-weight: 900; font-size: 1.4rem; color: var(--accent-purple);">${targetCalObj.targetCalories} kcal/ngày</div>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; text-align: center; background: var(--bg-card); padding: 0.6rem; border-radius: 12px; border: 1px solid var(--border-color);">
-            <div><span class="text-xs text-muted">Protein</span><div style="font-weight: 800; color: var(--accent-purple);">${macros.protein}g</div></div>
-            <div><span class="text-xs text-muted">Carb</span><div style="font-weight: 800; color: var(--accent-blue);">${macros.carb}g</div></div>
-            <div><span class="text-xs text-muted">Fat</span><div style="font-weight: 800; color: var(--accent-amber);">${macros.fat}g</div></div>
-          </div>
-          <div style="margin-top: 0.75rem; font-size: 0.85rem;">
-            💧 Mục tiêu nước uống: <b>${water} ml</b> / ngày
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; text-align: center; background: var(--bg-card); padding: 0.65rem; border-radius: 10px; border: 1px solid var(--border-color);">
+            <div>
+              <span class="text-muted text-xs">Protein</span>
+              <div style="font-weight: 800; color: var(--accent-purple);">${macros.protein}g</div>
+            </div>
+            <div>
+              <span class="text-muted text-xs">Carb</span>
+              <div style="font-weight: 800; color: var(--accent-blue);">${macros.carb}g</div>
+            </div>
+            <div>
+              <span class="text-muted text-xs">Fat</span>
+              <div style="font-weight: 800; color: var(--accent-amber);">${macros.fat}g</div>
+            </div>
+            <div>
+              <span class="text-muted text-xs">Nước</span>
+              <div style="font-weight: 800; color: var(--accent-blue);">${water} ml</div>
+            </div>
           </div>
 
           ${isTooFast ? `
@@ -785,6 +839,7 @@ export function renderOnboarding(onComplete) {
       profile.currentWeight = formData.currentWeight;
       profile.activityLevel = formData.activityLevel;
       profile.foodAllergies = formData.foodAllergies || ''; // Save allergies before AI call
+      profile.preferredWorkoutTimes = formData.preferredWorkoutTimes;
       profile.isOnboarded = true;
       await DataService.saveUserProfile(profile);
 
@@ -803,6 +858,7 @@ export function renderOnboarding(onComplete) {
       goal.totalJourneyDays = formData.targetDays;
       goal.targetDays = formData.targetDays;
       goal.currentJourneyDay = 1;
+      goal.preferredWorkoutTimes = formData.preferredWorkoutTimes;
       goal.journeyLevels = journeyGamification.levels;
       goal.journeyBadges = journeyGamification.badges;
       await DataService.saveUserGoal(goal);
@@ -839,9 +895,38 @@ export function renderOnboarding(onComplete) {
           formData.targetDays,
           100000,
           'home',
-          'Thảm yoga, Dây kháng lực, Tạ đơn 5kg'
+          'Thảm yoga, Dây kháng lực, Tạ đơn 5kg',
+          profile.foodAllergies || '',
+          formData.preferredWorkoutTimes
         );
         console.log(`✅ [Onboarding] Local generator: ${journeyPhases.length} phases for ${formData.targetDays} days.`);
+      }
+
+      // Safety sanitize: remove any allergic foods from BOTH AI and local plans before saving
+      const allergyStr = profile.foodAllergies || '';
+      if (allergyStr) {
+        const sanitizeDay = (dayData) => ({
+          ...dayData,
+          breakfast: dayData.breakfast ? sanitizeMealItem(dayData.breakfast, allergyStr) : null,
+          lunch:     dayData.lunch     ? sanitizeMealItem(dayData.lunch,     allergyStr) : null,
+          dinner:    dayData.dinner    ? sanitizeMealItem(dayData.dinner,    allergyStr) : null,
+          snack:     dayData.snack     ? sanitizeMealItem(dayData.snack,     allergyStr) : null,
+        });
+        // Sanitize weeklyMealPlan (flat)
+        if (weeklyMealPlan) {
+          Object.keys(weeklyMealPlan).forEach(k => {
+            if (weeklyMealPlan[k]) weeklyMealPlan[k] = sanitizeDay(weeklyMealPlan[k]);
+          });
+        }
+        // Sanitize each phase's weeklyMealPlan
+        if (journeyPhases) {
+          journeyPhases = journeyPhases.map(phase => ({
+            ...phase,
+            weeklyMealPlan: Object.fromEntries(
+              Object.entries(phase.weeklyMealPlan || {}).map(([k, v]) => [k, v ? sanitizeDay(v) : v])
+            )
+          }));
+        }
       }
 
       const plan = {
@@ -851,8 +936,10 @@ export function renderOnboarding(onComplete) {
         homeEquipment: 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg',
         createdAt: today,
         targetDays: formData.targetDays,
+        preferredWorkoutTimes: formData.preferredWorkoutTimes,
         weeklyMealPlan,
         weeklyWorkoutRoutine,
+        dailySchedule: journeyPhases?.[0]?.dailySchedule || null,
         journeyPhases
       };
       await DataService.saveUserPlan(plan);
@@ -874,7 +961,15 @@ export function renderOnboarding(onComplete) {
       // Close modal & trigger celebration callback
       const activeModal = document.getElementById('onboarding-modal');
       if (activeModal) activeModal.remove();
-      confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
+      try {
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
+        } else if (typeof window.confetti === 'function') {
+          window.confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
+        }
+      } catch (e) {
+        console.warn('🎊 confetti not available:', e.message);
+      }
       if (onComplete) onComplete();
     });
   }

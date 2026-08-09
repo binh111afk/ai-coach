@@ -1,8 +1,10 @@
-// IndexedDB Database Manager for Fitness & Nutrition Tracker
+import { fsGet, fsGetAll, fsPut, fsDelete } from './firebase.js';
+
+// IndexedDB + Cloud Firestore Dual Sync Database Manager
 const DB_NAME = 'FitnessCoachDB';
 const DB_VERSION = 2;
 
-class IndexedDBManager {
+class HybridDBManager {
   constructor() {
     this.db = null;
     this.initPromise = this.initDB();
@@ -15,39 +17,26 @@ class IndexedDBManager {
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
 
-        // User store
         if (!db.objectStoreNames.contains('user')) {
           db.createObjectStore('user', { keyPath: 'id' });
         }
-
-        // Goals store
         if (!db.objectStoreNames.contains('goals')) {
           db.createObjectStore('goals', { keyPath: 'id' });
         }
-
-        // Daily Logs store (keyed by date string YYYY-MM-DD)
         if (!db.objectStoreNames.contains('daily_logs')) {
           db.createObjectStore('daily_logs', { keyPath: 'date' });
         }
-
-        // Progress Photos store
         if (!db.objectStoreNames.contains('photos')) {
           const photoStore = db.createObjectStore('photos', { keyPath: 'id' });
           photoStore.createIndex('date', 'date', { unique: false });
         }
-
-        // User Progress (Level, XP, Streak) store
         if (!db.objectStoreNames.contains('user_progress')) {
           db.createObjectStore('user_progress', { keyPath: 'id' });
         }
-
-        // Chat History store
         if (!db.objectStoreNames.contains('chat_history')) {
           const chatStore = db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
           chatStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
-
-        // App Settings store
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
         }
@@ -71,50 +60,108 @@ class IndexedDBManager {
     return tx.objectStore(storeName);
   }
 
+  // Local IndexedDB direct getter
+  async getLocal(storeName, key) {
+    try {
+      const store = await this.getStore(storeName, 'readonly');
+      return new Promise((resolve) => {
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  // Local IndexedDB direct setter
+  async putLocal(storeName, item) {
+    try {
+      const store = await this.getStore(storeName, 'readwrite');
+      return new Promise((resolve) => {
+        const request = store.put(item);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Dual GET: Try Firestore first (cloud sync), fall back to local IndexedDB
+   */
   async get(storeName, key) {
-    const store = await this.getStore(storeName, 'readonly');
-    return new Promise((resolve, reject) => {
-      const request = store.get(key);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+    // 1. Try Cloud Firestore
+    const cloudItem = await fsGet(storeName, key);
+    if (cloudItem) {
+      // Sync to local cache
+      this.putLocal(storeName, cloudItem);
+      return cloudItem;
+    }
+    // 2. Local fallback
+    return this.getLocal(storeName, key);
   }
 
+  /**
+   * Dual GET ALL: Try Firestore first, fall back to local IndexedDB
+   */
   async getAll(storeName) {
-    const store = await this.getStore(storeName, 'readonly');
-    return new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-    });
+    const cloudItems = await fsGetAll(storeName);
+    if (Array.isArray(cloudItems) && cloudItems.length > 0) {
+      // Cache all locally
+      cloudItems.forEach(item => this.putLocal(storeName, item));
+      return cloudItems;
+    }
+    // Local fallback
+    try {
+      const store = await this.getStore(storeName, 'readonly');
+      return new Promise((resolve) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => resolve([]);
+      });
+    } catch {
+      return [];
+    }
   }
 
+  /**
+   * Dual PUT: Save to local IndexedDB immediately AND upload to Cloud Firestore
+   */
   async put(storeName, item) {
-    const store = await this.getStore(storeName, 'readwrite');
-    return new Promise((resolve, reject) => {
-      const request = store.put(item);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+    // Save to local cache for instant UI response
+    await this.putLocal(storeName, item);
+    // Sync asynchronously to Cloud Firestore
+    fsPut(storeName, item).catch(err => {
+      console.warn(`[Cloud Sync] fsPut warn for ${storeName}:`, err.message);
     });
+    return item;
   }
 
+  /**
+   * Dual DELETE: Delete from local IndexedDB AND Cloud Firestore
+   */
   async delete(storeName, key) {
-    const store = await this.getStore(storeName, 'readwrite');
-    return new Promise((resolve, reject) => {
-      const request = store.delete(key);
-      request.onsuccess = () => resolve(true);
-      request.onerror = () => reject(request.error);
-    });
+    try {
+      const store = await this.getStore(storeName, 'readwrite');
+      store.delete(key);
+    } catch (e) {
+      console.warn('Local delete warn:', e.message);
+    }
+    await fsDelete(storeName, key);
+    return true;
   }
 
   async clearStore(storeName) {
-    const store = await this.getStore(storeName, 'readwrite');
-    return new Promise((resolve, reject) => {
-      const request = store.clear();
-      request.onsuccess = () => resolve(true);
-      request.onerror = () => reject(request.error);
-    });
+    try {
+      const store = await this.getStore(storeName, 'readwrite');
+      store.clear();
+    } catch (e) {
+      console.warn('Local clear warn:', e.message);
+    }
+    return true;
   }
 }
 
-export const dbManager = new IndexedDBManager();
+export const dbManager = new HybridDBManager();

@@ -33,7 +33,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   if (selectedJourneyDay > totalJourneyDays) selectedJourneyDay = totalJourneyDays;
 
   // Resolve meal & workout for selected journey day using phase system
-  const { mealEntry: activeDayMealPlan, workout: activeWorkout, phase: activePhase } = getPlanForJourneyDay(plan, selectedJourneyDay);
+  const { mealEntry: activeDayMealPlan, workout: activeWorkout, phase: activePhase, dailySchedule: activeDailySchedule } = getPlanForJourneyDay(plan, selectedJourneyDay);
 
   // Current phase info for display
   const phaseLabel = activePhase?.phaseLabel || (plan.journeyPhases?.length > 0 ? plan.journeyPhases[0].phaseLabel : 'Kế Hoạch Hành Trình');
@@ -123,6 +123,71 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         </div>
       </div>
 
+      <!-- Daily Schedule / Itinerary Box (Lịch Trình Sinh Hoạt & Tập Luyện Hàng Ngày) -->
+      <div class="card" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98)); border: 1.5px solid rgba(124, 58, 237, 0.25); box-shadow: 0 4px 20px rgba(124, 58, 237, 0.06); border-radius: 20px; padding: 1.5rem;">
+        <div class="card-header" style="margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem;">
+          <div>
+            <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); font-size: 1.2rem; font-weight: 800;">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-purple);"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Lịch Trình Sinh Hoạt &amp; Tập Luyện Mỗi Ngày — Ngày ${selectedJourneyDay} (${activeDayName})
+            </div>
+            <p class="text-sm text-muted" style="margin-top: 0.25rem;">
+              AI Coach lập lịch mốc thời gian chi tiết trong ngày từ khi thức dậy, ăn uống, tập luyện đến thư giãn nghỉ ngơi.
+            </p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+            <!-- Journey Day Navigation Bar -->
+            <div style="display: flex; align-items: center; gap: 0.4rem; background: var(--bg-subtle, #f1f5f9); padding: 0.35rem 0.75rem; border-radius: var(--radius-full, 9999px); border: 1.5px solid rgba(124, 58, 237, 0.25);">
+              <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-prev" title="Ngày trước" style="width: 32px; height: 32px;" ${selectedJourneyDay <= 1 ? 'disabled' : ''}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <span style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); min-width: 100px; text-align: center;">
+                ${renderCalendarIcon()} Ngày ${selectedJourneyDay}/${totalJourneyDays}
+              </span>
+              <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-next" title="Ngày tiếp theo" style="width: 32px; height: 32px;" ${selectedJourneyDay >= totalJourneyDays ? 'disabled' : ''}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+
+            <div class="badge" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(168, 85, 247, 0.1)); color: var(--accent-purple); font-weight: 800; padding: 0.45rem 0.9rem; border-radius: 20px; border: 1px solid rgba(124, 58, 237, 0.3); display: flex; align-items: center; gap: 0.4rem;">
+              ${renderGeminiIcon({ width: 15, height: 15, color: 'var(--accent-purple)' })} Khung Giờ AI Tối Ưu
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule Grid Layout -->
+        <div class="daily-schedule-timeline" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+          ${(activeDailySchedule || []).map((item) => {
+            const catColors = {
+              meal: { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.3)', text: '#059669', badge: 'Bữa Ăn', iconSvg: '<path d="M18 2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V2"/><path d="M12 2v20"/><path d="M12 12H6a2 2 0 0 0-2 2v8"/><path d="M12 12h6a2 2 0 0 1 2 2v8"/>' },
+              workout: { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.3)', text: '#dc2626', badge: 'Tập Luyện', iconSvg: '<path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>' },
+              habit: { bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.3)', text: '#2563eb', badge: 'Sinh Hoạt', iconSvg: '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>' }
+            };
+            const theme = catColors[item.category] || catColors.habit;
+            
+            return `
+              <div class="schedule-item-card" style="background: var(--bg-card, #ffffff); border: 1.5px solid ${theme.border}; border-radius: 16px; padding: 1.15rem; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                    <span style="font-weight: 900; font-size: 1.05rem; color: var(--accent-purple); font-family: monospace; background: rgba(124, 58, 237, 0.07); padding: 0.25rem 0.65rem; border-radius: 8px; border: 1px solid rgba(124, 58, 237, 0.18); display: inline-flex; align-items: center; gap: 0.4rem;">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${item.time}
+                    </span>
+                    <span class="badge" style="background: ${theme.bg}; color: ${theme.text}; font-size: 0.72rem; font-weight: 800; padding: 0.2rem 0.65rem; border-radius: 12px; border: 1px solid ${theme.border}; display: inline-flex; align-items: center; gap: 0.3rem;">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${theme.iconSvg}</svg> ${theme.badge}
+                    </span>
+                  </div>
+                  <div style="font-weight: 800; font-size: 0.98rem; color: var(--text-color); margin-bottom: 0.35rem; line-height: 1.35;">
+                    ${item.activity}
+                  </div>
+                  <p style="font-size: 0.83rem; color: var(--text-muted, #64748b); margin: 0; line-height: 1.45;">
+                    ${item.desc || ''}
+                  </p>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
       <!-- Plan Section 1: AI Journey Phase Roadmap Grid -->
       <div class="card" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.04), rgba(59, 130, 246, 0.03)); border: 1.5px solid rgba(124, 58, 237, 0.2);">
         <div class="card-header" style="margin-bottom: 1rem;">
@@ -173,7 +238,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         </div>
       </div>
 
-      <!-- Plan Section 2: Journey Day Meal Plan with Day Nav -->
+      <!-- Plan Section 2: Journey Day Meal Plan -->
       <div class="card">
         <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
           <div>
@@ -187,19 +252,6 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
               </span>
               <span class="text-xs text-muted">· Chi phí: <b style="color: var(--accent-purple);">${totalMealCost.toLocaleString('vi-VN')} VNĐ</b> · Calo: <b>${totalMealCalories} kcal</b></span>
             </div>
-          </div>
-
-          <!-- Journey Day Navigation Bar -->
-          <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-subtle); padding: 0.4rem 0.8rem; border-radius: var(--radius-full); border: 1px solid var(--border-highlight);">
-            <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-prev" title="Ngày trước" style="width: 32px; height: 32px;" ${selectedJourneyDay <= 1 ? 'disabled' : ''}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <span style="font-weight: 800; font-size: 0.9rem; color: var(--accent-purple); min-width: 90px; text-align: center;">
-              ${renderCalendarIcon()} Ngày ${selectedJourneyDay}
-            </span>
-            <button class="btn btn-secondary btn-icon btn-sm" id="btn-plan-day-next" title="Ngày tiếp theo" style="width: 32px; height: 32px;" ${selectedJourneyDay >= totalJourneyDays ? 'disabled' : ''}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
           </div>
         </div>
 

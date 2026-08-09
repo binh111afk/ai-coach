@@ -53,7 +53,7 @@ BẤT CỨ KHI NÀO người dùng yêu cầu hoặc bạn muốn đề xuất B
 {
   "proposedChange": {
     "id": "prop_1700000000000",
-    "type": "UPDATE_GOAL (hoặc LOG_MEAL, LOG_WORKOUT, UPDATE_WATER_GOAL, GENERATE_CHECKLIST, LOG_PROGRESS_PHOTO, UPDATE_PHOTO_TAG, COMPARE_PHOTOS)",
+    "type": "UPDATE_GOAL (hoặc LOG_MEAL, LOG_WORKOUT, UPDATE_WATER_GOAL, GENERATE_CHECKLIST, LOG_PROGRESS_PHOTO, UPDATE_PHOTO_TAG, COMPARE_PHOTOS, UPDATE_DAILY_SCHEDULE)",
     "title": "Tiêu đề mô tả thay đổi",
     "details": [
       { "field": "Tên chỉ số", "from": "Giá trị cũ", "to": "Giá trị mới" }
@@ -84,8 +84,11 @@ BẤT CỨ KHI NÀO người dùng yêu cầu hoặc bạn muốn đề xuất B
 6. UPDATE_PHOTO_TAG (Cập nhật thông tin / Ngày hành trình của Ảnh Tiến Trình):
 "payload": { "journeyDay": 1, "note": "Gán nhãn Ảnh Tiến Trình Ngày 1" }
 
+7. UPDATE_DAILY_SCHEDULE (Cập nhật mốc giờ lịch trình sinh hoạt 24h):
+"payload": { "dailySchedule": [{ "time": "06:00", "activity": "Thức dậy sớm", "category": "habit", "icon": "sun", "desc": "Mô tả..." }] }
+
 [QUY TẮC NGHIÊM NGẶT: THÀNH THẬT VỀ NĂNG LỰC HỆ THỐNG (HONESTY DIRECTIVE)]
-1. Bạn CÓ THỂ tác động và thay đổi các dữ liệu: Bữa ăn, Bài tập, Mục tiêu Calo/Nước/Cân nặng, Checklist và KHO ẢNH TIẾN TRÌNH.
+1. Bạn CÓ THỂ tác động và thay đổi các dữ liệu: Bữa ăn, Bài tập, Mục tiêu Calo/Nước/Cân nặng, Lịch trình 24h (dailySchedule), Checklist và KHO ẢNH TIẾN TRÌNH.
 2. Nếu người dùng yêu cầu một tính năng HOÀN TOÀN KHÔNG CÓ TRONG HỆ THỐNG (ví dụ: chuyển tiền ngân hàng, mua hàng sắm đồ online, đặt lịch khám bác sĩ ngoài đời real-time, điều khiển thiết bị nhà thông minh...):
    - Bạn PHẢI THÀNH THẬT NÓI RẰNG: "Rất tiếc, tôi chưa có tính năng [tên tính năng]. Tôi là AI Coach hỗ trợ quản lý dinh dưỡng, tập luyện, chỉ số sức khỏe và Kho Ảnh tiến trình."
    - TUYỆT ĐỐI KHÔNG tự bịa ra Thẻ xác nhận giả (proposedChange) hoặc hứa hẹn làm những việc hệ thống không có khả năng thực thi.
@@ -204,35 +207,23 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       'Phase 4 (Ngày 85+): Giai đoạn Duy Trì — biến thể mới, duy trì thành quả và phòng chống cao nguyên'
     ].slice(0, numPhases).join('\n');
 
-    const phasesExampleJson = Array.from({ length: numPhases }, (_, i) => ({
-      phaseIndex: i,
-      phaseLabel: `Phase ${i + 1}`,
-      startDay: i * 28 + 1,
-      endDay: Math.min((i + 1) * 28, totalDays),
-      weeklyMealPlan: {
-        "day1": { dayName: "Thứ 2", meals: [
-          { type: "Breakfast", name: "Ví dụ", calories: 350, protein: 20, carb: 40, fat: 10, costVnd: 25000 },
-          { type: "Lunch", name: "Ví dụ", calories: 500, protein: 35, carb: 55, fat: 12, costVnd: 45000 },
-          { type: "Dinner", name: "Ví dụ", calories: 420, protein: 30, carb: 35, fat: 11, costVnd: 35000 },
-          { type: "Snack", name: "Ví dụ", calories: 150, protein: 6, carb: 20, fat: 4, costVnd: 10000 }
-        ]}
-      },
-      weeklyWorkoutRoutine: [
-        { day: "Thứ 2", title: "Ví dụ", duration: 45, estBurn: 320, type: "Resistive", instructions: "..." }
-      ]
-    }));
+    const allergyRule = profileData.foodAllergies
+      ? `\n⚠️ TUYỆT ĐỐI KHÔNG dùng các thực phẩm sau trong BẤT KỲ bữa ăn nào: ${profileData.foodAllergies}.`
+      : '';
+    const waterTarget = goalData.waterTarget || 2000;
+    const calorieTarget = goalData.dailyCalorieTarget || 1800;
+    const proteinTarget = goalData.macroTarget?.protein || 120;
+    const allergyDisplay = profileData.foodAllergies || 'không có dị ứng';
+
+    const prefWorkoutTimesStr = (goalData.preferredWorkoutTimes && goalData.preferredWorkoutTimes.length > 0)
+      ? goalData.preferredWorkoutTimes.join(', ')
+      : (profileData.preferredWorkoutTimes && profileData.preferredWorkoutTimes.length > 0)
+        ? profileData.preferredWorkoutTimes.join(', ')
+        : '17:30 - 18:30 (Mặc định)';
+
+    const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.\nHãy sinh kế hoạch TOÀN BỘ hành trình ${totalDays} ngày gồm ${numPhases} giai đoạn (phase) cho người dùng:\n- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm\n- Cân nặng hiện tại: ${profileData.currentWeight}kg → mục tiêu: ${goalData.targetWeight}kg\n- Mục tiêu calo/ngày: ${calorieTarget} kcal\n- Macro: Protein ${proteinTarget}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g\n- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}${allergyRule}\n- Khung giờ tập luyện người dùng chọn: ${prefWorkoutTimesStr}\n\nYÊU CẦU TỪNG PHASE:\n${phaseDescriptions}\n\nQUY TẮC:\n1. Mỗi phase có weeklyMealPlan 7 ngày (day1→day7) với 4 bữa/ngày (Breakfast, Lunch, Dinner, Snack), NỘI DUNG KHÁC NHAU HOÀN TOÀN giữa các phase.\n2. Mỗi phase có weeklyWorkoutRoutine 7 bài (kể cả 1-2 ngày nghỉ phục hồi), khác nhau giữa các phase.\n3. Calo mỗi ngày phải gần đúng mục tiêu (±100 kcal).\n4. Thực đơn phải đa dạng, không lặp ngày giống nhau trong cùng 1 phase.\n5. Tên món ăn phải là tiếng Việt cụ thể và thực tế.\n6. TUYỆT ĐỐI không dùng thực phẩm bị kiêng/dị ứng: ${profileData.foodAllergies || 'Không có'}.\n7. Mỗi phase phải có dailyChecklist (5-7 việc cần làm mỗi ngày, phù hợp cường độ phase đó, cụ thể hoá với mục tiêu ${calorieTarget} kcal, ${proteinTarget}g protein, ${waterTarget}ml nước, né ${allergyDisplay}).\n8. Mỗi phase phải có dailySchedule là lịch trình mốc thời gian trong ngày. QUY TẮC BẮT BUỘC: Hoạt động tập luyện (category: "workout") BẮT BUỘC phải đặt mốc giờ khớp đúng với khung giờ người dùng đã chọn (${prefWorkoutTimesStr}), dạng array gồm { "time": "07:30", "activity": "Ten hoat dong", "category": "meal"|"workout"|"habit", "icon": "coffee"|"dumbbell"|"sun"|"moon"|"droplet"|"apple"|"utensils", "desc": "Mo ta chi tiet" }.\n\nTrả về ĐÚNG JSON object duy nhất:`;
 
     try {
-      const allergyRule = profileData.foodAllergies
-        ? `\n⚠️ TUYỆT ĐỐI KHÔNG dùng các thực phẩm sau trong BẤT KỲ bữa ăn nào: ${profileData.foodAllergies}.`
-        : '';
-      const waterTarget = goalData.waterTarget || 2000;
-      const calorieTarget = goalData.dailyCalorieTarget || 1800;
-      const proteinTarget = goalData.macroTarget?.protein || 120;
-      const allergyDisplay = profileData.foodAllergies || 'không có dị ứng';
-
-      const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.\nHãy sinh kế hoạch TOÀN BỘ hành trình ${totalDays} ngày gồm ${numPhases} giai đoạn (phase) cho người dùng:\n- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm\n- Cân nặng hiện tại: ${profileData.currentWeight}kg → mục tiêu: ${goalData.targetWeight}kg\n- Mục tiêu calo/ngày: ${calorieTarget} kcal\n- Macro: Protein ${proteinTarget}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g\n- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}${allergyRule}\n\nYÊU CẦU TỪNG PHASE:\n${phaseDescriptions}\n\nQUY TẮC:\n1. Mỗi phase có weeklyMealPlan 7 ngày (day1→day7) với 4 bữa/ngày (Breakfast, Lunch, Dinner, Snack), NỘI DUNG KHÁC NHAU HOÀN TOÀN giữa các phase.\n2. Mỗi phase có weeklyWorkoutRoutine 7 bài (kể cả 1-2 ngày nghỉ phục hồi), khác nhau giữa các phase.\n3. Calo mỗi ngày phải gần đúng mục tiêu (±100 kcal).\n4. Thực đơn phải đa dạng, không lặp ngày giống nhau trong cùng 1 phase.\n5. Tên món ăn phải là tiếng Việt cụ thể và thực tế.\n6. TUYỆT ĐỐI không dùng thực phẩm bị kiêng/dị ứng: ${profileData.foodAllergies || 'Không có'}.\n7. Mỗi phase phải có dailyChecklist (5-7 việc cần làm mỗi ngày, phù hợp cường độ phase đó, cụ thể hoá với mục tiêu ${calorieTarget} kcal, ${proteinTarget}g protein, ${waterTarget}ml nước, né ${allergyDisplay}).\n\nTrả về ĐÚNG JSON object duy nhất:\n\`\`\`json\n{\n  "journeyPhases": [\n    {\n      "phaseIndex": 0,\n      "phaseLabel": "Phase 1 - Thích Nghi (Tuần 1-4)",\n      "startDay": 1,\n      "endDay": 28,\n      "dailyChecklist": [\n        { "id": "ch_water", "task": "Uong du nuoc muc tieu", "done": false },\n        { "id": "ch_calo", "task": "An du calo muc tieu", "done": false },\n        { "id": "ch_workout", "task": "Hoan thanh bai tap hom nay", "done": false },\n        { "id": "ch_protein", "task": "Nap du protein", "done": false },\n        { "id": "ch_log", "task": "Ghi nhat ky bua an", "done": false },\n        { "id": "ch_sleep", "task": "Ngu du 7-8 tieng", "done": false }\n      ],\n      "weeklyMealPlan": {\n        "day1": { "dayName": "Thu 2", "breakfast": { "name": "Ten mon sang", "calories": 350, "protein": 20, "carb": 40, "fat": 10, "costVnd": 25000, "isDirectEat": false }, "lunch": { "name": "Ten mon trua", "calories": 500, "protein": 35, "carb": 55, "fat": 12, "costVnd": 45000, "isDirectEat": false }, "dinner": { "name": "Ten mon toi", "calories": 420, "protein": 30, "carb": 35, "fat": 11, "costVnd": 35000, "isDirectEat": false }, "snack": { "name": "Bua phu", "calories": 150, "protein": 6, "carb": 20, "fat": 4, "costVnd": 10000, "isDirectEat": true } },\n        "day2": { "dayName": "Thu 3", "breakfast": {}, "lunch": {}, "dinner": {}, "snack": {} },\n        "day3": { "dayName": "Thu 4" },\n        "day4": { "dayName": "Thu 5" },\n        "day5": { "dayName": "Thu 6" },\n        "day6": { "dayName": "Thu 7" },\n        "day7": { "dayName": "Chu Nhat" }\n      },\n      "weeklyWorkoutRoutine": [\n        { "day": "Thu 2", "title": "Ten bai tap", "duration": 45, "estBurn": 320, "type": "Resistive", "instructions": "1. Buoc 1..." },\n        { "day": "Thu 3", "title": "Bai tap 2", "duration": 40, "estBurn": 280, "type": "Cardio", "instructions": "..." },\n        { "day": "Thu 4", "title": "Bai tap 3", "duration": 45, "estBurn": 300, "type": "Resistive", "instructions": "..." },\n        { "day": "Thu 5", "title": "Nghi Phuc Hoi", "duration": 0, "estBurn": 0, "type": "Rest", "instructions": "Nghi ngoi." },\n        { "day": "Thu 6", "title": "Bai tap 4", "duration": 50, "estBurn": 350, "type": "Resistive", "instructions": "..." },\n        { "day": "Thu 7", "title": "Bai tap 5", "duration": 30, "estBurn": 200, "type": "Cardio", "instructions": "..." },\n        { "day": "Chu Nhat", "title": "Nghi Ngoi Hoan Toan", "duration": 0, "estBurn": 0, "type": "Rest", "instructions": "Nghi ngoi." }\n      ]\n    }\n  ]\n}\n\`\`\``;
-
       const response = await fetch(CONFIG.NINEROUTER_BASE_URL, {
         method: 'POST',
         signal: controller.signal,
@@ -256,8 +247,32 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         return null;
       }
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
+      // Handle both plain JSON and SSE streaming ("data: {...}" lines)
+      let content = '';
+      const rawText = await response.text();
+      if (rawText.trim().startsWith('data:')) {
+        // SSE format: aggregate all data lines
+        const lines = rawText.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const chunk = line.slice(5).trim();
+          if (chunk === '[DONE]') break;
+          try {
+            const chunkObj = JSON.parse(chunk);
+            content += chunkObj.choices?.[0]?.delta?.content || chunkObj.choices?.[0]?.message?.content || '';
+          } catch { /* skip malformed chunks */ }
+        }
+      } else {
+        // Plain JSON format
+        try {
+          const data = JSON.parse(rawText);
+          content = data.choices?.[0]?.message?.content || '';
+        } catch {
+          console.warn('⚠️ [AI Journey Plan] Could not parse API response as JSON:', rawText.slice(0, 200));
+          return null;
+        }
+      }
+
       const jsonMatch = content.match(/```(?:json|JSON)?\s*([\s\S]*?)\s*```/);
       const jsonStr = jsonMatch ? jsonMatch[1] : content.match(/\{[\s\S]*\}/)?.[0];
 
@@ -310,6 +325,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       return {
         weeklyMealPlan: dateKeyedMealPlan,
         weeklyWorkoutRoutine: firstPhase.weeklyWorkoutRoutine || [],
+        dailySchedule: firstPhase.dailySchedule || null,
         journeyPhases: normalizedPhases
       };
 
