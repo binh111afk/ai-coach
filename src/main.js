@@ -23,6 +23,8 @@ const TAB_ORDER = ['dashboard', 'plan', 'meals', 'workouts', 'photos', 'gamifica
 let currentTab = 'dashboard';
 let prevTab = 'dashboard';
 
+import { showStreakOverlay } from './components/StreakOverlay.js';
+
 async function initApp() {
   await DataService.preloadAllData();
 
@@ -54,6 +56,18 @@ async function initApp() {
     // Callback when AI proposed changes are approved by user
     await refreshAllViews();
   });
+
+  // Check if first visit of the day to show Fire Streak Celebration Overlay
+  const todayStr = DataService.getTodayString();
+  const lastCelebrated = localStorage.getItem('last_streak_celebration_date');
+  if (lastCelebrated !== todayStr) {
+    localStorage.setItem('last_streak_celebration_date', todayStr);
+    const progress = await DataService.getUserProgress();
+    const streakCount = Math.max(1, progress.currentStreak || 1);
+    setTimeout(() => {
+      showStreakOverlay(streakCount);
+    }, 700);
+  }
 }
 
 async function handleTabChange(tab) {
