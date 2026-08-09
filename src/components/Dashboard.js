@@ -273,10 +273,11 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     // Render AI Progress Evaluation Summary Widget
     await renderAiSummaryWidget('dashboard-ai-summary-container');
 
-    // Render ApexCharts
-    const allLogs = [todayLog];
-    renderWeightChart('chart-weight-trend', allLogs, targetW);
-    renderCalorieChart('chart-calorie-io', allLogs, calorieTarget);
+    // Render ApexCharts with complete daily logs history
+    const allLogs = await DataService.getAllDailyLogs();
+    const historyLogs = allLogs.length > 0 ? allLogs : [todayLog];
+    renderWeightChart('chart-weight-trend', historyLogs, targetW);
+    renderCalorieChart('chart-calorie-io', historyLogs, calorieTarget);
     renderMacroChart('chart-macro-doughnut', { protein: currentProtein, carb: currentCarb, fat: currentFat }, goal.macroTarget);
 
     // Handlers

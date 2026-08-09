@@ -244,11 +244,15 @@ export async function renderPhotoVault() {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
 
-    // Teleport popup modals to document.body to break out of parent CSS transform containing block
+    // Teleport popup modals to document.body safely without creating duplicate DOM nodes
     ['upload-photo-modal', 'compare-photos-modal', 'lightbox-photo-modal'].forEach(modalId => {
-      const el = document.getElementById(modalId);
-      if (el && el.parentElement !== document.body) {
-        document.body.appendChild(el);
+      const existingInBody = document.body.querySelector(`#${modalId}`);
+      const newInMount = mountNode.querySelector(`#${modalId}`);
+      if (existingInBody) {
+        existingInBody.remove();
+      }
+      if (newInMount) {
+        document.body.appendChild(newInMount);
       }
     });
 
@@ -354,6 +358,9 @@ export async function renderPhotoVault() {
       });
 
       if (confirmed) {
+        if (activeComparisonResult && (activeComparisonResult.photoA?.id === targetPhoto.id || activeComparisonResult.photoB?.id === targetPhoto.id)) {
+          activeComparisonResult = null;
+        }
         await DataService.deletePhoto(targetPhoto.id);
         renderPhotoVault();
       }
@@ -372,6 +379,9 @@ export async function renderPhotoVault() {
           cancelText: 'Hủy Bỏ'
         });
         if (confirmed) {
+          if (activeComparisonResult && (activeComparisonResult.photoA?.id === id || activeComparisonResult.photoB?.id === id)) {
+            activeComparisonResult = null;
+          }
           const photoCard = btn.closest('.photo-card');
           if (photoCard) {
             photoCard.classList.add('item-deleting');

@@ -194,10 +194,30 @@ export async function renderWorkoutTracker() {
         });
       }
 
-      const parsed = await AiCoachService.smartLocalFallback(prompt);
-      if (parsed.proposedChange && parsed.proposedChange.payload) {
-        await DataService.addWorkoutLog(todayLog.date, parsed.proposedChange.payload.workout);
-        renderWorkoutTracker();
+      const btn = document.getElementById('btn-quick-parse-workout');
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> Đang tính toán...`;
+
+      try {
+        const fullPrompt = `Hãy đóng vai HLV thể hình, phân tích câu sau: "${prompt}". Hãy ước tính tên bài tập (type), thời lượng phút (duration), và số calo tiêu hao (caloriesBurned) dựa trên cân nặng ${profile.currentWeight}kg.`;
+        const res = await AiCoachService.sendMessage(fullPrompt);
+        if (res.proposedChange && res.proposedChange.payload && res.proposedChange.payload.workout) {
+          await DataService.addWorkoutLog(todayLog.date, res.proposedChange.payload.workout);
+          confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+          renderWorkoutTracker();
+        } else {
+          const fallback = await AiCoachService.smartLocalFallback(prompt);
+          if (fallback.proposedChange && fallback.proposedChange.payload) {
+            await DataService.addWorkoutLog(todayLog.date, fallback.proposedChange.payload.workout);
+            confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+            renderWorkoutTracker();
+          }
+        }
+      } catch (err) {
+        console.warn('AI Workout parse error:', err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="zap"></i> AI Tính Calo Out`;
       }
     });
 

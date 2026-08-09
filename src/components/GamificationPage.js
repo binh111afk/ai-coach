@@ -229,7 +229,7 @@ export async function renderGamificationPage() {
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
           <div style="font-weight: 900; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.45rem;">
             <i data-lucide="award" style="width: 18px; height: 18px; color: var(--accent-amber);"></i>
-            Tất Cả Huy Hiệu (${progress.badges.length}/${BADGES.length})
+            Tất Cả Huy Hiệu (${progress.badges.length}/${sortedBadges.length})
           </div>
           <button id="btn-close-badges-popup" style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; flex-shrink: 0;">
             <i data-lucide="x" style="width: 16px; height: 16px;"></i>
@@ -260,7 +260,7 @@ export async function renderGamificationPage() {
       if (isExpanded) {
         moreContainerDesktop.classList.remove('is-expanded');
         btnExpandDesktop.classList.remove('is-expanded');
-        if (btnExpandText) btnExpandText.textContent = `Xem thêm ${BADGES.length - 14} huy hiệu còn lại`;
+        if (btnExpandText) btnExpandText.textContent = `Xem thêm ${sortedBadges.length - 14} huy hiệu còn lại`;
       } else {
         moreContainerDesktop.classList.add('is-expanded');
         btnExpandDesktop.classList.add('is-expanded');

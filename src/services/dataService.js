@@ -3,6 +3,28 @@ import { appState } from './appState.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, getLevelInfo, BADGES, checkAndUnlockBadges } from './gamificationService.js';
 import { CONFIG } from '../config.js';
 
+async function compressImageBase64(dataUrl, maxWidth = 800, quality = 0.75) {
+  if (!dataUrl || typeof window === 'undefined' || !dataUrl.startsWith('data:image')) return dataUrl;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.width <= maxWidth) {
+        resolve(dataUrl);
+        return;
+      }
+      const scale = maxWidth / img.width;
+      const canvas = document.createElement('canvas');
+      canvas.width = maxWidth;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export const DataService = {
   // Helper date string YYYY-MM-DD
   getTodayString() {
@@ -56,6 +78,9 @@ export const DataService = {
   },
 
   async saveUserProfile(profile) {
+    if (profile.avatar && profile.avatar.startsWith('data:image')) {
+      profile.avatar = await compressImageBase64(profile.avatar, 400, 0.7);
+    }
     const updated = { ...profile, id: 'current_user' };
     appState.setProfile(updated);
     await dbManager.put('user', updated);
@@ -268,6 +293,11 @@ export const DataService = {
       window.dispatchEvent(new CustomEvent('achievement:unlocked', { detail: { badgeIds: newBadges } }));
     }
     return log;
+  },
+
+  async getAllDailyLogs() {
+    const logs = await dbManager.getAll('daily_logs');
+    return logs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   },
 
   async addMealLog(dateStr, meal) {
@@ -571,6 +601,7 @@ export const DataService = {
 
   async addPhoto(photoDataUrl, weight = null, note = '', customDate = null, journeyDay = null) {
     const today = customDate || this.getTodayString();
+    const compressedUrl = await compressImageBase64(photoDataUrl, 800, 0.75);
     const existingPhotos = await this.getPhotos();
     let photoItem = null;
 
@@ -582,8 +613,8 @@ export const DataService = {
     );
 
     if (existing) {
-      existing.photoDataUrl = photoDataUrl;
-      existing.url = photoDataUrl;
+      existing.photoDataUrl = compressedUrl;
+      existing.url = compressedUrl;
       if (weight) existing.weight = weight;
       if (note) existing.note = note;
       if (customDate) existing.date = customDate;
@@ -596,8 +627,8 @@ export const DataService = {
         id: 'photo_' + Date.now(),
         date: today,
         weight: weight || (await this.getUserProfile()).currentWeight,
-        photoDataUrl,
-        url: photoDataUrl,
+        photoDataUrl: compressedUrl,
+        url: compressedUrl,
         note,
         journeyDay: targetDay,
         createdAt: new Date().toISOString()
@@ -678,12 +709,22 @@ export const DataService = {
     return newSessionId;
   },
 
+  getDeletedChatSessions() {
+    try {
+      return JSON.parse(localStorage.getItem('deleted_chat_sessions') || '[]');
+    } catch {
+      return [];
+    }
+  },
+
   async getChatSessions() {
+    const deletedSessions = this.getDeletedChatSessions();
     const msgs = await dbManager.getAll('chat_history');
-    if (msgs.length === 0) return [];
+    const validMsgs = msgs.filter(m => !deletedSessions.includes(m.sessionId || 'session_default'));
+    if (validMsgs.length === 0) return [];
 
     const sessionsMap = {};
-    msgs.forEach(m => {
+    validMsgs.forEach(m => {
       const sId = m.sessionId || 'session_default';
       if (!sessionsMap[sId]) {
         sessionsMap[sId] = {
@@ -716,6 +757,9 @@ export const DataService = {
 
   async getChatHistory(targetSessionId) {
     const sId = targetSessionId || await this.getCurrentSessionId();
+    const deletedSessions = this.getDeletedChatSessions();
+    if (deletedSessions.includes(sId)) return [];
+
     const msgs = await dbManager.getAll('chat_history');
     const filtered = msgs.filter(m => (m.sessionId || 'session_default') === sId);
 
@@ -746,10 +790,20 @@ export const DataService = {
   },
 
   async deleteChatSession(targetSessionId) {
+    // 1. Blacklist session ID so Cloud sync won't resurrect it
+    let deletedSessions = this.getDeletedChatSessions();
+    if (!deletedSessions.includes(targetSessionId)) {
+      deletedSessions.push(targetSessionId);
+      localStorage.setItem('deleted_chat_sessions', JSON.stringify(deletedSessions));
+    }
+
+    // 2. Delete messages locally and from Cloud Firestore
     const msgs = await dbManager.getAll('chat_history');
     const toDelete = msgs.filter(m => (m.sessionId || 'session_default') === targetSessionId);
     for (const m of toDelete) {
-      await dbManager.delete('chat_history', m.id);
+      if (m.id) {
+        await dbManager.delete('chat_history', m.id);
+      }
     }
   },
 

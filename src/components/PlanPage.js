@@ -512,6 +512,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
     initDropdownListeners(mountNode, (selectedVal, dropdownId) => {
       if (dropdownId === 'plan-workout-dropdown' || !dropdownId) {
         currentWorkoutType = selectedVal;
+        activeWorkoutTypeSelection = selectedVal;
         const equipContainer = document.getElementById('home-equipment-container');
         if (equipContainer) {
           equipContainer.style.display = (selectedVal === 'home') ? 'flex' : 'none';
@@ -668,18 +669,6 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           rdTiktokBtn.href = `https://www.tiktok.com/search?q=${encodeURIComponent('cách nấu ' + activeRecipeMeal.name)}`;
         }
 
-function formatIngredientAmount(amount) {
-  if (!amount) return '';
-  let str = amount.trim();
-  if (str.startsWith('(') && str.endsWith(')')) {
-    str = str.substring(1, str.length - 1).trim();
-  }
-  // Replace inner parentheses with dash: "1 lát (40g)" -> "1 lát - 40g"
-  str = str.replace(/\s*\(([^)]+)\)/g, ' - $1');
-  str = str.replace(/\s*-\s*/g, ' - ');
-  return str;
-}
-
         // Render Ingredients & Prices
         const ingContainer = document.getElementById('rd-modal-ingredients-container');
         if (ingContainer) {
@@ -798,4 +787,15 @@ function renderMealPlanCard(typeKey, title, meal, iconSvg = '') {
       </div>
     </div>
   `;
+}
+
+function formatIngredientAmount(amount) {
+  if (!amount) return '';
+  let str = amount.trim();
+  if (str.startsWith('(') && str.endsWith(')')) {
+    str = str.substring(1, str.length - 1).trim();
+  }
+  str = str.replace(/\s*\(([^)]+)\)/g, ' - $1');
+  str = str.replace(/\s*-\s*/g, ' - ');
+  return str;
 }
