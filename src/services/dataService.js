@@ -717,6 +717,23 @@ export const DataService = {
     }
   },
 
+  getSessionTitle(sessionId) {
+    try {
+      const titlesMap = JSON.parse(localStorage.getItem('ai_chat_session_titles') || '{}');
+      return titlesMap[sessionId] || null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveSessionTitle(sessionId, title) {
+    try {
+      const titlesMap = JSON.parse(localStorage.getItem('ai_chat_session_titles') || '{}');
+      titlesMap[sessionId] = title;
+      localStorage.setItem('ai_chat_session_titles', JSON.stringify(titlesMap));
+    } catch {}
+  },
+
   async getChatSessions() {
     const deletedSessions = this.getDeletedChatSessions();
     const msgs = await dbManager.getAll('chat_history');
@@ -741,6 +758,15 @@ export const DataService = {
     });
 
     const sessions = Object.values(sessionsMap).map(s => {
+      const aiTitle = this.getSessionTitle(s.id);
+      if (aiTitle) {
+        return {
+          id: s.id,
+          title: aiTitle,
+          updatedAt: s.updatedAt,
+          messageCount: s.messages.length
+        };
+      }
       const firstUserMsg = s.messages.find(m => m.role === 'user');
       let title = firstUserMsg ? firstUserMsg.content.replace(/!\[.*?\]\(.*?\)/g, '[Hình ảnh]').replace(/📄.*?\*\*/g, '[PDF]').trim() : 'Đoạn trò chuyện AI';
       if (title.length > 32) title = title.substring(0, 29) + '...';

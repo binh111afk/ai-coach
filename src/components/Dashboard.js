@@ -1,5 +1,5 @@
 import confetti from 'canvas-confetti';
-import { DataService } from '../services/dataService.js';
+import { DataService, getPlanForJourneyDay } from '../services/dataService.js';
 import { renderWeightChart, renderCalorieChart, renderMacroChart } from '../utils/chartUtils.js';
 import { renderAiSummaryWidget } from './AiSummaryWidget.js';
 import { renderCheckbox, initCheckboxListeners } from './ui/Checkbox.js';
@@ -9,8 +9,19 @@ import { Modal } from './ui/Modal.js';
 export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const profile = await DataService.getUserProfile();
   const goal = await DataService.getUserGoal();
+  const plan = await DataService.getUserPlan();
   const todayLog = await DataService.getDailyLog();
   const progress = await DataService.getUserProgress();
+
+  const todayStr = DataService.getTodayString();
+  let currentJourneyDay = 1;
+  if (goal.startDate) {
+    const start = new Date(goal.startDate);
+    const today = new Date(todayStr);
+    currentJourneyDay = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+  }
+
+  const { mealEntry: todayRecommendedMeals, workout: todayRecommendedWorkout, phase: currentPhase } = getPlanForJourneyDay(plan, currentJourneyDay);
 
   // Calorie calculations
   const caloriesIn = todayLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
@@ -158,6 +169,63 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
             </div>
             <div id="chart-calorie-io" style="min-height: 250px;"></div>
           </div>
+
+          <!-- Today AI Recommendation Quick-Log Card -->
+          <div class="card" style="border: 1px solid var(--border-color); background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98)); border-radius: 20px;">
+            <div class="card-header" style="margin-bottom: 0.85rem;">
+              <div>
+                <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); font-size: 1.05rem;">
+                  ${renderGeminiIcon({ width: 18, height: 18, color: 'var(--accent-purple)' })} Gợi Ý Thực Đơn & Tập Luyện AI Hôm Nay (Ngày ${currentJourneyDay})
+                </div>
+                <div class="text-xs text-muted" style="margin-top: 0.2rem;">${currentPhase?.phaseLabel || 'Kế hoạch hành trình'} · Bấm để ghi nhận nhanh vào nhật ký</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="dash-btn-view-full-plan" style="font-size: 0.78rem;">
+                Xem Kế Hoạch ↗
+              </button>
+            </div>
+
+            <!-- 2 Column Layout: Left Meals, Right Workout -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;" class="dash-grid">
+              <!-- Left: 4 Meals Summary -->
+              <div style="background: var(--bg-card); padding: 0.9rem; border-radius: 14px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; gap: 0.6rem;">
+                <div>
+                  <div style="font-size: 0.8rem; font-weight: 800; color: var(--accent-purple); display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                    <span>🥗 Thực Đơn AI Gợi Ý</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">~${(todayRecommendedMeals?.breakfast?.calories || 0) + (todayRecommendedMeals?.lunch?.calories || 0) + (todayRecommendedMeals?.dinner?.calories || 0) + (todayRecommendedMeals?.snack?.calories || 0)} kcal</span>
+                  </div>
+                  <div style="font-size: 0.8rem; line-height: 1.45; color: var(--text-main);">
+                    <div>• <b>Sáng:</b> ${todayRecommendedMeals?.breakfast?.name || 'Chưa chọn'}</div>
+                    <div>• <b>Trưa:</b> ${todayRecommendedMeals?.lunch?.name || 'Chưa chọn'}</div>
+                    <div>• <b>Tối:</b> ${todayRecommendedMeals?.dinner?.name || 'Chưa chọn'}</div>
+                    <div>• <b>Phụ:</b> ${todayRecommendedMeals?.snack?.name || 'Chưa chọn'}</div>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-sm" id="dash-btn-quick-log-meals" style="font-size: 0.78rem; padding: 0.45rem; justify-content: center; width: 100%;">
+                  <i data-lucide="plus-circle" style="width: 14px; height: 14px;"></i> Ghi Nhận Thực Đơn Hôm Nay
+                </button>
+              </div>
+
+              <!-- Right: Today Workout Card -->
+              <div style="background: var(--bg-card); padding: 0.9rem; border-radius: 14px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; gap: 0.6rem;">
+                <div>
+                  <div style="font-size: 0.8rem; font-weight: 800; color: var(--accent-amber); display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+                    <span>🏋️ Lịch Tập AI Gợi Ý</span>
+                    <span class="badge badge-secondary" style="font-size: 0.7rem;">${todayRecommendedWorkout?.duration || 0} phút</span>
+                  </div>
+                  <div style="font-weight: 800; font-size: 0.925rem; color: var(--text-main); line-height: 1.35;">
+                    ${todayRecommendedWorkout?.title || 'Ngày Nghỉ Phục Hồi'}
+                  </div>
+                  <div class="text-xs text-muted" style="margin-top: 0.35rem;">
+                    Đốt ~<b>${todayRecommendedWorkout?.estBurn || 0} kcal</b> Out · Cường độ Moderate
+                  </div>
+                </div>
+
+                <button class="btn btn-secondary btn-sm" id="dash-btn-quick-log-workout" style="font-size: 0.78rem; padding: 0.45rem; justify-content: center; width: 100%;">
+                  <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: var(--accent-green);"></i> Ghi Nhận Hoàn Thành Tập
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Right Column: Widgets -->
@@ -283,6 +351,42 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     // Handlers
     document.getElementById('dash-btn-ai-coach')?.addEventListener('click', onOpenAiCoach);
     document.getElementById('btn-quick-update-journal')?.addEventListener('click', () => onNavigateTab('meals'));
+    document.getElementById('dash-btn-view-full-plan')?.addEventListener('click', () => onNavigateTab('plan'));
+
+    document.getElementById('dash-btn-quick-log-meals')?.addEventListener('click', async () => {
+      const today = DataService.getTodayString();
+      if (todayRecommendedMeals?.breakfast) await DataService.addMealLog(today, { type: 'Breakfast', ...todayRecommendedMeals.breakfast });
+      if (todayRecommendedMeals?.lunch) await DataService.addMealLog(today, { type: 'Lunch', ...todayRecommendedMeals.lunch });
+      if (todayRecommendedMeals?.dinner) await DataService.addMealLog(today, { type: 'Dinner', ...todayRecommendedMeals.dinner });
+      if (todayRecommendedMeals?.snack) await DataService.addMealLog(today, { type: 'Snack', ...todayRecommendedMeals.snack });
+
+      confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+      const updatedLog = await DataService.getDailyLog(today);
+      updateDashboardRealtime(updatedLog);
+      await Modal.success({
+        title: 'Đã Thêm Thực Đơn Hôm Nay!',
+        message: 'Đã ghi nhận đủ 4 bữa ăn của thực đơn gợi ý AI hôm nay vào nhật ký!'
+      });
+    });
+
+    document.getElementById('dash-btn-quick-log-workout')?.addEventListener('click', async () => {
+      if (todayRecommendedWorkout) {
+        const today = DataService.getTodayString();
+        await DataService.addWorkoutLog(today, {
+          type: todayRecommendedWorkout.title || 'Bài tập hôm nay',
+          duration: todayRecommendedWorkout.duration || 30,
+          intensity: 'Moderate',
+          caloriesBurned: todayRecommendedWorkout.estBurn || 250
+        });
+        confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+        const updatedLog = await DataService.getDailyLog(today);
+        updateDashboardRealtime(updatedLog);
+        await Modal.success({
+          title: 'Hoàn Thành Bài Tập!',
+          message: `Đã ghi nhận bài tập "${todayRecommendedWorkout.title}" vào nhật ký hôm nay!`
+        });
+      }
+    });
 
     // Smooth Water Tracker Animation Handler
     function animateWaterUpdate(newMl, waterTarget) {

@@ -746,9 +746,56 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
     }
 
     return {
-      role: "assistant",
+      role: 'assistant',
       content: replyText,
       proposedChange
     };
+  },
+
+  /**
+   * Generates a smart 3-5 word Vietnamese session title for the chat session using AI
+   */
+  async generateSessionTitle(userMessage = '', aiResponseContent = '') {
+    if (!userMessage) return 'Đoạn trò chuyện AI';
+    try {
+      const apiKey = await DataService.getNinerouterApiKey();
+      const endpoint = getApiEndpoint();
+      const promptText = `Hãy đóng vai AI tóm tắt, đọc câu sau và đặt 1 tiêu đề ngắn gọn (từ 3 đến 5 từ tiếng Việt, không dùng dấu ngoặc kép hay từ thừa) thể hiện đúng chủ đề chính:\nNgười dùng hỏi: "${userMessage.substring(0, 150)}"\nAI trả lời: "${(aiResponseContent || '').substring(0, 150)}"`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": CONFIG.APP_NAME,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: await DataService.getSelectedModel(),
+          messages: [{ role: "user", content: promptText }],
+          temperature: 0.4,
+          max_tokens: 30
+        })
+      });
+
+      if (response.ok) {
+        const rawText = await response.text();
+        let clean = rawText.replace(/data:\s*/g, '').replace(/\[DONE\]/g, '').trim();
+        try {
+          const parsed = JSON.parse(clean);
+          clean = parsed.choices?.[0]?.message?.content || parsed.choices?.[0]?.delta?.content || clean;
+        } catch {}
+
+        clean = clean.replace(/^Tiêu đề:\s*/i, '').replace(/["'«»\n\r]/g, '').trim();
+        if (clean && clean.length <= 40) {
+          return clean;
+        }
+      }
+    } catch (e) {
+      console.warn('AI Session Title Generation warn:', e.message);
+    }
+    // Smart fallback title
+    let fallback = userMessage.replace(/!\[.*?\]\(.*?\)/g, '[Hình ảnh]').replace(/📄.*?\*\*/g, '[PDF]').trim();
+    return fallback.length > 30 ? fallback.substring(0, 27) + '...' : fallback || 'Đoạn trò chuyện AI';
   }
 };

@@ -317,7 +317,18 @@ export async function renderAiChatPage(onStateUpdated) {
       inputText.focus();
       DataService.awardAiCoachXp().catch(() => {});
       await refreshMessages(container, activeSessionId, onStateUpdated);
-      await buildSidebar();
+
+      // Asynchronously generate AI title for this session if not set yet
+      if (!DataService.getSessionTitle(activeSessionId)) {
+        AiCoachService.generateSessionTitle(promptText, aiResponse.content).then(async (aiTitle) => {
+          if (aiTitle) {
+            DataService.saveSessionTitle(activeSessionId, aiTitle);
+            await buildSidebar();
+          }
+        }).catch(() => {});
+      } else {
+        await buildSidebar();
+      }
     };
 
     sendBtn?.addEventListener('click', sendMessageHandler);
