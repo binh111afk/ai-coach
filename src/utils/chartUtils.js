@@ -21,8 +21,8 @@ export function renderWeightChart(canvasId, dailyLogs = [], targetWeight = 65) {
   // Clear canvas tag if any, replace with div container if needed
   container.innerHTML = '';
 
-  const labels = dailyLogs.map(l => l.date).reverse();
-  const weights = dailyLogs.map(l => l.weight || null).reverse();
+  const labels = dailyLogs.map(l => l.date);
+  const weights = dailyLogs.map(l => l.weight || null);
   const targetLines = labels.map(() => targetWeight);
 
   const options = {
@@ -128,9 +128,9 @@ export function renderCalorieChart(canvasId, dailyLogs = [], targetCalorie = 200
   destroyExistingChart(canvasId);
   container.innerHTML = '';
 
-  const labels = dailyLogs.map(l => l.date).reverse();
-  const calIn = dailyLogs.map(l => l.meals.reduce((sum, m) => sum + (m.calories || 0), 0)).reverse();
-  const calOut = dailyLogs.map(l => l.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0)).reverse();
+  const labels = dailyLogs.map(l => l.date);
+  const calIn = dailyLogs.map(l => l.meals.reduce((sum, m) => sum + (m.calories || 0), 0));
+  const calOut = dailyLogs.map(l => l.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0));
 
   const options = {
     series: [
