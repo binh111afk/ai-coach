@@ -71,10 +71,39 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.9), rgba(251, 250, 255, 0.9)); border: 1px solid var(--border-highlight); position: relative; overflow: hidden;">
         <div style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr); gap: 1.5rem; align-items: center;" class="dash-grid">
           <div>
-            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-              <span class="badge badge-primary"><i data-lucide="calendar"></i> ${dateFormatted}</span>
-              <span class="badge badge-secondary"><i data-lucide="sparkles"></i> Lv. ${progress.level} · ${progress.totalXp} XP</span>
-              <span class="badge badge-blue"><i data-lucide="flame"></i> Streak: ${progress.currentStreak} Ngày</span>
+            <div class="status-badges-v2">
+              <!-- Date – Indigo -->
+              <div class="status-badge date">
+                <div class="icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                </div>
+                <span class="text">${dateFormatted}</span>
+              </div>
+
+              <!-- Level – Vàng -->
+              <div class="status-badge level">
+                <div class="icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
+                  </svg>
+                </div>
+                <span class="text">Lv. ${progress.level} · ${progress.totalXp} XP</span>
+              </div>
+
+              <!-- Streak – Lửa tím -->
+              <div class="status-badge streak">
+                <div class="icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 23c-4.5 0-7-3.2-7-7 0-2.8 1.5-5 3-6.5.4 2.5 1.8 3.8 1.8 3.8C9.2 9.5 10.5 5 12 2c2 3.5 3 7 3 10 0 0 2-1.2 2-4 2 2 3 4.5 3 7.5 0 3.8-2.5 7-8 7z"/>
+                  </svg>
+                </div>
+                <span class="text">Streak: ${progress.currentStreak} Ngày</span>
+              </div>
             </div>
             
             <h1 style="font-size: 1.85rem; font-weight: 900; color: var(--text-main); margin-bottom: 0.5rem;">

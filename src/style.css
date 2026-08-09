@@ -4235,3 +4235,230 @@ body.dark .streak-sub {
   color: #94a3b8;
   animation: fadeUp 0.5s ease 1s both;
 }
+
+/* ===== STATUS BADGES – Glass Glow v2 ===== */
+.status-badges-v2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 4px 16px rgba(99, 102, 241, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+body.dark .status-badge {
+  background: rgba(30, 24, 52, 0.65);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.status-badge:hover {
+  transform: translateY(-3px) scale(1.03);
+}
+
+.status-badge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  animation: badgeShine 4s ease-in-out infinite;
+}
+
+@keyframes badgeShine {
+  0% { left: -80%; }
+  30%, 100% { left: 130%; }
+}
+
+.status-badge .icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.status-badge .icon svg {
+  width: 14px;
+  height: 14px;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+.status-badge .icon::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  filter: blur(6px);
+  z-index: 0;
+  animation: iconGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes iconGlow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.15); }
+}
+
+.status-badge .text {
+  position: relative;
+  z-index: 1;
+  letter-spacing: -0.01em;
+}
+
+/* ===== DATE – Indigo ===== */
+.status-badge.date {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(238, 242, 255, 0.7);
+  box-shadow:
+    0 4px 16px rgba(99, 102, 241, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+body.dark .status-badge.date {
+  background: rgba(30, 35, 75, 0.7);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.status-badge.date .icon {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.45);
+}
+
+.status-badge.date .icon::before {
+  background: #818cf8;
+}
+
+.status-badge.date .text {
+  color: #4338ca;
+  font-weight: 700;
+}
+
+body.dark .status-badge.date .text {
+  color: #a5b4fc;
+}
+
+.status-badge.date:hover {
+  box-shadow:
+    0 8px 28px rgba(99, 102, 241, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ===== LEVEL – Vàng ===== */
+.status-badge.level {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(254, 243, 199, 0.65);
+}
+
+body.dark .status-badge.level {
+  background: rgba(45, 32, 15, 0.7);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.status-badge.level .icon {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+}
+
+.status-badge.level .icon::before {
+  background: #fbbf24;
+}
+
+.status-badge.level .text {
+  color: #b45309;
+  font-weight: 700;
+}
+
+body.dark .status-badge.level .text {
+  color: #fde047;
+}
+
+.status-badge.level:hover {
+  box-shadow:
+    0 8px 28px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ===== STREAK – Lửa tím ===== */
+.status-badge.streak {
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(245, 243, 255, 0.7);
+  box-shadow:
+    0 4px 20px rgba(124, 58, 237, 0.15),
+    0 0 0 1px rgba(167, 139, 250, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+body.dark .status-badge.streak {
+  background: rgba(35, 22, 60, 0.7);
+  border-color: rgba(167, 139, 250, 0.4);
+}
+
+.status-badge.streak .icon {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  box-shadow:
+    0 2px 12px rgba(124, 58, 237, 0.5),
+    0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+.status-badge.streak .icon::before {
+  background: #a78bfa;
+  opacity: 0.6;
+}
+
+.status-badge.streak .text {
+  color: #6d28d9;
+  font-weight: 700;
+}
+
+body.dark .status-badge.streak .text {
+  color: #ddd6fe;
+}
+
+.status-badge.streak:hover {
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow:
+    0 8px 32px rgba(124, 58, 237, 0.25),
+    0 0 40px rgba(139, 92, 246, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.status-badge.streak .icon::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #e9d5ff;
+  top: -2px;
+  right: 2px;
+  box-shadow: 0 0 6px #c4b5fd;
+  animation: spark 1.8s ease-in-out infinite;
+}
