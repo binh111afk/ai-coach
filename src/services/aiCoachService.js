@@ -106,6 +106,198 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
   },
 
   /**
+   * Dedicated Natural Language Food Parser
+   */
+  async parseMealText(userText) {
+    if (!userText || !userText.trim()) return null;
+    const text = userText.toLowerCase().trim();
+
+    // 1. Detect Meal Type (Breakfast, Lunch, Dinner, Snack)
+    let type = "Breakfast";
+    if (text.includes("trưa") || text.includes("trua") || text.includes("lunch")) {
+      type = "Lunch";
+    } else if (text.includes("tối") || text.includes("toi") || text.includes("dinner")) {
+      type = "Dinner";
+    } else if (text.includes("phụ") || text.includes("phu") || text.includes("snack") || text.includes("xế")) {
+      type = "Snack";
+    } else if (text.includes("sáng") || text.includes("sang") || text.includes("breakfast")) {
+      type = "Breakfast";
+    } else {
+      const hour = new Date().getHours();
+      if (hour >= 11 && hour < 15) type = "Lunch";
+      else if (hour >= 15 && hour < 17) type = "Snack";
+      else if (hour >= 17) type = "Dinner";
+      else type = "Breakfast";
+    }
+
+    // 2. Clean food name (remove prefixes like "sáng ăn", "trưa ăn", "tối ăn")
+    let cleanName = userText
+      .replace(/^(hôm nay|bữa sáng|bữa trưa|bữa tối|bữa phụ|sáng|trưa|tối|phụ|nhật ký)?\s*(tôi|mình)?\s*(ăn|uống|nạp|dùng)\s*/i, '')
+      .replace(/^(vào bữa sáng|vào bữa trưa|vào bữa tối|vào bữa phụ|cho bữa sáng|cho bữa trưa|cho bữa tối|cho bữa phụ)\s*/i, '')
+      .trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      cleanName = userText.trim();
+    }
+    cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+
+    // 3. Smart Calorie & Macro Estimation
+    let calories = 350, protein = 25, carb = 35, fat = 10;
+
+    if (text.includes("trứng") && (text.includes("chiên") || text.includes("ốp la") || text.includes("rán"))) {
+      const countMatch = text.match(/(\d+)\s*(quả|trái|cái)/i);
+      const count = countMatch ? parseInt(countMatch[1]) : 2;
+      calories = Math.round(count * 110);
+      protein = Math.round(count * 7);
+      carb = Math.round(count * 1);
+      fat = Math.round(count * 8);
+    } else if (text.includes("trứng") && text.includes("luộc")) {
+      const countMatch = text.match(/(\d+)\s*(quả|trái|cái)/i);
+      const count = countMatch ? parseInt(countMatch[1]) : 2;
+      calories = Math.round(count * 75);
+      protein = Math.round(count * 6.5);
+      carb = 0;
+      fat = Math.round(count * 5);
+    } else if (text.includes("gà rán") || text.includes("kfc") || text.includes("lotteria")) {
+      calories = 580; protein = 32; carb = 38; fat = 32;
+    } else if (text.includes("ức gà") || text.includes("gà luộc") || text.includes("gà áp chảo")) {
+      calories = 380; protein = 45; carb = 20; fat = 6;
+    } else if (text.includes("bún") || text.includes("phở") || text.includes("hủ tiếu")) {
+      calories = 520; protein = 22; carb = 65; fat = 16;
+    } else if (text.includes("cơm tấm") || text.includes("sườn")) {
+      calories = 650; protein = 30; carb = 75; fat = 22;
+    } else if (text.includes("bánh mì")) {
+      calories = 350; protein = 14; carb = 48; fat = 12;
+    } else if (text.includes("salad") || text.includes("rau")) {
+      calories = 180; protein = 8; carb = 15; fat = 8;
+    } else if (text.includes("sữa") || text.includes("whey")) {
+      calories = 160; protein = 25; carb = 8; fat = 3;
+    }
+
+    const explicitCal = text.match(/(\d+)\s*(kcal|calo)/i);
+    if (explicitCal) calories = parseInt(explicitCal[1]);
+
+    // Try AI API call if API key exists
+    const apiKey = await DataService.getNinerouterApiKey();
+    if (apiKey) {
+      try {
+        const endpoint = getApiEndpoint();
+        const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
+        const aiPrompt = `Phân tích món ăn: "${userText}". Trả về CHÍNH XÁC JSON duy nhất dạng: {"type": "Breakfast"|"Lunch"|"Dinner"|"Snack", "name": "Tên món ngắn gọn", "calories": number, "protein": number, "carb": number, "fat": number}`;
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [{ role: "user", content: aiPrompt }],
+            temperature: 0.2
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.choices?.[0]?.message?.content || '';
+          const match = content.match(/\{[\s\S]*?\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            if (parsed.name && parsed.calories) {
+              return {
+                type: parsed.type || type,
+                name: parsed.name,
+                calories: parseInt(parsed.calories) || calories,
+                protein: parseInt(parsed.protein) || protein,
+                carb: parseInt(parsed.carb) || carb,
+                fat: parseInt(parsed.fat) || fat
+              };
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('AI NLP Meal Parse failed, using local parser:', err);
+      }
+    }
+
+    return { type, name: cleanName, calories, protein, carb, fat };
+  },
+
+  /**
+   * Dedicated Natural Language Workout Parser
+   */
+  async parseWorkoutText(userText, userWeight = 65) {
+    if (!userText || !userText.trim()) return null;
+    const text = userText.toLowerCase().trim();
+
+    const durationMatch = text.match(/(\d+)\s*(phút|p|min)/i);
+    const duration = durationMatch ? parseInt(durationMatch[1]) : 30;
+
+    let type = "Tập luyện tổng hợp";
+    let met = 5.0;
+
+    if (text.includes("chạy")) { type = "Chạy bộ"; met = 8.0; }
+    else if (text.includes("gym") || text.includes("tạ") || text.includes("kháng lực")) { type = "Tập Gym / Resistance"; met = 5.5; }
+    else if (text.includes("cardio") || text.includes("hiit")) { type = "Cardio HIIT"; met = 7.5; }
+    else if (text.includes("đi bộ")) { type = "Đi bộ nhanh"; met = 3.8; }
+    else if (text.includes("bơi")) { type = "Bơi lội"; met = 6.8; }
+    else if (text.includes("đạp xe")) { type = "Đạp xe"; met = 6.0; }
+    else if (text.includes("yoga")) { type = "Yoga"; met = 3.0; }
+
+    let cleanName = userText
+      .replace(/^(hôm nay|tôi|mình)?\s*(tập|chạy|bơi|đạp|đi)\s*/i, '')
+      .trim();
+    if (!cleanName || cleanName.length < 2) cleanName = type;
+    else cleanName = type + ': ' + cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+
+    const caloriesBurned = Math.round((duration / 60) * met * userWeight);
+
+    const apiKey = await DataService.getNinerouterApiKey();
+    if (apiKey) {
+      try {
+        const endpoint = getApiEndpoint();
+        const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
+        const aiPrompt = `Phân tích bài tập: "${userText}" với cân nặng ${userWeight}kg. Trả về CHÍNH XÁC JSON duy nhất dạng: {"type": "Tên bài tập", "duration": number, "caloriesBurned": number}`;
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [{ role: "user", content: aiPrompt }],
+            temperature: 0.2
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.choices?.[0]?.message?.content || '';
+          const match = content.match(/\{[\s\S]*?\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            if (parsed.type && parsed.caloriesBurned) {
+              return {
+                type: parsed.type,
+                duration: parseInt(parsed.duration) || duration,
+                intensity: 'Moderate',
+                caloriesBurned: parseInt(parsed.caloriesBurned) || caloriesBurned
+              };
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('AI NLP Workout Parse failed, using local parser:', err);
+      }
+    }
+
+    return { type: cleanName, duration, intensity: 'Moderate', caloriesBurned };
+  },
+
+  /**
    * Send message to 9router AI API directly on local or configured base URL
    */
   async sendMessage(userMessage, conversationHistory = [], attachments = []) {

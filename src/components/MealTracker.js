@@ -184,20 +184,13 @@ export async function renderMealTracker(onOpenAiCoach) {
       btn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> Đang phân tích...`;
 
       try {
-        const fullPrompt = `Hãy đóng vai chuyên gia dinh dưỡng, phân tích câu mô tả món ăn sau: "${prompt}". Hãy ước tính tên món ăn, bữa ăn (Breakfast/Lunch/Dinner/Snack), tổng calo (kcal), protein (g), carb (g), fat (g).`;
-        const res = await AiCoachService.sendMessage(fullPrompt);
-        if (res.proposedChange && res.proposedChange.payload && res.proposedChange.payload.meal) {
-          await DataService.addMealLog(todayLog.date, res.proposedChange.payload.meal);
+        const parsedMeal = await AiCoachService.parseMealText(prompt);
+        if (parsedMeal) {
+          await DataService.addMealLog(activeDateStr, parsedMeal);
           confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+          const inputEl = document.getElementById('quick-food-nlp-input');
+          if (inputEl) inputEl.value = '';
           renderMealTracker(onOpenAiCoach);
-        } else {
-          // Fallback parsing
-          const fallback = await AiCoachService.smartLocalFallback(prompt);
-          if (fallback.proposedChange && fallback.proposedChange.payload) {
-            await DataService.addMealLog(todayLog.date, fallback.proposedChange.payload.meal);
-            confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-            renderMealTracker(onOpenAiCoach);
-          }
         }
       } catch (err) {
         console.warn('AI Food parse error:', err);
