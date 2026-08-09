@@ -429,7 +429,21 @@ export const DataService = {
   // ---------------- GAMIFICATION & XP ----------------
   async getUserProgress(bypassCache = false) {
     if (!bypassCache && appState.getProgress()) {
-      return appState.getProgress();
+      const cached = appState.getProgress();
+      // Ensure level and badges are sanitized even in cached state
+      const goal = await this.getUserGoal();
+      const levelInfo = getLevelInfo(cached.totalXp || 0, goal?.journeyLevels);
+      cached.level = levelInfo.currentLevel.level;
+      if (cached.badges && Array.isArray(cached.badges)) {
+        cached.badges = cached.badges.filter(b => {
+          if (b === 'level_3' && cached.level < 3) return false;
+          if (b === 'level_5' && cached.level < 5) return false;
+          if (b === 'level_7' && cached.level < 7) return false;
+          if (b === 'level_10' && cached.level < 10) return false;
+          return true;
+        });
+      }
+      return cached;
     }
     let progress = await dbManager.get('user_progress', 'current_progress');
     if (!progress) {
@@ -444,6 +458,21 @@ export const DataService = {
       };
       await dbManager.put('user_progress', progress);
     }
+
+    const goal = await this.getUserGoal();
+    const levelInfo = getLevelInfo(progress.totalXp || 0, goal?.journeyLevels);
+    progress.level = levelInfo.currentLevel.level;
+
+    if (progress.badges && Array.isArray(progress.badges)) {
+      progress.badges = progress.badges.filter(b => {
+        if (b === 'level_3' && progress.level < 3) return false;
+        if (b === 'level_5' && progress.level < 5) return false;
+        if (b === 'level_7' && progress.level < 7) return false;
+        if (b === 'level_10' && progress.level < 10) return false;
+        return true;
+      });
+    }
+
     appState.setProgress(progress);
     return progress;
   },
@@ -467,7 +496,7 @@ export const DataService = {
 
     const calHit     = totalMealCal > 0 && Math.abs(totalMealCal - calTarget) <= calTarget * 0.15;
     const proteinHit = totalProtein >= proteinTarget;
-    const waterHit   = waterIntake >= waterTarget;
+    const waterHit   = (log.waterIntake || 0) >= waterTarget;
     const workoutHit = log.workouts.length > 0 || log.isRestDay;
     const doneTasks  = log.checklist.filter(t => t.done).length;
     const checklistHit = log.checklist.length > 0 && doneTasks === log.checklist.length;
@@ -484,10 +513,10 @@ export const DataService = {
     log.xpEarned = earnedXP;
     await dbManager.put('daily_logs', log);
 
-    const progress = await this.getUserProgress();
+    const progress = await this.getUserProgress(true);
     if (xpDiff !== 0) {
       progress.totalXp = Math.max(0, (progress.totalXp || 0) + xpDiff);
-      const levelInfo = getLevelInfo(progress.totalXp);
+      const levelInfo = getLevelInfo(progress.totalXp, goal?.journeyLevels);
       progress.level = levelInfo.currentLevel.level;
     }
 
@@ -545,11 +574,12 @@ export const DataService = {
    * Returns array of newly unlocked badge IDs
    */
   async awardAiCoachXp() {
-    const progress = await this.getUserProgress();
+    const goal = await this.getUserGoal();
+    const progress = await this.getUserProgress(true);
     // +5 XP per message (capped to prevent farming)
     progress.totalXp = (progress.totalXp || 0) + 5;
     progress.hasUsedAiCoach = true;
-    const levelInfo = getLevelInfo(progress.totalXp);
+    const levelInfo = getLevelInfo(progress.totalXp, goal?.journeyLevels);
     progress.level = levelInfo.currentLevel.level;
 
     const allPhotos = await this.getPhotos();
