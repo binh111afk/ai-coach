@@ -1,4 +1,5 @@
 import { DataService, generate7DayMealPlan } from '../services/dataService.js';
+import { dbManager } from '../services/db.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges } from '../services/gamificationService.js';
 import { CONFIG } from '../config.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
@@ -273,15 +274,15 @@ export async function renderSettingsModal(onSaveComplete) {
     // Reset Data
     document.getElementById('btn-reset-app-data')?.addEventListener('click', async () => {
       const confirmed = await Modal.confirm({
-        title: 'Xóa Toàn Bộ Dữ Liệu',
-        message: 'Cảnh báo: Bạn có chắc chắn muốn xóa toàn bộ dữ liệu lưu trong IndexedDB để chơi lại từ đầu không?',
+        title: 'Xóa Toàn Bộ Dữ Liệu Web',
+        message: 'Cảnh báo: Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu trong trình duyệt (IndexedDB, LocalStorage, Cache) để cài lại từ đầu không?',
         type: 'warning',
         confirmText: 'Đồng Ý Xóa Rút Cạn',
         cancelText: 'Hủy Bỏ'
       });
 
       if (confirmed) {
-        indexedDB.deleteDatabase('FitnessCoachDB');
+        await dbManager.clearAllData();
         window.location.reload();
       }
     });

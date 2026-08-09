@@ -83,3 +83,20 @@ export async function fsDelete(storeName, key) {
     return false;
   }
 }
+
+/**
+ * Clear all documents in a Cloud Firestore collection
+ */
+export async function fsClearStore(storeName) {
+  try {
+    const colRef = collection(db, storeName);
+    const snap = await getDocs(colRef);
+    const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
+    return true;
+  } catch (err) {
+    console.warn(`⚠️ [Firestore] clearStore(${storeName}) offline/warn:`, err.message);
+    return false;
+  }
+}
+

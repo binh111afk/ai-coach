@@ -1,4 +1,4 @@
-import { fsGet, fsGetAll, fsPut, fsDelete } from './firebase.js';
+import { fsGet, fsGetAll, fsPut, fsDelete, fsClearStore } from './firebase.js';
 
 // IndexedDB + Cloud Firestore Dual Sync Database Manager
 const DB_NAME = 'FitnessCoachDB';
@@ -89,31 +89,49 @@ class HybridDBManager {
   }
 
   /**
-   * Dual GET: Try Firestore first (cloud sync), fall back to local IndexedDB
+   * Local-First GET: Fast instant response from IndexedDB, background sync from Cloud Firestore
    */
   async get(storeName, key) {
-    // 1. Try Cloud Firestore
+    const localItem = await this.getLocal(storeName, key);
+    if (localItem) {
+      // Sync in background to keep local DB fresh without blocking UI
+      fsGet(storeName, key).then(cloudItem => {
+        if (cloudItem) this.putLocal(storeName, cloudItem);
+      }).catch(() => {});
+      return localItem;
+    }
+    // Fallback if not cached locally
     const cloudItem = await fsGet(storeName, key);
     if (cloudItem) {
-      // Sync to local cache
       this.putLocal(storeName, cloudItem);
       return cloudItem;
     }
-    // 2. Local fallback
-    return this.getLocal(storeName, key);
+    return null;
   }
 
   /**
-   * Dual GET ALL: Try Firestore first, fall back to local IndexedDB
+   * Local-First GET ALL: Instant local IndexedDB load + background Cloud sync
    */
   async getAll(storeName) {
+    const localItems = await this.getLocalAll(storeName);
+    if (Array.isArray(localItems) && localItems.length > 0) {
+      fsGetAll(storeName).then(cloudItems => {
+        if (Array.isArray(cloudItems) && cloudItems.length > 0) {
+          cloudItems.forEach(item => this.putLocal(storeName, item));
+        }
+      }).catch(() => {});
+      return localItems;
+    }
+
     const cloudItems = await fsGetAll(storeName);
     if (Array.isArray(cloudItems) && cloudItems.length > 0) {
-      // Cache all locally
       cloudItems.forEach(item => this.putLocal(storeName, item));
       return cloudItems;
     }
-    // Local fallback
+    return [];
+  }
+
+  async getLocalAll(storeName) {
     try {
       const store = await this.getStore(storeName, 'readonly');
       return new Promise((resolve) => {
@@ -162,6 +180,56 @@ class HybridDBManager {
     }
     return true;
   }
+
+  /**
+   * Complete Web Data Purge: Closes DB connection, clears local stores & Cloud Firestore, deletes DB & web storage
+   */
+  async clearAllData() {
+    const STORES = ['user', 'goals', 'daily_logs', 'photos', 'user_progress', 'chat_history', 'settings'];
+
+    // 1. Purge Cloud Firestore backend data
+    try {
+      await Promise.allSettled(STORES.map(s => fsClearStore(s)));
+    } catch (e) {
+      console.warn('Cloud Firestore purge error:', e);
+    }
+
+    // 2. Clear local IndexedDB stores
+    try {
+      if (this.db) {
+        for (const storeName of STORES) {
+          try {
+            if (this.db.objectStoreNames.contains(storeName)) {
+              const tx = this.db.transaction(storeName, 'readwrite');
+              tx.objectStore(storeName).clear();
+            }
+          } catch (e) {
+            console.warn('Clear store warn:', e);
+          }
+        }
+        this.db.close();
+        this.db = null;
+      }
+    } catch (e) {
+      console.warn('DB close error:', e);
+    }
+
+    // 3. Delete IndexedDB database
+    try {
+      indexedDB.deleteDatabase(DB_NAME);
+    } catch (e) {
+      console.warn('Delete DB error:', e);
+    }
+
+    // 4. Clear LocalStorage and SessionStorage
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {}
+
+    this.initPromise = this.initDB();
+  }
 }
 
 export const dbManager = new HybridDBManager();
+
