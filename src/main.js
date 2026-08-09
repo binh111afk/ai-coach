@@ -20,8 +20,17 @@ window.addEventListener('achievement:unlocked', (e) => {
 });
 
 const TAB_ORDER = ['dashboard', 'plan', 'meals', 'workouts', 'photos', 'gamification', 'ai'];
-let currentTab = 'dashboard';
-let prevTab = 'dashboard';
+
+function getSavedTab() {
+  const hash = window.location.hash ? window.location.hash.replace('#', '').trim() : '';
+  if (hash && TAB_ORDER.includes(hash)) return hash;
+  const stored = localStorage.getItem('active_tab');
+  if (stored && TAB_ORDER.includes(stored)) return stored;
+  return 'dashboard';
+}
+
+let currentTab = getSavedTab();
+let prevTab = currentTab;
 
 import { showStreakOverlay } from './components/StreakOverlay.js';
 
@@ -36,6 +45,12 @@ async function initApp() {
       await refreshAllViews();
     });
     return;
+  }
+
+  // Ensure currentTab is persisted in localStorage & URL hash
+  localStorage.setItem('active_tab', currentTab);
+  if (!window.location.hash || window.location.hash !== '#' + currentTab) {
+    history.replaceState(null, '', '#' + currentTab);
   }
 
   // Toggle AI full-screen mode on body if starting on AI tab
@@ -71,9 +86,15 @@ async function initApp() {
 }
 
 async function handleTabChange(tab) {
+  if (!TAB_ORDER.includes(tab)) return;
   if (tab === currentTab) return;
+
   prevTab = currentTab;
   currentTab = tab;
+
+  // Persist active tab to localStorage & URL Hash
+  localStorage.setItem('active_tab', tab);
+  history.replaceState(null, '', '#' + tab);
 
   // Toggle AI full-screen mode on body
   if (tab === 'ai') {
@@ -93,6 +114,13 @@ async function handleTabChange(tab) {
 
   await renderActiveView();
 }
+
+window.addEventListener('hashchange', () => {
+  const newTab = getSavedTab();
+  if (newTab !== currentTab) {
+    handleTabChange(newTab);
+  }
+});
 
 async function renderActiveView() {
   const mountNode = document.getElementById('view-mount');
