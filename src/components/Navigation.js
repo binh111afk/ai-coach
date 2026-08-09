@@ -2,6 +2,7 @@ import { DataService } from '../services/dataService.js';
 import { getLevelInfo } from '../services/gamificationService.js';
 import { Modal } from './ui/Modal.js';
 import { renderCrownIcon, renderGeminiIcon } from './ui/Icons.js';
+import { showLevelRoadmapModal } from './ui/LevelRoadmapModal.js';
 
 export async function renderNavigation(activeTab = 'dashboard', onTabChange, onOpenAiCoach, onOpenSettings) {
   const profile = await DataService.getUserProfile();
@@ -55,7 +56,7 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
 
         <div style="display: flex; align-items: center; gap: 0.75rem;">
           <!-- Sleek Vibrant Level & XP Badge -->
-          <div style="display: flex; align-items: center; gap: 0.6rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.12), rgba(168, 145, 255, 0.08)); padding: 0.35rem 0.85rem; border-radius: var(--radius-full); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); cursor: pointer; transition: all 0.2s ease;" id="btn-level-widget" title="Xem Thành Tích & Cấp Độ XP">
+          <div style="display: flex; align-items: center; gap: 0.6rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.12), rgba(168, 145, 255, 0.08)); padding: 0.35rem 0.85rem; border-radius: var(--radius-full); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); cursor: pointer; transition: all 0.2s ease;" id="btn-level-widget" title="Xem Lộ Trình Cấp Độ & XP">
             <div style="display: flex; align-items: center; gap: 0.35rem; background: linear-gradient(135deg, #7556D9, #6042C0); color: #FFFFFF; padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.775rem; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.3);">
               Lvl ${levelInfo.currentLevel.level}/${levelInfo.maxLevel}
             </div>
@@ -104,7 +105,7 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
     });
 
     document.getElementById('btn-level-widget')?.addEventListener('click', () => {
-      onTabChange('gamification');
+      showLevelRoadmapModal();
     });
 
     // Edit Journey Day Handler

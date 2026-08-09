@@ -4366,3 +4366,303 @@ body.dark .status-badge.streak {
 body.dark .status-badge.streak .text {
   color: #ddd6fe;
 }
+
+/* ===== LEVEL ROADMAP POPUP MODAL ===== */
+.level-roadmap-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 20px;
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.level-roadmap-popup {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  position: relative;
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+body.dark .level-roadmap-popup {
+  background: #1e1b4b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Header */
+.level-roadmap-popup .header {
+  padding: 28px 28px 20px;
+  background: linear-gradient(180deg, #faf5ff 0%, #ffffff 100%);
+  border-bottom: 1px solid #f3e8ff;
+  position: relative;
+}
+
+body.dark .level-roadmap-popup .header {
+  background: linear-gradient(180deg, #2e1065 0%, #1e1b4b 100%);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.level-roadmap-popup .label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  color: #a78bfa;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.level-roadmap-popup .title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin-bottom: 12px;
+}
+
+body.dark .level-roadmap-popup .title {
+  color: #f3e8ff;
+}
+
+.level-roadmap-popup .progress-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.level-roadmap-popup .xp-text {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+body.dark .level-roadmap-popup .xp-text {
+  color: #cbd5e1;
+}
+
+.level-roadmap-popup .xp-text strong {
+  color: #7c3aed;
+  font-weight: 700;
+}
+
+body.dark .level-roadmap-popup .xp-text strong {
+  color: #a78bfa;
+}
+
+.level-roadmap-popup .progress-bar {
+  height: 8px;
+  background: #ede9fe;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+body.dark .level-roadmap-popup .progress-bar {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.level-roadmap-popup .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+  border-radius: 99px;
+  position: relative;
+  transition: width 0.4s ease;
+}
+
+.level-roadmap-popup .progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.level-roadmap-popup .close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #6b7280;
+}
+
+body.dark .level-roadmap-popup .close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+.level-roadmap-popup .close-btn:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+body.dark .level-roadmap-popup .close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* Timeline */
+.level-roadmap-popup .timeline {
+  padding: 24px 28px 32px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.level-roadmap-popup .timeline::-webkit-scrollbar {
+  width: 4px;
+}
+
+.level-roadmap-popup .timeline::-webkit-scrollbar-thumb {
+  background: #ddd6fe;
+  border-radius: 4px;
+}
+
+.level-roadmap-popup .level-item {
+  display: flex;
+  gap: 16px;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.level-roadmap-popup .level-item:last-child {
+  padding-bottom: 0;
+}
+
+/* Vertical line */
+.level-roadmap-popup .level-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 36px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #a78bfa, #c4b5fd);
+}
+
+body.dark .level-roadmap-popup .level-item:not(:last-child)::before {
+  background: linear-gradient(to bottom, #7c3aed, #4c1d95);
+}
+
+.level-roadmap-popup .level-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  z-index: 1;
+}
+
+.level-roadmap-popup .level-dot svg {
+  width: 16px;
+  height: 16px;
+  color: white;
+}
+
+.level-roadmap-popup .level-card {
+  flex: 1;
+  background: #faf5ff;
+  border: 1px solid #ede9fe;
+  border-radius: 14px;
+  padding: 14px 16px;
+  transition: all 0.25s ease;
+}
+
+body.dark .level-roadmap-popup .level-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.level-roadmap-popup .level-card:hover {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
+}
+
+body.dark .level-roadmap-popup .level-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #a78bfa;
+}
+
+.level-roadmap-popup .level-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 4px;
+}
+
+body.dark .level-roadmap-popup .level-name {
+  color: #f3e8ff;
+}
+
+.level-roadmap-popup .level-reward {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+body.dark .level-roadmap-popup .level-reward {
+  color: #94a3b8;
+}
+
+.level-roadmap-popup .level-reward svg {
+  width: 14px;
+  height: 14px;
+  color: #a78bfa;
+  flex-shrink: 0;
+}
+
+.level-roadmap-popup .level-xp {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+body.dark .level-roadmap-popup .level-xp {
+  color: #64748b;
+}
+
+/* Current level highlight */
+.level-roadmap-popup .level-item.current .level-card {
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-color: #a78bfa;
+}
+
+body.dark .level-roadmap-popup .level-item.current .level-card {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(167, 139, 250, 0.1));
+  border-color: #a78bfa;
+}
+
+.level-roadmap-popup .level-item.current .level-dot {
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2), 0 4px 12px rgba(124, 58, 237, 0.4);
+}

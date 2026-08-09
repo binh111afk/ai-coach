@@ -5,6 +5,7 @@ import { renderAiSummaryWidget } from './AiSummaryWidget.js';
 import { renderCheckbox, initCheckboxListeners } from './ui/Checkbox.js';
 import { renderGeminiIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
+import { showLevelRoadmapModal } from './ui/LevelRoadmapModal.js';
 
 export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const profile = await DataService.getUserProfile();
@@ -86,7 +87,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
               </div>
 
               <!-- Level – Vàng -->
-              <div class="status-badge level">
+              <div class="status-badge level" id="dash-level-badge" style="cursor: pointer;" title="Xem Lộ Trình Cấp Độ">
                 <div class="icon">
                   <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
@@ -378,6 +379,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     renderMacroChart('chart-macro-doughnut', { protein: currentProtein, carb: currentCarb, fat: currentFat }, goal.macroTarget);
 
     // Handlers
+    document.getElementById('dash-level-badge')?.addEventListener('click', () => showLevelRoadmapModal());
     document.getElementById('dash-btn-ai-coach')?.addEventListener('click', onOpenAiCoach);
     document.getElementById('btn-quick-update-journal')?.addEventListener('click', () => onNavigateTab('meals'));
     document.getElementById('dash-btn-view-full-plan')?.addEventListener('click', () => onNavigateTab('plan'));
