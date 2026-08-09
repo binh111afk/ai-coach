@@ -121,13 +121,20 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
     try {
       const systemPrompt = await this.getSystemPrompt();
       const messagesPayload = [
-        { role: "system", content: systemPrompt },
-        ...conversationHistory.map(m => ({
+        { role: "system", content: systemPrompt }
+      ];
+
+      conversationHistory.forEach(m => {
+        messagesPayload.push({
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.content
-        })),
-        { role: "user", content: userMessage }
-      ];
+        });
+      });
+
+      const lastMsg = conversationHistory[conversationHistory.length - 1];
+      if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== userMessage) {
+        messagesPayload.push({ role: "user", content: userMessage });
+      }
 
       const endpoint = getApiEndpoint();
       const response = await fetch(endpoint, {

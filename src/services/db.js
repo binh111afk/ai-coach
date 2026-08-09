@@ -150,12 +150,12 @@ class HybridDBManager {
    */
   async put(storeName, item) {
     // Save to local cache for instant UI response
-    await this.putLocal(storeName, item);
+    const key = await this.putLocal(storeName, item);
     // Sync asynchronously to Cloud Firestore
-    fsPut(storeName, item).catch(err => {
+    fsPut(storeName, item, key).catch(err => {
       console.warn(`[Cloud Sync] fsPut warn for ${storeName}:`, err.message);
     });
-    return item;
+    return key !== undefined && key !== null ? key : item;
   }
 
   /**

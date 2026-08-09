@@ -718,19 +718,30 @@ export const DataService = {
     const sId = targetSessionId || await this.getCurrentSessionId();
     const msgs = await dbManager.getAll('chat_history');
     const filtered = msgs.filter(m => (m.sessionId || 'session_default') === sId);
-    return filtered.sort((a, b) => a.timestamp - b.timestamp);
+
+    // Deduplicate messages by explicit id or key combination
+    const uniqueMsgsMap = new Map();
+    filtered.forEach(m => {
+      const dedupKey = m.id || `${m.role}_${m.timestamp}_${(m.content || '').substring(0, 30)}`;
+      if (!uniqueMsgsMap.has(dedupKey)) {
+        uniqueMsgsMap.set(dedupKey, m);
+      }
+    });
+    const uniqueList = Array.from(uniqueMsgsMap.values());
+    return uniqueList.sort((a, b) => a.timestamp - b.timestamp);
   },
 
   async addChatMessage(msg) {
     const activeSessionId = await this.getCurrentSessionId();
+    const generatedId = msg.id || ('msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
     const item = {
+      id: generatedId,
       timestamp: Date.now(),
       sessionId: activeSessionId,
       status: 'none', // 'none', 'pending', 'approved', 'rejected'
       ...msg
     };
-    const id = await dbManager.put('chat_history', item);
-    item.id = id;
+    await dbManager.put('chat_history', item);
     return item;
   },
 
