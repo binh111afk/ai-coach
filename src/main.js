@@ -24,6 +24,8 @@ let currentTab = 'dashboard';
 let prevTab = 'dashboard';
 
 async function initApp() {
+  await DataService.preloadAllData();
+
   const profile = await DataService.getUserProfile();
 
   // Check if onboarding is needed
@@ -66,7 +68,15 @@ async function handleTabChange(tab) {
     document.body.classList.remove('ai-tab-active');
   }
 
-  await renderNavigation(currentTab, handleTabChange, handleOpenAiCoach, handleOpenSettings);
+  // Fast DOM active state update for navigation links
+  document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
+    if (el.getAttribute('data-tab') === tab) {
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+    }
+  });
+
   await renderActiveView();
 }
 
@@ -142,6 +152,7 @@ async function handleOpenSettings() {
 }
 
 async function refreshAllViews() {
+  await DataService.preloadAllData();
   await renderNavigation(currentTab, handleTabChange, handleOpenAiCoach, handleOpenSettings);
   await renderActiveView();
 }

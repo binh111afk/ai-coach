@@ -1,4 +1,5 @@
 import { dbManager } from './db.js';
+import { appState } from './appState.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, getLevelInfo, BADGES, checkAndUnlockBadges } from './gamificationService.js';
 import { CONFIG } from '../config.js';
 
@@ -8,8 +9,30 @@ export const DataService = {
     return new Date().toISOString().split('T')[0];
   },
 
+  async preloadAllData() {
+    const today = this.getTodayString();
+    const [profile, goal, plan, progress, dailyLog, photos] = await Promise.all([
+      this.getUserProfile(true),
+      this.getUserGoal(true),
+      this.getUserPlan(true),
+      this.getUserProgress(true),
+      this.getDailyLog(today, true),
+      this.getPhotos(true)
+    ]);
+    appState.setProfile(profile);
+    appState.setGoal(goal);
+    appState.setPlan(plan);
+    appState.setProgress(progress);
+    appState.setDailyLog(today, dailyLog);
+    appState.setPhotos(photos);
+    appState.isInitialized = true;
+  },
+
   // ---------------- USER PROFILE & GOAL ----------------
-  async getUserProfile() {
+  async getUserProfile(bypassCache = false) {
+    if (!bypassCache && appState.getProfile()) {
+      return appState.getProfile();
+    }
     let user = await dbManager.get('user', 'current_user');
     if (!user) {
       // Default initial profile
@@ -28,16 +51,21 @@ export const DataService = {
       };
       await dbManager.put('user', user);
     }
+    appState.setProfile(user);
     return user;
   },
 
   async saveUserProfile(profile) {
     const updated = { ...profile, id: 'current_user' };
+    appState.setProfile(updated);
     await dbManager.put('user', updated);
     return updated;
   },
 
-  async getUserGoal() {
+  async getUserGoal(bypassCache = false) {
+    if (!bypassCache && appState.getGoal()) {
+      return appState.getGoal();
+    }
     let goal = await dbManager.get('goals', 'current_goal');
     if (!goal) {
       const profile = await this.getUserProfile();
@@ -78,17 +106,22 @@ export const DataService = {
         await dbManager.put('goals', goal);
       }
     }
+    appState.setGoal(goal);
     return goal;
   },
 
   async saveUserGoal(goal) {
     const updated = { ...goal, id: 'current_goal' };
+    appState.setGoal(updated);
     await dbManager.put('goals', updated);
     return updated;
   },
 
   // ---------------- USER PLAN (7-DAY MEAL BUDGET & WORKOUT ROUTINE) ----------------
-  async getUserPlan() {
+  async getUserPlan(bypassCache = false) {
+    if (!bypassCache && appState.getPlan()) {
+      return appState.getPlan();
+    }
     let plan = await dbManager.get('goals', 'current_plan');
     const profile = await this.getUserProfile();
     const allergies = profile.foodAllergies || '';
@@ -153,17 +186,22 @@ export const DataService = {
         await dbManager.put('goals', plan);
       }
     }
+    appState.setPlan(plan);
     return plan;
   },
 
   async saveUserPlan(plan) {
     const updated = { ...plan, id: 'current_plan' };
+    appState.setPlan(updated);
     await dbManager.put('goals', updated);
     return updated;
   },
 
   // ---------------- DAILY LOGS ----------------
-  async getDailyLog(dateStr = this.getTodayString()) {
+  async getDailyLog(dateStr = this.getTodayString(), bypassCache = false) {
+    if (!bypassCache && appState.getDailyLog(dateStr)) {
+      return appState.getDailyLog(dateStr);
+    }
     let log = await dbManager.get('daily_logs', dateStr);
     if (!log) {
       const goal = await this.getUserGoal();
@@ -218,10 +256,12 @@ export const DataService = {
       };
       await dbManager.put('daily_logs', log);
     }
+    appState.setDailyLog(dateStr, log);
     return log;
   },
 
   async saveDailyLog(log) {
+    appState.setDailyLog(log.date, log);
     await dbManager.put('daily_logs', log);
     const newBadges = await this.reevaluateDailyXP(log.date);
     if (newBadges && newBadges.length > 0) {
@@ -357,7 +397,10 @@ export const DataService = {
   },
 
   // ---------------- GAMIFICATION & XP ----------------
-  async getUserProgress() {
+  async getUserProgress(bypassCache = false) {
+    if (!bypassCache && appState.getProgress()) {
+      return appState.getProgress();
+    }
     let progress = await dbManager.get('user_progress', 'current_progress');
     if (!progress) {
       progress = {
@@ -371,6 +414,7 @@ export const DataService = {
       };
       await dbManager.put('user_progress', progress);
     }
+    appState.setProgress(progress);
     return progress;
   },
 
@@ -498,7 +542,10 @@ export const DataService = {
   },
 
   // ---------------- PHOTO VAULT ----------------
-  async getPhotos() {
+  async getPhotos(bypassCache = false) {
+    if (!bypassCache && appState.getPhotos() && appState.getPhotos().length > 0) {
+      return appState.getPhotos();
+    }
     const photos = await dbManager.getAll('photos');
     // Clear legacy demo photos if present
     const realPhotos = photos.filter(p => !p.id.startsWith('photo_demo_'));
@@ -518,6 +565,7 @@ export const DataService = {
       }
     });
 
+    appState.setPhotos(realPhotos);
     return realPhotos;
   },
 

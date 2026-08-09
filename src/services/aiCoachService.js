@@ -2,6 +2,15 @@ import { DataService } from './dataService.js';
 import { CONFIG } from '../config.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget } from './gamificationService.js';
 
+function getApiEndpoint() {
+  const configured = CONFIG.NINEROUTER_BASE_URL || "http://localhost:20128/v1/chat/completions";
+  // On Vercel HTTPS production, fallback localhost to Vercel Serverless proxy /api/chat
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && configured.includes('localhost')) {
+    return '/api/chat';
+  }
+  return configured;
+}
+
 export const AiCoachService = {
   /**
    * System Prompt for 9Router AI Coach
@@ -120,7 +129,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         { role: "user", content: userMessage }
       ];
 
-      const endpoint = CONFIG.NINEROUTER_BASE_URL || "http://localhost:20128/v1/chat/completions";
+      const endpoint = getApiEndpoint();
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -143,16 +152,28 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         throw new Error(errorData.error?.message || `API Error Status ${response.status}`);
       }
 
+      let aiContent = '';
       const rawText = await response.text();
-      let data;
-      try {
-        data = JSON.parse(rawText);
-      } catch (e) {
-        const cleanJsonStr = rawText.replace(/data:\s*\[DONE\][\s\S]*/g, '').trim();
-        data = JSON.parse(cleanJsonStr);
+      if (rawText.trim().startsWith('data:')) {
+        const lines = rawText.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const chunk = line.slice(5).trim();
+          if (chunk === '[DONE]') break;
+          try {
+            const chunkObj = JSON.parse(chunk);
+            aiContent += chunkObj.choices?.[0]?.delta?.content || chunkObj.choices?.[0]?.message?.content || '';
+          } catch { /* skip */ }
+        }
+      } else {
+        try {
+          const data = JSON.parse(rawText);
+          aiContent = data.choices?.[0]?.message?.content || data.choices?.[0]?.delta?.content || "Xin lỗi, tôi không thể xử lý câu trả lời lúc me này.";
+        } catch (e) {
+          console.warn('Raw response text parse warn:', e);
+          aiContent = rawText;
+        }
       }
-
-      const aiContent = data.choices[0]?.message?.content || "Xin lỗi, tôi không thể xử lý câu trả lời lúc này.";
 
       // Parse potential proposedChange JSON from AI text response (with intelligent fallback)
       let { textResponse, proposedChange } = await this.extractProposedChange(aiContent, userMessage);
@@ -225,7 +246,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
     const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.\nHãy sinh kế hoạch TOÀN BỘ hành trình ${totalDays} ngày gồm ${numPhases} giai đoạn (phase) cho người dùng:\n- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm\n- Cân nặng hiện tại: ${profileData.currentWeight}kg → mục tiêu: ${goalData.targetWeight}kg\n- Mục tiêu calo/ngày: ${calorieTarget} kcal\n- Macro: Protein ${proteinTarget}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g\n- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}${allergyRule}\n- Khung giờ tập luyện người dùng chọn: ${prefWorkoutTimesStr}\n\nYÊU CẦU TỪNG PHASE:\n${phaseDescriptions}\n\nQUY TẮC:\n1. Mỗi phase có weeklyMealPlan 7 ngày (day1→day7) với 4 bữa/ngày (Breakfast, Lunch, Dinner, Snack), NỘI DUNG KHÁC NHAU HOÀN TOÀN giữa các phase.\n2. Mỗi phase có weeklyWorkoutRoutine 7 bài (kể cả 1-2 ngày nghỉ phục hồi), khác nhau giữa các phase.\n3. Calo mỗi ngày phải gần đúng mục tiêu (±100 kcal).\n4. Thực đơn phải đa dạng, không lặp ngày giống nhau trong cùng 1 phase.\n5. Tên món ăn phải là tiếng Việt cụ thể và thực tế.\n6. TUYỆT ĐỐI không dùng thực phẩm bị kiêng/dị ứng: ${profileData.foodAllergies || 'Không có'}.\n7. Mỗi phase phải có dailyChecklist (5-7 việc cần làm mỗi ngày, phù hợp cường độ phase đó, cụ thể hoá với mục tiêu ${calorieTarget} kcal, ${proteinTarget}g protein, ${waterTarget}ml nước, né ${allergyDisplay}).\n8. Mỗi phase phải có dailySchedule là lịch trình mốc thời gian trong ngày. QUY TẮC BẮT BUỘC: Hoạt động tập luyện (category: "workout") BẮT BUỘC phải đặt mốc giờ khớp đúng với khung giờ người dùng đã chọn (${prefWorkoutTimesStr}), dạng array gồm { "time": "07:30", "activity": "Ten hoat dong", "category": "meal"|"workout"|"habit", "icon": "coffee"|"dumbbell"|"sun"|"moon"|"droplet"|"apple"|"utensils", "desc": "Mo ta chi tiet" }.\n\nTrả về ĐÚNG JSON object duy nhất:`;
 
     try {
-      const endpoint = CONFIG.NINEROUTER_BASE_URL || "http://localhost:20128/v1/chat/completions";
+      const endpoint = getApiEndpoint();
       const response = await fetch(endpoint, {
         method: 'POST',
         signal: controller.signal,

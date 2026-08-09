@@ -4,7 +4,7 @@ export const CONFIG = {
   VERSION: "1.0.0",
   // 9Router AI API configuration read securely from .env
   NINEROUTER_API_KEY: import.meta.env.VITE_NINEROUTER_API_KEY || "sk-f040bde5ab80cf9c-nut82e-f2995b77",
-  NINEROUTER_BASE_URL: import.meta.env.VITE_NINEROUTER_BASE_URL || "http://localhost:20128/v1/chat/completions",
+  NINEROUTER_BASE_URL: import.meta.env.VITE_NINEROUTER_BASE_URL || "https://r7nnd8p.abc-tunnel.us/v1/chat/completions",
   DEFAULT_MODEL: import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.6-flash",
   SUPPORTED_MODELS: [
     // 1. Google / Gemini / Gemma

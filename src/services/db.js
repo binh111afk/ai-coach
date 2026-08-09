@@ -1,4 +1,5 @@
 import { fsGet, fsGetAll, fsPut, fsDelete, fsClearStore } from './firebase.js';
+import { appState } from './appState.js';
 
 // IndexedDB + Cloud Firestore Dual Sync Database Manager
 const DB_NAME = 'FitnessCoachDB';
@@ -221,8 +222,9 @@ class HybridDBManager {
       console.warn('Delete DB error:', e);
     }
 
-    // 4. Clear LocalStorage and SessionStorage
+    // 4. Clear LocalStorage and SessionStorage & RAM State
     try {
+      appState.reset();
       localStorage.clear();
       sessionStorage.clear();
     } catch (e) {}
