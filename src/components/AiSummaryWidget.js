@@ -69,10 +69,10 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
   }
 
   const html = `
-    <div class="card" style="background: linear-gradient(135deg, rgba(248, 246, 255, 0.98) 0%, rgba(255, 252, 248, 0.98) 100%); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 16px 36px -10px rgba(117, 86, 217, 0.15); position: relative; overflow: hidden; border-radius: 24px;">
+    <div class="card hero-banner-card" style="position: relative; overflow: hidden; border-radius: 24px;">
       <div class="card-header" style="margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-        <div class="card-title" style="display: flex; align-items: center; gap: 0.6rem; font-size: 1.15rem; font-weight: 800; color: #7556D9;">
-          ${renderGeminiIcon({ width: 24, height: 24, strokeWidth: 1.8, color: '#7556D9' })}
+        <div class="card-title" style="display: flex; align-items: center; gap: 0.6rem; font-size: 1.15rem; font-weight: 800; color: var(--accent-purple);">
+          ${renderGeminiIcon({ width: 24, height: 24, strokeWidth: 1.8, color: 'var(--accent-purple)' })}
           <span>Tổng Kết & Đánh Giá Tiến Độ AI Coach</span>
         </div>
 
@@ -99,7 +99,7 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
             
             <!-- Header Badges Row -->
             <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-              <div style="display: inline-flex; align-items: center; gap: 0.45rem; background: #7556D9; color: #FFFFFF; padding: 0.45rem 1rem; border-radius: var(--radius-full); font-weight: 800; font-size: 0.875rem; box-shadow: 0 4px 14px rgba(117, 86, 217, 0.3);">
+              <div style="display: inline-flex; align-items: center; gap: 0.45rem; background: var(--primary); color: #FFFFFF; padding: 0.45rem 1rem; border-radius: var(--radius-full); font-weight: 800; font-size: 0.875rem; box-shadow: 0 4px 14px rgba(117, 86, 217, 0.3);">
                 <i data-lucide="award" style="width: 16px; height: 16px; color: #FFFFFF;"></i> Điểm Kỷ Luật: ${score}/100
               </div>
               <div style="display: inline-flex; align-items: center; gap: 0.35rem; background: ${statusBg}; color: ${statusColor}; border: 1.5px solid ${statusBorder}; padding: 0.45rem 1rem; border-radius: var(--radius-full); font-weight: 800; font-size: 0.85rem;">
@@ -108,10 +108,10 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
             </div>
 
             <!-- AI Advice Highlighting Card -->
-            <div style="background: #FFFFFF; border-left: 4px solid #7556D9; padding: 1rem 1.25rem; border-radius: 16px; border-top: 1px solid rgba(233, 228, 243, 0.8); border-right: 1px solid rgba(233, 228, 243, 0.8); border-bottom: 1px solid rgba(233, 228, 243, 0.8); box-shadow: 0 4px 16px rgba(117, 86, 217, 0.06); position: relative;">
+            <div style="background: var(--bg-card); border-left: 4px solid var(--accent-purple); padding: 1rem 1.25rem; border-radius: 16px; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); box-shadow: 0 4px 16px rgba(117, 86, 217, 0.06); position: relative;">
               <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
-                <i data-lucide="quote" style="width: 22px; height: 22px; color: #7556D9; flex-shrink: 0; margin-top: 0.1rem;"></i>
-                <div style="font-size: 0.95rem; line-height: 1.6; color: #26213C; font-weight: 600;" id="ai-daily-advice-text">
+                <i data-lucide="quote" style="width: 22px; height: 22px; color: var(--accent-purple); flex-shrink: 0; margin-top: 0.1rem;"></i>
+                <div style="font-size: 0.95rem; line-height: 1.6; color: var(--text-main); font-weight: 600;" id="ai-daily-advice-text">
                   ${dailyAdvice}
                 </div>
               </div>
@@ -119,33 +119,33 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
 
             <!-- Sub-Metrics 3 Mini Cards Row -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.65rem;">
-              <div style="background: rgba(117, 86, 217, 0.08); border: 1px solid rgba(117, 86, 217, 0.22); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
-                <div style="width: 32px; height: 32px; border-radius: 10px; background: #7556D9; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.25);">
+              <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent-purple); color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.25);">
                   <i data-lucide="flame" style="width: 18px; height: 18px;"></i>
                 </div>
                 <div>
-                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700; color: #706A82;">Calo Ròng</div>
-                  <div style="font-size: 0.875rem; font-weight: 800; color: #7556D9;">${netCalories} / ${calorieTarget} <span style="font-weight: 600; font-size: 0.725rem;">kcal</span></div>
+                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700;">Calo Ròng</div>
+                  <div style="font-size: 0.875rem; font-weight: 800; color: var(--accent-purple);">${netCalories} / ${calorieTarget} <span style="font-weight: 600; font-size: 0.725rem;">kcal</span></div>
                 </div>
               </div>
 
-              <div style="background: rgba(49, 114, 184, 0.08); border: 1px solid rgba(49, 114, 184, 0.22); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
-                <div style="width: 32px; height: 32px; border-radius: 10px; background: #3172B8; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(49, 114, 184, 0.25);">
+              <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent-blue); color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(49, 114, 184, 0.25);">
                   <i data-lucide="droplet" style="width: 18px; height: 18px;"></i>
                 </div>
                 <div>
-                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700; color: #706A82;">Nước Uống</div>
-                  <div style="font-size: 0.875rem; font-weight: 800; color: #3172B8;">${waterIntake} / ${waterTarget} <span style="font-weight: 600; font-size: 0.725rem;">ml</span></div>
+                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700;">Nước Uống</div>
+                  <div style="font-size: 0.875rem; font-weight: 800; color: var(--accent-blue);">${waterIntake} / ${waterTarget} <span style="font-weight: 600; font-size: 0.725rem;">ml</span></div>
                 </div>
               </div>
 
-              <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.22); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
-                <div style="width: 32px; height: 32px; border-radius: 10px; background: #10B981; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
+              <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); padding: 0.65rem 0.9rem; border-radius: 14px; display: flex; align-items: center; gap: 0.65rem;">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: var(--success); color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
                   <i data-lucide="check-circle-2" style="width: 18px; height: 18px;"></i>
                 </div>
                 <div>
-                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700; color: #706A82;">Checklist</div>
-                  <div style="font-size: 0.875rem; font-weight: 800; color: #059669;">${checklistDone} / ${checklistTotal} <span style="font-weight: 600; font-size: 0.725rem;">mục</span></div>
+                  <div class="text-xs text-muted" style="font-size: 0.725rem; font-weight: 700;">Checklist</div>
+                  <div style="font-size: 0.875rem; font-weight: 800; color: var(--success);">${checklistDone} / ${checklistTotal} <span style="font-weight: 600; font-size: 0.725rem;">mục</span></div>
                 </div>
               </div>
             </div>
@@ -153,9 +153,9 @@ export async function renderAiSummaryWidget(containerId = 'ai-summary-widget-con
           </div>
 
           <!-- Right Large Glowing Score Box -->
-          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FFFFFF; padding: 1.25rem 1rem; border-radius: 22px; border: 1.5px solid rgba(117, 86, 217, 0.3); text-align: center; box-shadow: 0 10px 25px -5px rgba(117, 86, 217, 0.18); height: 100%;">
-            <div style="font-size: 2.75rem; font-weight: 900; color: #7556D9; line-height: 1;">${score}</div>
-            <div style="font-size: 0.75rem; font-weight: 800; color: #706A82; letter-spacing: 0.5px; margin-top: 0.35rem;">/ 100 ĐIỂM</div>
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-card); padding: 1.25rem 1rem; border-radius: 22px; border: 1.5px solid var(--border-highlight); text-align: center; box-shadow: 0 10px 25px -5px rgba(117, 86, 217, 0.18); height: 100%;">
+            <div style="font-size: 2.75rem; font-weight: 900; color: var(--accent-purple); line-height: 1;">${score}</div>
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.5px; margin-top: 0.35rem;">/ 100 ĐIỂM</div>
           </div>
 
         </div>

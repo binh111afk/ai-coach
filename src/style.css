@@ -81,6 +81,29 @@ body.dark {
   --hero-banner-border: rgba(168, 145, 255, 0.25);
 }
 
+body.dark .day-card.rest {
+  background: linear-gradient(160deg, #2A243A 0%, #221D32 100%) !important;
+  border-color: rgba(168, 145, 255, 0.25) !important;
+}
+
+body.dark .day-card.rest .day-title {
+  color: #C4B5FD !important;
+}
+
+body.dark .day-card.rest .day-name {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.2)) !important;
+  color: #FBBF24 !important;
+}
+
+body.dark .day-card.rest .day-duration {
+  background: rgba(124, 58, 237, 0.25) !important;
+  color: #DDD6FE !important;
+}
+
+body.dark .day-card.rest .day-footer {
+  border-top-color: rgba(168, 145, 255, 0.15) !important;
+}
+
 .hero-banner-card {
   background: var(--hero-banner-bg) !important;
   border: 1px solid var(--hero-banner-border) !important;

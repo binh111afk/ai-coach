@@ -155,7 +155,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       </div>
 
       <!-- Daily Schedule / Itinerary Box (Lịch Trình Sinh Hoạt & Tập Luyện Hàng Ngày) -->
-      <div class="card" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98)); border: 1.5px solid rgba(124, 58, 237, 0.25); box-shadow: 0 4px 20px rgba(124, 58, 237, 0.06); border-radius: 20px; padding: 1.5rem;">
+      <div class="card hero-banner-card" style="border-radius: 20px; padding: 1.5rem;">
         <div class="card-header" style="margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem;">
           <div>
             <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); font-size: 1.2rem; font-weight: 800;">
