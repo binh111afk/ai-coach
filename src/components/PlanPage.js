@@ -437,7 +437,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Dán Link Video TikTok / YouTube Đổi Video Hướng Dẫn:
           </label>
           <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-            <input type="text" class="form-input" id="wg-custom-video-input" placeholder="Dán link TikTok hoặc YouTube vào đây..." style="font-size: 0.82rem; padding: 0.45rem 0.75rem; border-radius: 10px; flex: 1; min-width: 200px;" />
+            <input type="text" class="form-input" id="wg-custom-video-input" onfocus="this.select()" placeholder="Dán link TikTok hoặc YouTube vào đây..." style="font-size: 0.82rem; padding: 0.45rem 0.75rem; border-radius: 10px; flex: 1; min-width: 200px;" />
             <button type="button" class="btn btn-primary btn-sm" id="btn-wg-apply-video" style="font-size: 0.78rem; font-weight: 700; white-space: nowrap; padding: 0.45rem 0.85rem; border-radius: 10px; gap: 0.3rem;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg> Xác Nhận Đổi Video
             </button>
@@ -531,7 +531,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Dán Link Video TikTok / YouTube Đổi Video Chế Biến:
             </label>
             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <input type="text" class="form-input" id="rd-custom-video-input" placeholder="Dán link TikTok hoặc YouTube vào đây..." style="font-size: 0.82rem; padding: 0.45rem 0.75rem; border-radius: 10px; flex: 1; min-width: 200px;" />
+              <input type="text" class="form-input" id="rd-custom-video-input" onfocus="this.select()" placeholder="Dán link TikTok hoặc YouTube vào đây..." style="font-size: 0.82rem; padding: 0.45rem 0.75rem; border-radius: 10px; flex: 1; min-width: 200px;" />
               <button type="button" class="btn btn-primary btn-sm" id="btn-rd-apply-video" style="font-size: 0.78rem; font-weight: 700; white-space: nowrap; padding: 0.45rem 0.85rem; border-radius: 10px; gap: 0.3rem;">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg> Xác Nhận Đổi Video
               </button>
@@ -701,7 +701,14 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         if (!activeWorkoutItem) return;
 
         document.getElementById('wg-modal-title').innerText = `Hướng Dẫn: ${activeWorkoutItem.title}`;
-        document.getElementById('wg-modal-iframe').src = activeWorkoutItem.youtubeUrl || "https://www.youtube.com/embed/gC_L9qAHVJ8";
+        plan.customVideos = plan.customVideos || {};
+        const savedWorkoutVideo = plan.customVideos['workout:' + activeWorkoutItem.title];
+        const activeVideoUrl = savedWorkoutVideo || activeWorkoutItem.youtubeUrl || "https://www.youtube.com/embed/gC_L9qAHVJ8";
+
+        document.getElementById('wg-modal-iframe').src = activeVideoUrl;
+        const wgInput = document.getElementById('wg-custom-video-input');
+        if (wgInput) wgInput.value = activeVideoUrl;
+
         document.getElementById('wg-modal-instructions').innerText = activeWorkoutItem.instructions || "Thực hiện đúng form động tác, khởi động kỹ trước khi tập.";
 
         const wgYtBtn = document.getElementById('wg-youtube-search-btn');
@@ -827,11 +834,17 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
               `;
             }
 
-            // Set verified direct embeddable video URL
+            // Set verified direct embeddable video URL (with database custom video fallback)
+            plan.customVideos = plan.customVideos || {};
+            const savedMealVideo = plan.customVideos['meal:' + activeRecipeMeal.name];
+            const activeMealVideoUrl = savedMealVideo || activeRecipeMeal.youtubeEmbedUrl || 'https://www.youtube.com/embed/gq3zY7y25n0';
+
             const iframe = document.getElementById('rd-modal-iframe');
             if (iframe) {
-              iframe.src = activeRecipeMeal.youtubeEmbedUrl || 'https://www.youtube.com/embed/gq3zY7y25n0';
+              iframe.src = activeMealVideoUrl;
             }
+            const rdInput = document.getElementById('rd-custom-video-input');
+            if (rdInput) rdInput.value = activeMealVideoUrl;
           }
         }
 
@@ -883,10 +896,13 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
       if (activeWorkoutItem) {
         activeWorkoutItem.youtubeUrl = embedUrl;
+        plan.customVideos = plan.customVideos || {};
+        plan.customVideos['workout:' + activeWorkoutItem.title] = embedUrl;
+        await DataService.saveUserPlan(plan);
       }
 
       confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
-      await Modal.success({ title: 'Đã Cập Nhật Video!', message: 'Video hướng dẫn tập luyện mới đã được hiển thị thành công!' });
+      await Modal.success({ title: 'Đã Cập Nhật & Lưu Video!', message: `Đã lưu video tùy chỉnh cho bài tập "${activeWorkoutItem?.title || ''}" vào Cơ sở dữ liệu thành công!` });
     });
 
     // Custom Video URL Apply Handler for Recipe Details Modal
@@ -912,10 +928,13 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
       if (activeRecipeMeal) {
         activeRecipeMeal.youtubeEmbedUrl = embedUrl;
+        plan.customVideos = plan.customVideos || {};
+        plan.customVideos['meal:' + activeRecipeMeal.name] = embedUrl;
+        await DataService.saveUserPlan(plan);
       }
 
       confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
-      await Modal.success({ title: 'Đã Cập Nhật Video!', message: 'Video hướng dẫn chế biến món ăn mới đã được hiển thị thành công!' });
+      await Modal.success({ title: 'Đã Cập Nhật & Lưu Video!', message: `Đã lưu video tùy chỉnh cho món "${activeRecipeMeal?.name || ''}" vào Cơ sở dữ liệu! Tất cả các ngày trùng món ăn này sẽ tự động hiện video này.` });
     });
 
     // Schedule Item Card Click Handler (Synchronized pop-up guide for all schedule items)
