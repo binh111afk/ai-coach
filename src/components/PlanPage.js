@@ -7,6 +7,29 @@ import { renderGeminiIcon, renderSunIcon, renderSunsetIcon, renderMoonIcon, rend
 let selectedJourneyDay = null; // 1-based journey day navigation
 let activeWorkoutTypeSelection = null;
 
+export function parseEmbedVideoUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return null;
+  const str = urlStr.trim();
+
+  // YouTube matchers (watch?v=, embed/, shorts/, youtu.be/)
+  const ytMatch = str.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  }
+
+  // TikTok matchers (@user/video/ID or embed/v2/ID)
+  const ttMatch = str.match(/tiktok\.com\/(?:@[\w.-]+\/video\/|embed\/v2\/)(\d+)/i);
+  if (ttMatch && ttMatch[1]) {
+    return `https://www.tiktok.com/embed/v2/${ttMatch[1]}`;
+  }
+
+  if (str.startsWith('http://') || str.startsWith('https://')) {
+    return str;
+  }
+
+  return null;
+}
+
 export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   // Cleanup any old teleported modals from DOM to prevent duplicate ID conflicts
   ['recipe-details-modal', 'workout-guide-modal'].forEach(id => {
@@ -408,11 +431,24 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Mở Xem Trên YouTube ↗
           </a>
         </div>
+        <!-- Custom Video Link Input Box (YouTube / TikTok) -->
+        <div style="margin-bottom: 0.85rem; background: var(--bg-subtle); padding: 0.65rem 0.85rem; border-radius: 14px; border: 1.5px dashed var(--accent-purple);">
+          <label style="font-size: 0.78rem; font-weight: 800; color: var(--accent-purple); display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Dán Link Video TikTok / YouTube Đổi Video Hướng Dẫn:
+          </label>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <input type="text" class="form-input" id="wg-custom-video-input" placeholder="Dán link TikTok hoặc YouTube vào đây..." style="font-size: 0.82rem; padding: 0.45rem 0.75rem; border-radius: 10px; flex: 1; min-width: 200px;" />
+            <button type="button" class="btn btn-primary btn-sm" id="btn-wg-apply-video" style="font-size: 0.78rem; font-weight: 700; white-space: nowrap; padding: 0.45rem 0.85rem; border-radius: 10px; gap: 0.3rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg> Xác Nhận Đổi Video
+            </button>
+          </div>
+        </div>
+
         <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius-control); background: #000; margin-bottom: 0.4rem;">
           <iframe id="wg-modal-iframe" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
         <div class="text-xs text-muted" style="margin-bottom: 1.1rem; font-style: italic; display: flex; align-items: center; gap: 0.35rem;">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--accent-purple)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Bấm <b>"Mở Xem Trên YouTube ↗"</b> để xem fullHD trực tiếp trên app/web YouTube.
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--accent-purple)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Bạn có thể dán link video YouTube/TikTok bất kỳ và bấm <b>"Xác Nhận Đổi Video"</b> để phát trực tiếp!
         </div>
 
         <!-- Text Instructions -->
@@ -489,6 +525,19 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
               </a>
             </div>
           </div>
+          <!-- Custom Video Link Input Box (YouTube / TikTok) -->
+          <div style="margin-bottom: 0.85rem; background: var(--bg-subtle); padding: 0.65rem 0.85rem; border-radius: 14px; border: 1.5px dashed var(--accent-purple);">
+            <label style="font-size: 0.78rem; font-weight: 800; color: var(--accent-purple); display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Dán Link Video TikTok / YouTube Đổi Video Chế Biến:
+            </label>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <input type="text" class="form-input" id="rd-custom-video-input" placeholder="Dán link TikTok hoặc YouTube vào đây..." style="font-size: 0.82rem; padding: 0.45rem 0.75rem; border-radius: 10px; flex: 1; min-width: 200px;" />
+              <button type="button" class="btn btn-primary btn-sm" id="btn-rd-apply-video" style="font-size: 0.78rem; font-weight: 700; white-space: nowrap; padding: 0.45rem 0.85rem; border-radius: 10px; gap: 0.3rem;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg> Xác Nhận Đổi Video
+              </button>
+            </div>
+          </div>
+
           <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 16px; background: #000; border: 1px solid var(--border-color);">
             <iframe id="rd-modal-iframe" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
           </div>
@@ -812,6 +861,61 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         });
         onNavigateTab('meals');
       }
+    });
+
+    // Custom Video URL Apply Handler for Workout Guide Modal
+    document.getElementById('btn-wg-apply-video')?.addEventListener('click', async () => {
+      const inputEl = document.getElementById('wg-custom-video-input');
+      const val = inputEl ? inputEl.value.trim() : '';
+      if (!val) {
+        await Modal.warning({ title: 'Chưa Nhập Link', message: 'Vui lòng dán liên kết video YouTube hoặc TikTok vào ô trước khi bấm xác nhận.' });
+        return;
+      }
+
+      const embedUrl = parseEmbedVideoUrl(val);
+      if (!embedUrl) {
+        await Modal.warning({ title: 'Link Không Hợp Lệ', message: 'Vui lòng dán link video hợp lệ từ YouTube (watch, shorts, youtu.be) hoặc TikTok (@user/video hoặc embed).' });
+        return;
+      }
+
+      const iframe = document.getElementById('wg-modal-iframe');
+      if (iframe) iframe.src = embedUrl;
+
+      if (activeWorkoutItem) {
+        activeWorkoutItem.youtubeUrl = embedUrl;
+      }
+
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+      await Modal.success({ title: 'Đã Cập Nhật Video!', message: 'Video hướng dẫn tập luyện mới đã được hiển thị thành công!' });
+    });
+
+    // Custom Video URL Apply Handler for Recipe Details Modal
+    document.getElementById('btn-rd-apply-video')?.addEventListener('click', async () => {
+      const inputEl = document.getElementById('rd-custom-video-input');
+      const val = inputEl ? inputEl.value.trim() : '';
+      if (!val) {
+        await Modal.warning({ title: 'Chưa Nhập Link', message: 'Vui lòng dán liên kết video YouTube hoặc TikTok vào ô trước khi bấm xác nhận.' });
+        return;
+      }
+
+      const embedUrl = parseEmbedVideoUrl(val);
+      if (!embedUrl) {
+        await Modal.warning({ title: 'Link Không Hợp Lệ', message: 'Vui lòng dán link video hợp lệ từ YouTube (watch, shorts, youtu.be) hoặc TikTok (@user/video hoặc embed).' });
+        return;
+      }
+
+      const iframe = document.getElementById('rd-modal-iframe');
+      if (iframe) iframe.src = embedUrl;
+
+      const videoSection = document.getElementById('rd-modal-video-section');
+      if (videoSection) videoSection.style.display = 'block';
+
+      if (activeRecipeMeal) {
+        activeRecipeMeal.youtubeEmbedUrl = embedUrl;
+      }
+
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+      await Modal.success({ title: 'Đã Cập Nhật Video!', message: 'Video hướng dẫn chế biến món ăn mới đã được hiển thị thành công!' });
     });
 
     // Schedule Item Card Click Handler (Synchronized pop-up guide for all schedule items)
