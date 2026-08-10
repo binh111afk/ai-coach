@@ -12,7 +12,7 @@ function destroyExistingChart(canvasId) {
 /**
  * Render Ultra-WOW ApexCharts Weight Spline Area Chart
  */
-export function renderWeightChart(canvasId, dailyLogs = [], targetWeight = 65) {
+export function renderWeightChart(canvasId, dailyLogs = [], targetWeight = 65, goal = null) {
   const container = document.getElementById(canvasId);
   if (!container) return;
 
@@ -21,19 +21,45 @@ export function renderWeightChart(canvasId, dailyLogs = [], targetWeight = 65) {
   // Clear canvas tag if any, replace with div container if needed
   container.innerHTML = '';
 
-  const labels = dailyLogs.map(l => l.date);
-  const weights = dailyLogs.map(l => l.weight || null);
+  // Build journey weight timeline
+  const weightMap = {};
+
+  // Add startWeight milestone from user goal if available
+  if (goal && goal.startDate && goal.startWeight) {
+    weightMap[goal.startDate] = parseFloat(goal.startWeight);
+  }
+
+  // Populate actual weight records from daily logs
+  dailyLogs.forEach(l => {
+    if (l.date && l.weight !== null && l.weight !== undefined) {
+      weightMap[l.date] = parseFloat(l.weight);
+    }
+  });
+
+  const sortedDates = Object.keys(weightMap).sort();
+
+  let labels = [];
+  let weights = [];
+
+  if (sortedDates.length > 0) {
+    labels = sortedDates;
+    weights = sortedDates.map(d => weightMap[d]);
+  } else {
+    labels = [goal?.startDate || 'Hôm nay'];
+    weights = [goal?.startWeight || 70];
+  }
+
   const targetLines = labels.map(() => targetWeight);
 
   const options = {
     series: [
       {
         name: 'Cân Nặng Thực Tế',
-        data: weights.length ? weights : [70]
+        data: weights
       },
       {
         name: 'Mục Tiêu (kg)',
-        data: targetLines.length ? targetLines : [targetWeight]
+        data: targetLines
       }
     ],
     chart: {

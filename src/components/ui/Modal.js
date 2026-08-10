@@ -110,8 +110,15 @@ export const Modal = {
       const btnConfirm = overlay.querySelector('#modal-btn-confirm');
       const btnCancel = overlay.querySelector('#modal-btn-cancel');
 
-      // Focus input after animation
-      setTimeout(() => inputEl?.focus(), 150);
+      // Focus & auto-select input text after animation so typing immediately overwrites without needing backspace
+      setTimeout(() => {
+        if (inputEl) {
+          inputEl.focus();
+          if (typeof inputEl.select === 'function') {
+            inputEl.select();
+          }
+        }
+      }, 150);
 
       // Enter key submits
       inputEl?.addEventListener('keydown', (e) => {

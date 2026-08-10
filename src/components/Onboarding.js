@@ -51,15 +51,15 @@ export function renderOnboarding(onComplete) {
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
             <div class="form-group">
               <label class="form-label">Tuổi *</label>
-              <input type="number" class="form-input" id="ob-age" value="" placeholder="Ví dụ: 25" min="12" max="90">
+              <input type="number" class="form-input" id="ob-age" value="" placeholder="Ví dụ: 25" min="12" max="90" onfocus="this.select()">
             </div>
             <div class="form-group">
               <label class="form-label">Chiều cao (cm) *</label>
-              <input type="number" class="form-input" id="ob-height" value="" placeholder="Ví dụ: 170" min="100" max="230">
+              <input type="number" class="form-input" id="ob-height" value="" placeholder="Ví dụ: 170" min="100" max="230" onfocus="this.select()">
             </div>
             <div class="form-group">
               <label class="form-label">Cân nặng (kg) *</label>
-              <input type="number" class="form-input" id="ob-weight" value="" placeholder="Ví dụ: 70" step="0.1" min="30" max="250">
+              <input type="number" class="form-input" id="ob-weight" value="" placeholder="Ví dụ: 70" step="0.1" min="30" max="250" onfocus="this.select()">
             </div>
           </div>
           <div id="ob-step1-error" style="color: var(--danger); font-size: 0.825rem; font-weight: 700; margin-top: 0.5rem; display: none;"></div>
@@ -73,11 +73,11 @@ export function renderOnboarding(onComplete) {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div class="form-group">
               <label class="form-label">Cân nặng mục tiêu (kg) *</label>
-              <input type="number" class="form-input" id="ob-target-weight" value="" placeholder="Ví dụ: 65" step="0.1">
+              <input type="number" class="form-input" id="ob-target-weight" value="" placeholder="Ví dụ: 65" step="0.1" onfocus="this.select()">
             </div>
             <div class="form-group">
               <label class="form-label">Thời gian hành trình (ngày) *</label>
-              <input type="number" class="form-input" id="ob-target-days" value="60" placeholder="Ví dụ: 60" min="10" max="365">
+              <input type="number" class="form-input" id="ob-target-days" value="" placeholder="Ví dụ: 60" min="10" max="365" onfocus="this.select()">
             </div>
           </div>
 
