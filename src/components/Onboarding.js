@@ -116,6 +116,11 @@ export function renderOnboarding(onComplete) {
                   </button>
                 `;
               }).join('')}
+
+              <button type="button" id="btn-add-custom-workout-time"
+                style="padding: 0.38rem 0.85rem; border-radius: 20px; border: 1.5px dashed var(--accent-purple); background: rgba(124, 58, 237, 0.06); color: var(--accent-purple); font-size: 0.8rem; font-weight: 800; cursor: pointer; transition: all 0.18s; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.3rem;">
+                <i data-lucide="plus-circle" style="width: 14px; height: 14px;"></i> Tự Chọn Giờ Tập Khác...
+              </button>
             </div>
           </div>
           
@@ -269,6 +274,101 @@ export function renderOnboarding(onComplete) {
           chip.style.borderColor = 'var(--accent-purple)';
           chip.style.color = 'var(--accent-purple)';
         }
+      });
+    });
+
+    // Custom Workout Time Picker Modal Prompt Handler
+    document.getElementById('btn-add-custom-workout-time')?.addEventListener('click', () => {
+      document.getElementById('modal-add-custom-time')?.remove();
+
+      const modalHtml = `
+        <div class="custom-modal-overlay active" id="modal-add-custom-time" style="z-index: 10000;">
+          <div class="custom-modal-card" style="max-width: 440px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <div class="custom-modal-title" style="margin: 0; font-size: 1.1rem; color: var(--accent-purple); display: flex; align-items: center; gap: 0.4rem;">
+                <i data-lucide="clock" style="width: 20px; height: 20px;"></i> Thêm Khung Giờ Tập Tự Chọn
+              </div>
+              <button class="btn btn-secondary btn-icon btn-sm" id="btn-close-custom-time-modal" style="border: 0; width: 28px; height: 28px;">
+                <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+              </button>
+            </div>
+            <p class="text-sm text-muted" style="margin-bottom: 1.1rem; line-height: 1.45; text-align: left;">
+              Vui lòng chọn mốc <b>Giờ Bắt Đầu</b> và <b>Giờ Kết Thúc</b> tập luyện phù hợp với thời gian biểu rảnh của bạn:
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+              <div class="form-group" style="margin: 0; text-align: left;">
+                <label class="form-label" style="font-size: 0.8rem;">Giờ Bắt Đầu *</label>
+                <input type="time" class="form-input" id="custom-time-start" value="06:30" style="font-size: 1rem; padding: 0.5rem; text-align: center;">
+              </div>
+              <div class="form-group" style="margin: 0; text-align: left;">
+                <label class="form-label" style="font-size: 0.8rem;">Giờ Kết Thúc *</label>
+                <input type="time" class="form-input" id="custom-time-end" value="07:30" style="font-size: 1rem; padding: 0.5rem; text-align: center;">
+              </div>
+            </div>
+            <div class="custom-modal-actions">
+              <button class="btn btn-secondary custom-modal-btn" id="btn-cancel-custom-time">Hủy Bỏ</button>
+              <button class="btn btn-primary custom-modal-btn" id="btn-confirm-custom-time">
+                <i data-lucide="plus"></i> Thêm Khung Giờ
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      if (window.lucide) window.lucide.createIcons();
+
+      const modalEl = document.getElementById('modal-add-custom-time');
+      const closeModal = () => modalEl?.remove();
+
+      document.getElementById('btn-close-custom-time-modal')?.addEventListener('click', closeModal);
+      document.getElementById('btn-cancel-custom-time')?.addEventListener('click', closeModal);
+
+      document.getElementById('btn-confirm-custom-time')?.addEventListener('click', () => {
+        const startVal = document.getElementById('custom-time-start')?.value || '06:30';
+        const endVal = document.getElementById('custom-time-end')?.value || '07:30';
+        const timeRangeStr = `${startVal} - ${endVal}`;
+
+        if (!formData.preferredWorkoutTimes.includes(timeRangeStr)) {
+          formData.preferredWorkoutTimes.push(timeRangeStr);
+        }
+
+        // Dynamically add new time chip to UI
+        const chipContainer = document.getElementById('ob-workout-time-chips');
+        const addBtn = document.getElementById('btn-add-custom-workout-time');
+        const chipId = 'wt_custom_' + Date.now();
+
+        const chipBtn = document.createElement('button');
+        chipBtn.type = 'button';
+        chipBtn.className = 'workout-time-chip active';
+        chipBtn.id = chipId;
+        chipBtn.setAttribute('data-value', timeRangeStr);
+        chipBtn.style.cssText = 'padding: 0.38rem 0.8rem; border-radius: 20px; border: 1.5px solid var(--accent-purple); background: rgba(124, 58, 237, 0.15); color: var(--accent-purple); font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap;';
+        chipBtn.innerHTML = `⏱️ ${timeRangeStr} (Tự chọn)`;
+
+        chipBtn.addEventListener('click', () => {
+          const idx = formData.preferredWorkoutTimes.indexOf(timeRangeStr);
+          if (idx > -1) {
+            if (formData.preferredWorkoutTimes.length > 1) {
+              formData.preferredWorkoutTimes.splice(idx, 1);
+              chipBtn.style.background = 'var(--bg-card)';
+              chipBtn.style.borderColor = 'var(--border-color)';
+              chipBtn.style.color = 'var(--text-main)';
+            }
+          } else {
+            formData.preferredWorkoutTimes.push(timeRangeStr);
+            chipBtn.style.background = 'rgba(124, 58, 237, 0.15)';
+            chipBtn.style.borderColor = 'var(--accent-purple)';
+            chipBtn.style.color = 'var(--accent-purple)';
+          }
+        });
+
+        if (chipContainer && addBtn) {
+          chipContainer.insertBefore(chipBtn, addBtn);
+        }
+
+        confetti({ particleCount: 35, spread: 60, origin: { y: 0.6 } });
+        closeModal();
       });
     });
 
