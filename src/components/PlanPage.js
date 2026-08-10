@@ -104,7 +104,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
       
       <!-- Hero AI Plan Generator Banner -->
-      <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.95), rgba(251, 250, 255, 0.95)); border: 1px solid var(--border-highlight);">
+      <div class="card hero-banner-card">
         <div class="card-header">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.6rem;">

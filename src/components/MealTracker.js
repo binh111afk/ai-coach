@@ -50,7 +50,7 @@ export async function renderMealTracker(onOpenAiCoach) {
   const html = `
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
       <!-- Header Banner & AI Natural Language Prompt Box -->
-      <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.9), rgba(251, 250, 255, 0.9)); border: 1px solid var(--border-highlight);">
+      <div class="card hero-banner-card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="utensils" class="text-purple"></i> Theo Dõi Bữa Ăn & Dinh Dưỡng</h2>
@@ -93,7 +93,7 @@ export async function renderMealTracker(onOpenAiCoach) {
 
         <!-- Quick AI Food Parser Bar -->
         <div style="margin-top: 1rem; display: flex; gap: 0.6rem;">
-          <input type="text" class="form-input" id="quick-food-nlp-input" placeholder="Ví dụ: Sáng ăn 2 quả trứng ốp la với 1 lát bánh mì đen..." style="background: var(--bg-card);">
+          <input type="text" class="form-input" id="quick-food-nlp-input" placeholder="Ví dụ: Sáng ăn 2 quả trứng ốp la với 1 lát bánh mì đen..." style="background: var(--bg-input); color: var(--text-main);">
           <button class="btn btn-ai" id="btn-quick-parse-food"><i data-lucide="wand-2"></i> AI Phân Tích</button>
         </div>
       </div>

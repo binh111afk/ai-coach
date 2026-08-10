@@ -32,7 +32,7 @@ export async function renderWorkoutTracker() {
   const html = `
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
       <!-- Header Banner & Rest Day Toggle -->
-      <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.9), rgba(251, 250, 255, 0.9)); border: 1px solid var(--border-highlight);">
+      <div class="card hero-banner-card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div>
             <h2 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="dumbbell" style="color: var(--accent-amber);"></i> Theo Dõi Tập Luyện & Vận Động</h2>
@@ -76,7 +76,7 @@ export async function renderWorkoutTracker() {
 
         <!-- Natural Language Workout Parser -->
         <div style="margin-top: 1rem; display: flex; gap: 0.6rem;">
-          <input type="text" class="form-input" id="quick-workout-nlp-input" placeholder="Ví dụ: Chạy bộ 30 phút hoặc Tập gym 45 phút..." style="background: var(--bg-card);">
+          <input type="text" class="form-input" id="quick-workout-nlp-input" placeholder="Ví dụ: Chạy bộ 30 phút hoặc Tập gym 45 phút..." style="background: var(--bg-input); color: var(--text-main);">
           <button class="btn btn-ai" id="btn-quick-parse-workout"><i data-lucide="zap"></i> AI Tính Calo Out</button>
         </div>
       </div>

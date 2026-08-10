@@ -59,7 +59,7 @@ export async function renderGamificationPage() {
   const html = `
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
       <!-- Level Hero Banner -->
-      <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.9), rgba(251, 250, 255, 0.9)); border: 1px solid var(--border-highlight);">
+      <div class="card hero-banner-card">
         <div class="gami-hero-row">
           <div style="display: flex; align-items: center; gap: 1.25rem;">
             <div class="gami-crown-icon">

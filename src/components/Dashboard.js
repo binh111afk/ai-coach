@@ -60,11 +60,13 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   // Date String in Vietnamese
   const dateFormatted = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
+  const mascotStatus = 'active'; // Logic for mascot state
+
   const dashboardHtml = `
     <div style="display: flex; flex-direction: column; gap: 1.75rem;">
       
       <!-- Signature Hero Journal Card with Vector Mascot SVG -->
-      <div class="card" style="background: linear-gradient(135deg, rgba(245, 241, 255, 0.9), rgba(251, 250, 255, 0.9)); border: 1px solid var(--border-highlight); position: relative; overflow: hidden;">
+      <div class="card hero-banner-card" style="position: relative; overflow: hidden;">
         <div style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr); gap: 1.5rem; align-items: center;" class="dash-grid">
           <div>
             <div class="status-badges-v2">
@@ -78,13 +80,6 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
                     <line x1="3" y1="10" x2="21" y2="10"/>
                   </svg>
                 </div>
-                <span class="text">${dateFormatted}</span>
-              </div>
-
-              <!-- Level – Vàng -->
-              <div class="status-badge level" id="dash-level-badge" style="cursor: pointer;" title="Xem Lộ Trình Cấp Độ">
-                <div class="icon">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
                   </svg>
                 </div>
