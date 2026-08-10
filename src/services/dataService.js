@@ -689,6 +689,7 @@ export const DataService = {
     }
 
     await dbManager.put('user_progress', progress);
+    window.dispatchEvent(new CustomEvent('xp:updated', { detail: { totalXp: progress.totalXp } }));
     return newBadges;
   },
 
@@ -718,6 +719,7 @@ export const DataService = {
     if (newBadges.length > 0) progress.badges = [...(progress.badges || []), ...newBadges];
 
     await dbManager.put('user_progress', progress);
+    window.dispatchEvent(new CustomEvent('xp:updated', { detail: { totalXp: progress.totalXp } }));
     if (newBadges.length > 0) {
       window.dispatchEvent(new CustomEvent('achievement:unlocked', { detail: { badgeIds: newBadges } }));
     }

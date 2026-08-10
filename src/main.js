@@ -1,5 +1,5 @@
 import { DataService } from './services/dataService.js';
-import { renderNavigation } from './components/Navigation.js';
+import { renderNavigation, updateNavigationXp } from './components/Navigation.js';
 import { renderOnboarding } from './components/Onboarding.js';
 import { renderDashboard } from './components/Dashboard.js';
 import { renderPlanPage } from './components/PlanPage.js';
@@ -126,6 +126,7 @@ async function handleTabChange(tab) {
     }
   });
 
+  await updateNavigationXp();
   await renderActiveView();
 }
 

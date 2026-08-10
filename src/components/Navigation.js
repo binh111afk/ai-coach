@@ -57,13 +57,13 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         <div style="display: flex; align-items: center; gap: 0.75rem;">
           <!-- Sleek Vibrant Level & XP Badge -->
           <div style="display: flex; align-items: center; gap: 0.6rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.12), rgba(168, 145, 255, 0.08)); padding: 0.35rem 0.85rem; border-radius: var(--radius-full); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); cursor: pointer; transition: all 0.2s ease;" id="btn-level-widget" title="Xem Lộ Trình Cấp Độ & XP">
-            <div style="display: flex; align-items: center; gap: 0.35rem; background: linear-gradient(135deg, #7556D9, #6042C0); color: #FFFFFF; padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.775rem; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.3);">
+            <div id="nav-level-badge-text" style="display: flex; align-items: center; gap: 0.35rem; background: linear-gradient(135deg, #7556D9, #6042C0); color: #FFFFFF; padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.775rem; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.3);">
               Lvl ${levelInfo.currentLevel.level}/${levelInfo.maxLevel}
             </div>
             <div style="width: 60px; height: 7px; background: rgba(117, 86, 217, 0.18); border-radius: 10px; overflow: hidden; position: relative;">
-              <div style="width: ${levelInfo.progressPercent}%; height: 100%; background: linear-gradient(90deg, #7556D9, #A891FF); border-radius: 10px; box-shadow: 0 0 8px rgba(117, 86, 217, 0.6);"></div>
+              <div id="nav-level-bar-fill" style="width: ${levelInfo.progressPercent}%; height: 100%; background: linear-gradient(90deg, #7556D9, #A891FF); border-radius: 10px; box-shadow: 0 0 8px rgba(117, 86, 217, 0.6);"></div>
             </div>
-            <span style="font-weight: 800; font-size: 0.8rem; color: #7556D9;">${progress.totalXp} <span style="font-size: 0.7rem; color: var(--text-muted);">XP</span></span>
+            <span id="nav-level-xp-text" style="font-weight: 800; font-size: 0.8rem; color: #7556D9;">${progress.totalXp} <span style="font-size: 0.7rem; color: var(--text-muted);">XP</span></span>
           </div>
 
           <!-- Interactive Journey Day Progress Badge (Thay thế nút AI Coach cũ) -->
@@ -146,3 +146,22 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
     document.getElementById('btn-open-settings')?.addEventListener('click', onOpenSettings);
   }
 }
+
+export async function updateNavigationXp() {
+  const progress = await DataService.getUserProgress(true); // Bypass cache to get latest totalXp
+  const goal = await DataService.getUserGoal();
+  const levelInfo = getLevelInfo(progress.totalXp, goal.journeyLevels);
+
+  const badgeEl = document.getElementById('nav-level-badge-text');
+  if (badgeEl) badgeEl.innerText = `Lvl ${levelInfo.currentLevel.level}/${levelInfo.maxLevel}`;
+
+  const barEl = document.getElementById('nav-level-bar-fill');
+  if (barEl) barEl.style.width = `${levelInfo.progressPercent}%`;
+
+  const xpEl = document.getElementById('nav-level-xp-text');
+  if (xpEl) xpEl.innerHTML = `${progress.totalXp} <span style="font-size: 0.7rem; color: var(--text-muted);">XP</span>`;
+}
+
+// Automatically sync navbar XP when achievement unlocked or XP updated
+window.addEventListener('achievement:unlocked', updateNavigationXp);
+window.addEventListener('xp:updated', updateNavigationXp);
