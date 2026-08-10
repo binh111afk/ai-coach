@@ -4,7 +4,7 @@ import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import { Modal } from './ui/Modal.js';
 import { renderGeminiIcon, renderSunIcon, renderSunsetIcon, renderMoonIcon, renderAppleIcon, renderFlameIcon, renderCalendarIcon } from './ui/Icons.js';
 
-let selectedJourneyDay = 1; // 1-based journey day navigation
+let selectedJourneyDay = null; // 1-based journey day navigation
 let activeWorkoutTypeSelection = null;
 
 export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
@@ -17,6 +17,19 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   const goal = await DataService.getUserGoal();
   const plan = await DataService.getUserPlan();
   const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 60;
+
+  // Calculate current journey day based on goal.startDate and today's date
+  let currentJourneyDay = 1;
+  if (goal.startDate) {
+    const start = new Date(goal.startDate);
+    const today = new Date(DataService.getTodayString());
+    currentJourneyDay = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+  }
+
+  // Default to today's current journey day if user hasn't explicitly selected another day
+  if (selectedJourneyDay === null) {
+    selectedJourneyDay = Math.min(currentJourneyDay, totalJourneyDays);
+  }
 
   let currentWorkoutType = activeWorkoutTypeSelection || plan.workoutType || 'home';
   let currentHomeEquipment = plan.homeEquipment || 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg';
