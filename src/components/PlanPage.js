@@ -172,7 +172,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
         <!-- Schedule Grid Layout -->
         <div class="daily-schedule-timeline" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
-          ${(activeDailySchedule || []).map((item) => {
+          ${(activeDailySchedule || []).map((item, idx) => {
             const catColors = {
               meal: { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.3)', text: '#059669', badge: 'Bữa Ăn', iconSvg: '<path d="M18 2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V2"/><path d="M12 2v20"/><path d="M12 12H6a2 2 0 0 0-2 2v8"/><path d="M12 12h6a2 2 0 0 1 2 2v8"/>' },
               workout: { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.3)', text: '#dc2626', badge: 'Tập Luyện', iconSvg: '<path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>' },
@@ -181,7 +181,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             const theme = catColors[item.category] || catColors.habit;
             
             return `
-              <div class="schedule-item-card" style="background: var(--bg-card, #ffffff); border: 1.5px solid ${theme.border}; border-radius: 16px; padding: 1.15rem; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+              <div class="schedule-item-card" data-open-schedule-item="${idx}" style="background: var(--bg-card, #ffffff); border: 1.5px solid ${theme.border}; border-radius: 16px; padding: 1.15rem; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.02); cursor: pointer; position: relative;">
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
                     <span style="font-weight: 900; font-size: 1.05rem; color: var(--accent-purple); font-family: monospace; background: rgba(124, 58, 237, 0.07); padding: 0.25rem 0.65rem; border-radius: 8px; border: 1px solid rgba(124, 58, 237, 0.18); display: inline-flex; align-items: center; gap: 0.4rem;">
@@ -197,6 +197,9 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
                   <p style="font-size: 0.83rem; color: var(--text-muted, #64748b); margin: 0; line-height: 1.45;">
                     ${item.desc || ''}
                   </p>
+                </div>
+                <div style="font-size: 0.73rem; font-weight: 800; color: ${theme.text}; opacity: 0.9; display: flex; align-items: center; justify-content: flex-end; gap: 0.2rem; margin-top: 0.2rem;">
+                  <span>Xem Hướng Dẫn &amp; Chi Tiết</span> ↗
                 </div>
               </div>
             `;
@@ -500,6 +503,41 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         </div>
       </div>
     </div>
+
+    <!-- Modal Chi Tiết Mốc Lịch Trình Sinh Hoạt AI (Habits & Routine Guide) -->
+    <div class="modal-overlay" id="schedule-details-modal">
+      <div class="modal-card" style="max-width: 580px; margin: auto;">
+        <div class="card-header" style="margin-bottom: 1rem;">
+          <div>
+            <span class="badge" id="sd-modal-badge" style="background: rgba(59, 130, 246, 0.12); color: #2563eb; font-weight: 800; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.78rem; margin-bottom: 0.35rem; display: inline-flex; align-items: center; gap: 0.35rem;">⏰ Sinh Hoạt</span>
+            <h3 id="sd-modal-title" style="color: var(--accent-purple); font-size: 1.2rem; margin: 0.2rem 0 0 0;">Tên Mốc Lịch Trình</h3>
+          </div>
+          <button class="btn btn-secondary btn-icon" id="btn-close-sd-modal">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- Details Content Box -->
+        <div style="background: var(--bg-subtle); padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; flex-wrap: wrap;">
+            <span style="font-weight: 900; font-size: 1.1rem; color: var(--accent-purple); font-family: monospace; background: rgba(124, 58, 237, 0.1); padding: 0.25rem 0.75rem; border-radius: 10px; border: 1px solid rgba(124, 58, 237, 0.2);" id="sd-modal-time">06:30</span>
+            <span style="font-size: 0.825rem; color: var(--text-muted); font-weight: 700;" id="sd-modal-day-label">Khung giờ sinh hoạt khuyến nghị</span>
+          </div>
+
+          <h4 style="color: var(--text-main); margin-bottom: 0.5rem; font-weight: 800; font-size: 1.05rem;" id="sd-modal-activity">Thức Dậy &amp; Uống Nước Ấm Khởi Động</h4>
+
+          <p style="font-size: 0.92rem; line-height: 1.6; color: var(--text-main); margin-bottom: 1.1rem;" id="sd-modal-desc"></p>
+
+          <div style="background: rgba(124, 58, 237, 0.06); border-left: 3.5px solid var(--accent-purple); padding: 0.85rem 1.1rem; border-radius: 10px; font-size: 0.86rem; color: var(--text-main); line-height: 1.55;" id="sd-modal-tip">
+            💡 <b>Lời khuyên từ AI Coach:</b> Thực hiện thói quen này đều đặn đúng khung giờ sẽ giúp cơ thể thiết lập nhịp sinh học lành mạnh, nâng cao thể lực và thúc đẩy quá trình trao đổi chất.
+          </div>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; font-weight: 700;" id="btn-confirm-schedule-habit">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:0.35rem;"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Hoàn Thành &amp; Đã Thực Hiện Thói Quen Này
+        </button>
+      </div>
+    </div>
   `;
 
   const mountNode = document.getElementById('view-mount');
@@ -507,7 +545,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
     mountNode.innerHTML = html;
 
     // Teleport modals to document.body so they cover the navbar 100% edge-to-edge
-    ['recipe-details-modal', 'workout-guide-modal'].forEach(id => {
+    ['recipe-details-modal', 'workout-guide-modal', 'schedule-details-modal'].forEach(id => {
       const el = document.getElementById(id);
       if (el && el.parentNode !== document.body) {
         document.body.appendChild(el);
@@ -774,6 +812,69 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         });
         onNavigateTab('meals');
       }
+    });
+
+    // Schedule Item Card Click Handler (Synchronized pop-up guide for all schedule items)
+    const sdModal = document.getElementById('schedule-details-modal');
+
+    document.querySelectorAll('[data-open-schedule-item]').forEach(card => {
+      card.addEventListener('click', () => {
+        const idx = parseInt(card.getAttribute('data-open-schedule-item'));
+        const item = (activeDailySchedule || [])[idx];
+        if (!item) return;
+
+        if (item.category === 'meal') {
+          let mealKey = 'breakfast';
+          if (item.activity.includes('Trưa')) mealKey = 'lunch';
+          else if (item.activity.includes('Tối')) mealKey = 'dinner';
+          else if (item.activity.includes('Phụ')) mealKey = 'snack';
+
+          const targetMealCard = document.querySelector(`[data-open-recipe-meal="${mealKey}"]`);
+          if (targetMealCard) {
+            targetMealCard.click();
+            return;
+          }
+        } else if (item.category === 'workout') {
+          const targetWorkoutBtn = document.querySelector(`[data-open-workout-guide="${activeWorkoutIndex}"]`);
+          if (targetWorkoutBtn) {
+            targetWorkoutBtn.click();
+            return;
+          }
+        }
+
+        // For habit schedule items, open schedule-details-modal
+        document.getElementById('sd-modal-badge').innerText = `⏰ ${item.category === 'habit' ? 'Sinh Hoạt' : 'Lịch Trình'}`;
+        document.getElementById('sd-modal-title').innerText = item.activity;
+        document.getElementById('sd-modal-time').innerText = item.time;
+        document.getElementById('sd-modal-day-label').innerText = `Lịch trình Ngày ${selectedJourneyDay}/${totalJourneyDays}`;
+        document.getElementById('sd-modal-activity').innerText = item.activity;
+        document.getElementById('sd-modal-desc').innerText = item.desc || 'Thực hiện đúng khung giờ sinh hoạt AI đề xuất để bảo vệ sức khỏe và nâng cao thể lực.';
+
+        let tipText = '💡 <b>Lời khuyên từ AI Coach:</b> Thực hiện thói quen này đều đặn đúng khung giờ sẽ giúp cơ thể thiết lập nhịp sinh học lành mạnh, nâng cao thể lực và thúc đẩy quá trình trao đổi chất.';
+        if (item.activity.includes('Thức Dậy')) {
+          tipText = '💧 <b>Bổ sung nước đầu ngày:</b> 300 - 500ml nước ấm ngay sau khi thức dậy giúp bù lại lượng nước đã mất qua đêm, làm sạch hệ tiêu hóa và thúc đẩy nhu động ruột.';
+        } else if (item.activity.includes('Bổ Sung Nước')) {
+          tipText = '🚰 <b>Ngăn ngừa mất nước:</b> Nhấp từng ngụm nước nhỏ trong ngày giúp duy trì sự tập trung, chống mệt mỏi và duy trì quá trình chuyển hóa chất béo hiệu quả.';
+        } else if (item.activity.includes('Ngủ') || item.activity.includes('Thư Giãn')) {
+          tipText = '🌙 <b>Giấc ngủ phục hồi:</b> Ngủ 7-8 tiếng là chìa khóa để cơ bắp phục hồi, tổng hợp protein và duy trì hormone tăng trưởng tối đa cho cơ thể.';
+        }
+
+        document.getElementById('sd-modal-tip').innerHTML = tipText;
+        sdModal?.classList.add('active');
+      });
+    });
+
+    document.getElementById('btn-close-sd-modal')?.addEventListener('click', () => {
+      sdModal?.classList.remove('active');
+    });
+
+    document.getElementById('btn-confirm-schedule-habit')?.addEventListener('click', async () => {
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+      sdModal?.classList.remove('active');
+      await Modal.success({
+        title: 'Đã Hoàn Thành Thói Quen!',
+        message: `Tuyệt vời! Bạn đã hoàn thành mốc lịch trình "${activeDailySchedule?.[0]?.activity || 'Sinh hoạt'}" cho Ngày ${selectedJourneyDay}!`
+      });
     });
   }
 }
