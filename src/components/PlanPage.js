@@ -19,12 +19,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 60;
 
   // Calculate current journey day based on goal.startDate and today's date
-  let currentJourneyDay = 1;
-  if (goal.startDate) {
-    const start = new Date(goal.startDate);
-    const today = new Date(DataService.getTodayString());
-    currentJourneyDay = Math.max(1, Math.floor((today - start) / 86400000) + 1);
-  }
+  const currentJourneyDay = DataService.calculateCurrentJourneyDay(goal.startDate);
 
   // Default to today's current journey day if user hasn't explicitly selected another day
   if (selectedJourneyDay === null) {

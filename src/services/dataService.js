@@ -36,6 +36,40 @@ export const DataService = {
   },
 
   /**
+   * Helper to parse YYYY-MM-DD string to local midnight Date object (avoids UTC offset shifts)
+   */
+  parseLocalDate(str) {
+    if (!str) return new Date();
+    const parts = str.split('-').map(Number);
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  },
+
+  /**
+   * Calculates current journey day (1-based) accurately using local calendar dates
+   */
+  calculateCurrentJourneyDay(startDateStr) {
+    if (!startDateStr) return 1;
+    const start = this.parseLocalDate(startDateStr);
+    const today = this.parseLocalDate(this.getTodayString());
+    const diffTime = today.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 3600 * 24));
+    return Math.max(1, diffDays + 1);
+  },
+
+  /**
+   * Formats a journey day index back to YYYY-MM-DD string without UTC shift
+   */
+  getDateStrForJourneyDay(startDateStr, journeyDay = 1) {
+    if (!startDateStr) return this.getTodayString();
+    const start = this.parseLocalDate(startDateStr);
+    start.setDate(start.getDate() + (journeyDay - 1));
+    const yyyy = start.getFullYear();
+    const mm = String(start.getMonth() + 1).padStart(2, '0');
+    const dd = String(start.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  },
+
+  /**
    * Evaluates and updates user consecutive streak based on login/activity date.
    */
   async checkAndUpdateStreak(progress) {

@@ -83,6 +83,20 @@ async function initApp() {
       showStreakOverlay(streakCount);
     }, 700);
   }
+
+  // Global Auto-Sync: Auto-refresh entire app when calendar date rolls over (e.g. tab left open overnight)
+  let lastKnownDate = todayStr;
+  const checkDateRollover = async () => {
+    const nowStr = DataService.getTodayString();
+    if (nowStr !== lastKnownDate) {
+      lastKnownDate = nowStr;
+      await refreshAllViews();
+    }
+  };
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkDateRollover();
+  });
+  window.addEventListener('focus', checkDateRollover);
 }
 
 async function handleTabChange(tab) {

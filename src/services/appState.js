@@ -37,7 +37,11 @@ class AppStateStore {
 
   setDailyLog(dateStr, log) {
     this.dailyLogsMap.set(dateStr, log);
-    const today = new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
     if (dateStr === today) {
       this.dailyLog = log;
     }

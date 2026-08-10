@@ -15,12 +15,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const progress = await DataService.getUserProgress();
 
   const todayStr = DataService.getTodayString();
-  let currentJourneyDay = 1;
-  if (goal.startDate) {
-    const start = new Date(goal.startDate);
-    const today = new Date(todayStr);
-    currentJourneyDay = Math.max(1, Math.floor((today - start) / 86400000) + 1);
-  }
+  const currentJourneyDay = DataService.calculateCurrentJourneyDay(goal.startDate);
 
   const { mealEntry: todayRecommendedMeals, workout: todayRecommendedWorkout, phase: currentPhase } = getPlanForJourneyDay(plan, currentJourneyDay);
 

@@ -14,12 +14,7 @@ export async function renderMealTracker(onOpenAiCoach) {
   const todayStr = DataService.getTodayString();
 
   // Calculate current journey day (1-based) from goal.startDate
-  let currentJourneyDay = 1;
-  if (goal.startDate) {
-    const start = new Date(goal.startDate);
-    const today = new Date(todayStr);
-    currentJourneyDay = Math.max(1, Math.floor((today - start) / 86400000) + 1);
-  }
+  const currentJourneyDay = DataService.calculateCurrentJourneyDay(goal.startDate);
 
   if (selectedMealJourneyDay === null) {
     selectedMealJourneyDay = Math.min(currentJourneyDay, totalJourneyDays);
@@ -29,13 +24,8 @@ export async function renderMealTracker(onOpenAiCoach) {
   if (selectedMealJourneyDay < 1) selectedMealJourneyDay = 1;
   if (selectedMealJourneyDay > totalJourneyDays) selectedMealJourneyDay = totalJourneyDays;
 
-  // Resolve active date string for selected journey day
-  let activeDateStr = todayStr;
-  if (goal.startDate) {
-    const d = new Date(goal.startDate);
-    d.setDate(d.getDate() + (selectedMealJourneyDay - 1));
-    activeDateStr = d.toISOString().split('T')[0];
-  }
+  // Resolve active date string for selected journey day (without UTC offset shift)
+  const activeDateStr = DataService.getDateStrForJourneyDay(goal.startDate, selectedMealJourneyDay);
 
   const todayLog = await DataService.getDailyLog(activeDateStr);
   const dailyBudget = plan.dailyBudgetVnd || 100000;
