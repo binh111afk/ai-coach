@@ -80,6 +80,13 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
                     <line x1="3" y1="10" x2="21" y2="10"/>
                   </svg>
                 </div>
+                <span class="text">${dateFormatted}</span>
+              </div>
+
+              <!-- Level – Vàng -->
+              <div class="status-badge level" id="dash-level-badge" style="cursor: pointer;" title="Xem Lộ Trình Cấp Độ">
+                <div class="icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
                   </svg>
                 </div>
