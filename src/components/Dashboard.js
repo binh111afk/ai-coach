@@ -198,7 +198,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
           </div>
 
           <!-- Today AI Recommendation Quick-Log Card -->
-          <div class="card" style="border: 1px solid var(--border-color); background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98)); border-radius: 20px;">
+          <div class="card hero-banner-card" style="border-radius: 20px;">
             <div class="card-header" style="margin-bottom: 0.85rem;">
               <div>
                 <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); font-size: 1.05rem;">
