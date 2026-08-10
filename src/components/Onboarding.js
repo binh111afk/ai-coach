@@ -15,7 +15,7 @@ export function renderOnboarding(onComplete) {
     targetDays: 60,
     activityLevel: 'moderate',
     foodAllergies: '',
-    preferredWorkoutTimes: ['17:30 - 18:30']
+    preferredWorkoutTimes: []
   };
 
   const activityOptions = Object.keys(ACTIVITY_MULTIPLIERS).map(key => ({
@@ -99,27 +99,9 @@ export function renderOnboarding(onComplete) {
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Khung giờ bạn có thể tập luyện hàng ngày <span class="text-muted">(có thể chọn nhiều)</span>
             </label>
             <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.4rem;" id="ob-workout-time-chips">
-              ${[
-                { id: 'wt_6am',   label: '🌅 06:00 - 07:00 (Sáng sớm)', value: '06:00 - 07:00' },
-                { id: 'wt_7am',   label: '☀️ 07:00 - 08:00 (Buổi sáng)', value: '07:00 - 08:00' },
-                { id: 'wt_12pm',  label: '🌤️ 12:00 - 13:00 (Nghỉ trưa)', value: '12:00 - 13:00' },
-                { id: 'wt_1630',  label: '🌆 16:30 - 17:30 (Chiều mát)', value: '16:30 - 17:30' },
-                { id: 'wt_1730',  label: '🌇 17:30 - 18:30 (Tối sớm)', value: '17:30 - 18:30' },
-                { id: 'wt_19pm',  label: '🌙 19:00 - 20:00 (Buổi tối)', value: '19:00 - 20:00' },
-                { id: 'wt_20pm',  label: '🌃 20:00 - 21:00 (Tối muộn)', value: '20:00 - 21:00' }
-              ].map(chip => {
-                const isSel = formData.preferredWorkoutTimes.includes(chip.value);
-                return `
-                  <button type="button" class="workout-time-chip ${isSel ? 'active' : ''}" id="${chip.id}" data-value="${chip.value}"
-                    style="padding: 0.38rem 0.8rem; border-radius: 20px; border: 1.5px solid ${isSel ? 'var(--accent-purple)' : 'var(--border-color)'}; background: ${isSel ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)'}; color: ${isSel ? 'var(--accent-purple)' : 'var(--text-main)'}; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap;">
-                    ${chip.label}
-                  </button>
-                `;
-              }).join('')}
-
               <button type="button" id="btn-add-custom-workout-time"
-                style="padding: 0.38rem 0.85rem; border-radius: 20px; border: 1.5px dashed var(--accent-purple); background: rgba(124, 58, 237, 0.06); color: var(--accent-purple); font-size: 0.8rem; font-weight: 800; cursor: pointer; transition: all 0.18s; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.3rem;">
-                <i data-lucide="plus-circle" style="width: 14px; height: 14px;"></i> Tự Chọn Giờ Tập Khác...
+                style="padding: 0.45rem 1rem; border-radius: 20px; border: 1.5px dashed var(--accent-purple); background: rgba(124, 58, 237, 0.08); color: var(--accent-purple); font-size: 0.85rem; font-weight: 800; cursor: pointer; transition: all 0.18s; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> + Thêm Khung Giờ Tập
               </button>
             </div>
           </div>
