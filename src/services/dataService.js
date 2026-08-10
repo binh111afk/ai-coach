@@ -1510,16 +1510,40 @@ export function generateDailySchedule(dayMealPlan, workoutItem, preferredWorkout
     }
   }
 
+  // Calculate logical wake-up time: must be earlier than morning workout!
+  let wakeUpTime = '06:30';
+  const [wH, wM] = workoutTime.split(':').map(Number);
+  const workoutMin = wH * 60 + wM;
+
+  // If workout starts before 07:15 AM (435 mins), wake up 30 minutes before workout!
+  if (workoutMin < 435) {
+    const wakeMin = Math.max(300, workoutMin - 30); // Wake up 30 mins before, no earlier than 05:00 AM
+    const wakeH = String(Math.floor(wakeMin / 60)).padStart(2, '0');
+    const wakeM = String(wakeMin % 60).padStart(2, '0');
+    wakeUpTime = `${wakeH}:${wakeM}`;
+  }
+
+  // Calculate logical breakfast time: if workout is in early morning, breakfast follows workout
+  let breakfastTime = '07:30';
+  const [wakeH, wakeM] = wakeUpTime.split(':').map(Number);
+  const wakeTotalMin = wakeH * 60 + wakeM;
+  if (workoutMin >= wakeTotalMin && workoutMin < wakeTotalMin + 90) {
+    const postWorkoutMin = workoutMin + workoutDuration + 15;
+    const bH = String(Math.floor(postWorkoutMin / 60)).padStart(2, '0');
+    const bM = String(postWorkoutMin % 60).padStart(2, '0');
+    breakfastTime = `${bH}:${bM}`;
+  }
+
   const items = [
     {
-      time: '06:30',
+      time: wakeUpTime,
       activity: 'Thức Dậy & Uống Nước Ấm Khởi Động',
       category: 'habit',
       icon: 'sun',
       desc: 'Uống 300 - 500ml nước ấm để kích hoạt hệ tiêu hóa, thực hiện 5 phút dãn cơ nhẹ nhàng.'
     },
     {
-      time: '07:30',
+      time: breakfastTime,
       activity: `Bữa Sáng Dinh Dưỡng: ${bf.name}`,
       category: 'meal',
       icon: 'coffee',
