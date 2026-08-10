@@ -26,9 +26,91 @@ async function compressImageBase64(dataUrl, maxWidth = 800, quality = 0.75) {
 }
 
 export const DataService = {
-  // Helper date string YYYY-MM-DD
+  // Helper date string YYYY-MM-DD (local time)
   getTodayString() {
-    return new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+
+  /**
+   * Evaluates and updates user consecutive streak based on login/activity date.
+   */
+  async checkAndUpdateStreak(progress) {
+    if (!progress) return progress;
+    const todayStr = this.getTodayString();
+
+    if (!progress.lastLoggedDate) {
+      progress.lastLoggedDate = todayStr;
+      progress.currentStreak = 1;
+      progress.longestStreak = Math.max(progress.longestStreak || 1, 1);
+      await dbManager.put('user_progress', progress);
+      return progress;
+    }
+
+    if (progress.lastLoggedDate === todayStr) {
+      return progress;
+    }
+
+    // Parse YYYY-MM-DD string to local midnight Date object for accurate calendar day diff
+    const parseLocalDate = (str) => {
+      const parts = str.split('-').map(Number);
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    };
+
+    const lastDate = parseLocalDate(progress.lastLoggedDate);
+    const todayDate = parseLocalDate(todayStr);
+    const diffTime = todayDate.getTime() - lastDate.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+    let updated = false;
+
+    if (diffDays === 1) {
+      // Consecutive day visit/activity!
+      progress.currentStreak = (progress.currentStreak || 0) + 1;
+      progress.longestStreak = Math.max(progress.longestStreak || 1, progress.currentStreak);
+      progress.lastLoggedDate = todayStr;
+      updated = true;
+    } else if (diffDays > 1) {
+      // Check if yesterday had actual logs before resetting streak
+      const yesterday = new Date(todayDate);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yyyy = yesterday.getFullYear();
+      const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+      const dd = String(yesterday.getDate()).padStart(2, '0');
+      const yesterdayStr = `${yyyy}-${mm}-${dd}`;
+
+      const yesterdayLog = await dbManager.get('daily_logs', yesterdayStr);
+      const hasYesterdayActivity = yesterdayLog && (
+        (yesterdayLog.meals && yesterdayLog.meals.length > 0) ||
+        (yesterdayLog.workouts && yesterdayLog.workouts.length > 0) ||
+        (yesterdayLog.waterIntake && yesterdayLog.waterIntake > 0) ||
+        (yesterdayLog.checklist && yesterdayLog.checklist.some(t => t.done))
+      );
+
+      if (hasYesterdayActivity) {
+        progress.currentStreak = (progress.currentStreak || 0) + 1;
+        progress.longestStreak = Math.max(progress.longestStreak || 1, progress.currentStreak);
+        progress.lastLoggedDate = todayStr;
+      } else {
+        // Reset streak to 1
+        progress.currentStreak = 1;
+        progress.lastLoggedDate = todayStr;
+      }
+      updated = true;
+    } else if (diffDays < 0) {
+      // Date moved backwards (e.g. system clock change or UTC edge case), sync date
+      progress.lastLoggedDate = todayStr;
+      updated = true;
+    }
+
+    if (updated) {
+      await dbManager.put('user_progress', progress);
+    }
+
+    return progress;
   },
 
   async preloadAllData() {
@@ -430,6 +512,10 @@ export const DataService = {
   async getUserProgress(bypassCache = false) {
     if (!bypassCache && appState.getProgress()) {
       const cached = appState.getProgress();
+      // Even with cache, check if date rolled over to next day
+      if (cached.lastLoggedDate !== this.getTodayString()) {
+        await this.checkAndUpdateStreak(cached);
+      }
       // Ensure level and badges are sanitized even in cached state
       const goal = await this.getUserGoal();
       const levelInfo = getLevelInfo(cached.totalXp || 0, goal?.journeyLevels);
@@ -457,6 +543,9 @@ export const DataService = {
         badges: ['first_step']
       };
       await dbManager.put('user_progress', progress);
+    } else {
+      // Auto-evaluate streak on consecutive date visits/activities
+      await this.checkAndUpdateStreak(progress);
     }
 
     const goal = await this.getUserGoal();
