@@ -44,12 +44,11 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         <span>Cài đặt</span>
       </button>
     </nav>
-    <!-- Arrow button to re-show nav when hidden -->
-    <button class="nav-show-btn" id="btn-show-nav" title="Hiện thanh điều hướng">
+    <!-- Circular Arrow Button to Toggle Navigation (Bottom Right) -->
+    <button class="nav-toggle-fab" id="btn-toggle-nav-floating" title="Ẩn/Hiện thanh điều hướng">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="18 15 12 9 6 15"/>
       </svg>
-      Điều hướng
     </button>
   `;
 
@@ -75,13 +74,33 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
     // Settings Listener
     document.getElementById('btn-open-settings')?.addEventListener('click', onOpenSettings);
 
-    // Nav show button — visible when nav is hidden, click to restore nav
-    const navEl = container.querySelector('.bottom-nav');
-    const showNavBtn = document.getElementById('btn-show-nav');
-    showNavBtn?.addEventListener('click', () => {
-      navEl?.classList.remove('nav-hidden');
-      document.body.classList.remove('nav-hidden-state');
-      showNavBtn.classList.remove('visible');
+    // Global toggle function
+    window.toggleNavState = function(forceHide) {
+      const navEl = container.querySelector('.bottom-nav');
+      const fab = document.getElementById('btn-toggle-nav-floating');
+      const topbarBtn = document.getElementById('btnToggleNav');
+      if (!navEl) return;
+
+      const shouldHide = forceHide !== undefined ? forceHide : !navEl.classList.contains('nav-hidden');
+
+      if (shouldHide) {
+        navEl.classList.add('nav-hidden');
+        document.body.classList.add('nav-hidden-state');
+        fab?.classList.add('nav-is-hidden');
+        fab?.setAttribute('title', 'Hiện thanh điều hướng');
+        topbarBtn?.setAttribute('title', 'Hiện thanh điều hướng');
+      } else {
+        navEl.classList.remove('nav-hidden');
+        document.body.classList.remove('nav-hidden-state');
+        fab?.classList.remove('nav-is-hidden');
+        fab?.setAttribute('title', 'Ẩn thanh điều hướng');
+        topbarBtn?.setAttribute('title', 'Ẩn thanh điều hướng');
+      }
+    };
+
+    // Nav floating arrow button listener
+    document.getElementById('btn-toggle-nav-floating')?.addEventListener('click', () => {
+      if (window.toggleNavState) window.toggleNavState();
     });
   }
 }

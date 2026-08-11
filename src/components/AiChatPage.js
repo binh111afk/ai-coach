@@ -106,24 +106,9 @@ export async function renderAiChatPage(onStateUpdated) {
     if (window.lucide) window.lucide.createIcons();
 
     // Auto-hide nav when AI tab is active
-    const autoHideNav = () => {
-      const navEl = document.querySelector('.bottom-nav');
-      const showNavBtn = document.getElementById('btn-show-nav');
-      if (navEl) navEl.classList.add('nav-hidden');
-      document.body.classList.add('nav-hidden-state');
-      if (showNavBtn) showNavBtn.classList.add('visible');
-    };
-
-    const restoreNav = () => {
-      const navEl = document.querySelector('.bottom-nav');
-      const showNavBtn = document.getElementById('btn-show-nav');
-      if (navEl) navEl.classList.remove('nav-hidden');
-      document.body.classList.remove('nav-hidden-state');
-      if (showNavBtn) showNavBtn.classList.remove('visible');
-    };
-
-    // Auto-hide on mount (slight delay so nav renders first)
-    setTimeout(autoHideNav, 80);
+    setTimeout(() => {
+      if (window.toggleNavState) window.toggleNavState(true);
+    }, 80);
 
     // Sidebar toggle
     const container = document.getElementById('page-chat-messages-container');
@@ -140,13 +125,7 @@ export async function renderAiChatPage(onStateUpdated) {
 
     // Nav toggle button in topbar
     document.getElementById('btnToggleNav')?.addEventListener('click', () => {
-      const navEl = document.querySelector('.bottom-nav');
-      const showNavBtn = document.getElementById('btn-show-nav');
-      if (navEl?.classList.contains('nav-hidden')) {
-        restoreNav();
-      } else {
-        autoHideNav();
-      }
+      if (window.toggleNavState) window.toggleNavState();
     });
 
     const buildModelDropdown = async () => {
