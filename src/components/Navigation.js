@@ -39,10 +39,10 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         <i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-5 h-5"></i>
         <span>${isDark ? 'Sáng' : 'Tối'}</span>
       </button>
-      <button class="nav-item border-0 bg-transparent" id="btn-open-settings" title="Cài đặt">
+      <a class="nav-item ${activeTab === 'settings' ? 'active' : ''}" data-tab="settings" title="Cài Đặt Hệ Thống">
         <i data-lucide="settings" class="w-5 h-5"></i>
         <span>Cài đặt</span>
-      </button>
+      </a>
     </nav>
     <!-- Circular Arrow Button to Toggle Navigation (Bottom Right) -->
     <button class="nav-toggle-fab" id="btn-toggle-nav-floating" title="Ẩn/Hiện thanh điều hướng">

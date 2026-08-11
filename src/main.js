@@ -9,7 +9,7 @@ import { renderPhotoVault } from './components/PhotoVault.js';
 import { renderGamificationPage } from './components/GamificationPage.js';
 import { renderAiCoachChat } from './components/AiCoachChat.js';
 import { renderAiChatPage } from './components/AiChatPage.js';
-import { renderSettingsModal } from './components/SettingsModal.js';
+import { renderSettingsPage } from './components/SettingsPage.js';
 import { showAchievementToast } from './components/ui/AchievementToast.js';
 
 // Global achievement toast listener — catches events from anywhere in the app
@@ -19,7 +19,7 @@ window.addEventListener('achievement:unlocked', (e) => {
   }
 });
 
-const TAB_ORDER = ['dashboard', 'plan', 'meals', 'workouts', 'photos', 'gamification', 'ai'];
+const TAB_ORDER = ['dashboard', 'plan', 'meals', 'workouts', 'photos', 'gamification', 'ai', 'settings'];
 
 function getSavedTab() {
   const hash = window.location.hash ? window.location.hash.replace('#', '').trim() : '';
@@ -177,6 +177,11 @@ async function renderActiveView() {
           await refreshAllViews();
         });
         break;
+      case 'settings':
+        await renderSettingsPage(async () => {
+          await refreshAllViews();
+        });
+        break;
       default:
         await renderDashboard(handleTabChange, handleOpenAiCoach);
     }
@@ -205,9 +210,7 @@ function handleOpenAiCoach() {
 }
 
 async function handleOpenSettings() {
-  await renderSettingsModal(async () => {
-    await refreshAllViews();
-  });
+  await handleTabChange('settings');
 }
 
 async function refreshAllViews() {
