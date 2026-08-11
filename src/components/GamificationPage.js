@@ -116,7 +116,7 @@ export async function renderGamificationPage() {
             <!-- Right: Streak Card -->
             <div class="w-full md:w-80 relative">
               <div class="absolute inset-0 bg-gradient-to-br from-orange-400 to-amber-500 rounded-3xl blur-xl opacity-15"></div>
-              <div class="relative bg-white/70 dark:bg-slate-900/70 backdrop-blur-md rounded-3xl p-5 text-center shadow-sm" style="border: 1px solid rgba(249, 115, 22, 0.25);">
+              <div class="relative rounded-3xl p-5 text-center shadow-sm" style="background: rgba(255, 248, 240, 0.9); border: 1px solid rgba(249, 115, 22, 0.22);">
                 
                 <div class="relative inline-block mb-2 animate-float" style="animation-delay: 0.5s;">
                   <div class="absolute inset-0 bg-orange-500 blur-md opacity-40 animate-glow-pulse"></div>
