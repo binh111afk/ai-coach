@@ -435,18 +435,16 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         <div class="relative">
           <img id="rd-modal-hero-img" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80" alt="Recipe Hero" class="hero-img">
           <div class="hero-overlay"></div>
+          <button id="btn-close-rd-modal" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-gray-700 hover:bg-white transition cursor-pointer flex-shrink-0 shadow-md z-30">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
         </div>
 
         <div class="p-6 pt-4 -mt-16 relative z-10">
-          <!-- Header Title & Close Button -->
-          <div class="flex justify-between items-start mb-5">
-            <div>
-              <span id="rd-modal-type-badge" class="text-[10px] font-bold text-[var(--accent-purple)] bg-[var(--primary-soft)] px-2.5 py-1 rounded-md uppercase tracking-wider">Bữa Snack · 5 Phút</span>
-              <h2 id="rd-modal-title" class="display text-2xl font-semibold mt-2 leading-tight" style="color: var(--text-main);">Sinh Tố Dâu Tây <br>Ít Đường (1 Phần)</h2>
-            </div>
-            <button id="btn-close-rd-modal" class="w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-gray-600 hover:bg-white transition cursor-pointer flex-shrink-0 shadow-sm">
-              <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
+          <!-- Header Title -->
+          <div class="mb-5">
+            <span id="rd-modal-type-badge" class="text-[10px] font-bold text-[var(--accent-purple)] bg-[var(--primary-soft)] px-2.5 py-1 rounded-md uppercase tracking-wider">Bữa Snack · 5 Phút</span>
+            <h2 id="rd-modal-title" class="display text-2xl font-semibold mt-2 leading-tight" style="color: var(--text-main);">Sinh Tố Dâu Tây <br>Ít Đường (1 Phần)</h2>
           </div>
 
           <!-- Media Link Inputs (Image & Video Realtime Updates with Both-Required Validation) -->
