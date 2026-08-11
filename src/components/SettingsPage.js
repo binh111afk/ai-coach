@@ -28,7 +28,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
   const goal = await DataService.getUserGoal();
   const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 100;
-  const currentJourneyDay = DataService.calculateCurrentJourneyDay ? DataService.calculateCurrentJourneyDay(goal.startDate) : 2;
+  const currentJourneyDay = DataService.calculateCurrentJourneyDay(goal.startDate);
 
   const pageHtml = `
     <div class="max-w-3xl mx-auto px-4 py-6 md:px-8 md:py-8 space-y-6 fade-up">

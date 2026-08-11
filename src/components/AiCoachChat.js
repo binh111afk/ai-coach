@@ -1,5 +1,6 @@
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
+import { appState } from '../services/appState.js';
 import { renderGeminiIcon } from './ui/Icons.js';
 
 export async function renderAiCoachChat(onStateUpdated) {
@@ -11,19 +12,31 @@ export async function renderAiCoachChat(onStateUpdated) {
       ${renderGeminiIcon({ width: 28, height: 28, strokeWidth: 1.8 })}
     </button>
 
-    <!-- Floating Chat Drawer -->
-    <div class="chat-drawer" id="chat-drawer">
-      <div class="chat-header">
-        <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <div style="width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent-purple), var(--primary)); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: #fff;">
-            ${renderGeminiIcon({ width: 18, height: 18, strokeWidth: 1.8, color: '#fff' })}
+    <!-- Floating Chat Drawer (Premium Glass Card Style) -->
+    <div class="chat-drawer shadow-2xl relative" id="chat-drawer">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-color" style="border-bottom: 1px solid var(--border-color); background: var(--bg-subtle);">
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <!-- Avatar AI với Glow -->
+            <div class="absolute inset-0 bg-[#7C3AED] blur-lg opacity-40 rounded-full"></div>
+            <div class="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex items-center justify-center shadow-md text-white">
+              <i data-lucide="bot" class="w-5 h-5"></i>
+            </div>
+            <!-- Chấm online -->
+            <div class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
           </div>
           <div>
-            <div style="font-weight: 700; font-size: 0.95rem;">AI Coach Smart Brain</div>
-            <div class="text-xs text-muted">Điều khiển toàn bộ dữ liệu & Kế hoạch</div>
+            <h2 class="display text-base font-bold leading-tight" style="color: var(--text-main);">AI Coach</h2>
+            <p class="text-[11px] font-medium text-emerald-500 flex items-center gap-1">
+              Smart Brain · Online
+            </p>
           </div>
         </div>
-        <button class="btn btn-secondary btn-icon btn-sm" id="chat-drawer-close"><i data-lucide="x"></i></button>
+        <button class="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center text-muted transition cursor-pointer" id="chat-drawer-close" aria-label="Đóng">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
 
       <!-- Messages History Area -->
@@ -31,12 +44,33 @@ export async function renderAiCoachChat(onStateUpdated) {
         <!-- Rendered dynamically -->
       </div>
 
-      <!-- Input Bar -->
-      <div class="chat-input-area">
-        <input type="text" class="form-input" id="chat-input-text" placeholder="Hỏi AI, dán thực đơn hoặc nhập yêu cầu..." style="font-size: 0.85rem;">
-        <button class="btn btn-ai btn-sm" id="chat-btn-send">
-          <i data-lucide="send"></i>
+      <!-- Quick Replies Chips -->
+      <div class="flex gap-2 p-2.5 overflow-x-auto scrollbar-hide border-t border-color" style="border-top: 1px solid var(--border-color); background: var(--bg-subtle);">
+        <button class="quick-chip whitespace-nowrap text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer" data-quick-prompt="Chào bạn, tư vấn cho tôi hôm nay">
+          <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Chào bạn
         </button>
+        <button class="quick-chip whitespace-nowrap text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer" data-quick-prompt="Tạo thực đơn dinh dưỡng hôm nay">
+          <i data-lucide="utensils" class="w-3.5 h-3.5"></i> Tạo thực đơn
+        </button>
+        <button class="quick-chip whitespace-nowrap text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer" data-quick-prompt="Gợi ý bài tập luyện hôm nay">
+          <i data-lucide="dumbbell" class="w-3.5 h-3.5"></i> Gợi ý bài tập
+        </button>
+      </div>
+
+      <!-- Input Bar Wrapper -->
+      <div class="p-3 border-t border-color" style="border-top: 1px solid var(--border-color); background: var(--bg-card);">
+        <div class="chat-input-wrapper rounded-2xl p-1.5 flex items-center gap-2">
+          <button class="action-btn w-9 h-9 rounded-full flex items-center justify-center text-muted hover:bg-gray-100 dark:hover:bg-white/10 flex-shrink-0 cursor-pointer" id="btn-chat-attachment" title="Đính kèm dữ liệu hôm nay">
+            <i data-lucide="paperclip" class="w-4 h-4"></i>
+          </button>
+          <input id="chat-input-text" type="text" placeholder="Nhập tin nhắn cho AI..." class="flex-1 bg-transparent border-none focus:outline-none text-sm font-medium placeholder:text-gray-400" style="color: var(--text-main);">
+          <button class="action-btn btn-mic w-9 h-9 rounded-full flex items-center justify-center text-muted hover:bg-gray-100 dark:hover:bg-white/10 flex-shrink-0 cursor-pointer" id="btn-chat-mic" title="Nói qua micro">
+            <i data-lucide="mic" class="w-4 h-4"></i>
+          </button>
+          <button id="chat-btn-send" class="action-btn btn-send w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0 cursor-pointer">
+            <i data-lucide="send" class="w-4 h-4"></i>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -53,8 +87,8 @@ export async function renderAiCoachChat(onStateUpdated) {
     const inputText = document.getElementById('chat-input-text');
 
     const toggleDrawer = () => drawer.classList.toggle('open');
-    fab.addEventListener('click', toggleDrawer);
-    closeBtn.addEventListener('click', () => drawer.classList.remove('open'));
+    fab?.addEventListener('click', toggleDrawer);
+    closeBtn?.addEventListener('click', () => drawer.classList.remove('open'));
 
     // Expose open drawer function globally for other buttons
     window.openAiCoachDrawer = () => drawer.classList.add('open');
@@ -100,10 +134,64 @@ export async function renderAiCoachChat(onStateUpdated) {
       await refreshChatMessages(onStateUpdated);
     };
 
-    sendBtn.addEventListener('click', sendMessageHandler);
-    inputText.addEventListener('keypress', (e) => {
+    sendBtn?.addEventListener('click', sendMessageHandler);
+    inputText?.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') sendMessageHandler();
     });
+
+    // Quick Reply Chips Event Handlers
+    mountNode.querySelectorAll('[data-quick-prompt]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const prompt = chip.getAttribute('data-quick-prompt');
+        if (prompt && inputText) {
+          inputText.value = prompt;
+          sendMessageHandler();
+        }
+      });
+    });
+
+    // Attachment Button Handler
+    document.getElementById('btn-chat-attachment')?.addEventListener('click', async () => {
+      const todayLog = (await DataService.getDailyLog()) || { meals: [], workouts: [], waterIntake: 0 };
+      const mealsList = todayLog.meals || [];
+      const caloriesIn = mealsList.reduce((sum, m) => sum + (m.calories || m.kcal || 0), 0);
+      if (inputText) {
+        inputText.value = `Hôm nay tôi đã ăn ${mealsList.length} bữa (${caloriesIn} kcal) và uống ${todayLog.waterIntake || 0}ml nước. Bạn có thể nhận xét giúp tôi không?`;
+        inputText.focus();
+      }
+    });
+
+    // Voice Mic Handler (Speech Recognition)
+    const btnMic = document.getElementById('btn-chat-mic');
+    if (btnMic) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'vi-VN';
+        recognition.continuous = false;
+
+        let isListening = false;
+        recognition.onstart = () => {
+          isListening = true;
+          btnMic.style.color = '#D946EF';
+          btnMic.classList.add('animate-pulse');
+        };
+        recognition.onend = () => {
+          isListening = false;
+          btnMic.style.color = '';
+          btnMic.classList.remove('animate-pulse');
+        };
+        recognition.onresult = (e) => {
+          const transcript = e.results[0][0].transcript;
+          if (inputText) inputText.value = transcript;
+        };
+
+        btnMic.addEventListener('click', () => {
+          if (isListening) recognition.stop();
+          else recognition.start();
+        });
+      }
+    }
   }
 }
 
@@ -116,19 +204,24 @@ function showThinkingIndicator() {
 
   const thinkingDiv = document.createElement('div');
   thinkingDiv.id = 'ai-thinking-indicator';
-  thinkingDiv.className = 'chat-bubble assistant thinking';
-  thinkingDiv.style.cssText = 'display: flex; align-items: center; gap: 0.65rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.14), rgba(168, 145, 255, 0.08)); border: 1.5px solid rgba(117, 86, 217, 0.3); padding: 0.65rem 0.95rem; border-radius: 14px; margin-bottom: 0.75rem; box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); width: fit-content;';
+  thinkingDiv.className = 'flex items-start gap-2.5 mb-3';
 
   thinkingDiv.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 0.35rem;">
-      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0s;"></span>
-      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.2s;"></span>
-      <span style="width: 8px; height: 8px; background: var(--accent-purple); border-radius: 50%; display: inline-block; animation: pulseDot 1.4s infinite ease-in-out 0.4s;"></span>
+    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex-shrink-0 flex items-center justify-center text-white shadow-sm">
+      <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
     </div>
-    <span style="font-size: 0.825rem; font-weight: 700; color: var(--accent-purple); animation: pulseText 1.5s infinite ease-in-out;">AI Coach đang suy nghĩ & phân tích...</span>
+    <div class="msg-bubble" style="padding: 8px 14px; border-radius: 16px 16px 16px 4px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(217, 70, 239, 0.08)); border: 1.5px solid rgba(124, 58, 237, 0.18); max-width: fit-content;">
+      <div class="thinking-content">
+        <span class="thinking-text">AI Coach đang suy nghĩ</span>
+        <div class="thinking-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
   `;
 
   container.appendChild(thinkingDiv);
+  if (window.lucide) window.lucide.createIcons();
   container.scrollTop = container.scrollHeight;
 }
 
@@ -141,14 +234,59 @@ async function refreshChatMessages(onStateUpdated) {
   const container = document.getElementById('chat-messages-container');
   if (!container) return;
 
-  const history = await DataService.getChatHistory();
+  try {
+    const history = await DataService.getChatHistory();
 
-  if (history.length === 0) {
+    if (history.length === 0) {
+      const profile = (await DataService.getUserProfile()) || {};
+      const goal = (await DataService.getUserGoal()) || {};
+      const todayLog = (await DataService.getDailyLog()) || { meals: [], workouts: [], waterIntake: 0 };
+      const mealsList = todayLog.meals || [];
+      const caloriesIn = mealsList.reduce((sum, m) => sum + (m.calories || m.kcal || 0), 0);
+      const waterIntake = todayLog.waterIntake || 0;
+
     container.innerHTML = `
-      <div style="text-align: center; margin: auto 0; color: var(--text-muted); font-size: 0.85rem; padding: 1rem;">
-        <i data-lucide="bot" style="width: 40px; height: 40px; color: var(--accent-purple); margin-bottom: 0.5rem;"></i>
-        <div>Xin chào! Tôi là <b>AI Coach</b> điều khiển dữ liệu web của bạn.</div>
-        <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-dim);">Hãy dán thực đơn, hỏi lời khuyên hoặc yêu cầu đổi mục tiêu (ví dụ: "Đổi mục tiêu nước thành 4L").</div>
+      <div class="flex items-start gap-2.5 my-auto">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex-shrink-0 flex items-center justify-center mt-1 text-white shadow-sm">
+          <i data-lucide="bot" class="w-4 h-4"></i>
+        </div>
+        <div class="ai-bubble rounded-2xl rounded-tl-sm p-3.5 max-w-[88%] shadow-sm">
+          <p class="text-sm leading-relaxed mb-3" style="color: var(--text-main);">
+            Chào <span class="font-bold text-[var(--accent-purple)]">${profile.name || 'Chiến Binh Fitness'}</span>! Rất vui được đồng hành cùng bạn. Hôm nay chúng ta sẽ cùng nhau chinh phục mục tiêu nhé!
+          </p>
+
+          <!-- Mini Data Cards trong Chat -->
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <!-- Trọng lượng -->
+            <div class="data-card rounded-xl p-2.5">
+              <div class="flex items-center gap-1.5 mb-1">
+                <i data-lucide="scale" class="w-3.5 h-3.5 text-pink-500"></i>
+                <span class="text-[10px] font-bold text-muted uppercase">Cân nặng</span>
+              </div>
+              <div class="flex items-baseline gap-1">
+                <span class="display text-base font-bold" style="color: var(--text-main);">${profile.currentWeight || 70}kg</span>
+                <i data-lucide="arrow-right" class="w-3 h-3 text-muted"></i>
+                <span class="text-xs font-bold text-emerald-500">${goal.targetWeight || 65}kg</span>
+              </div>
+            </div>
+            <!-- Calo & Nước -->
+            <div class="data-card rounded-xl p-2.5">
+              <div class="flex items-center gap-1.5 mb-1">
+                <i data-lucide="flame" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span class="text-[10px] font-bold text-muted uppercase">Hôm Nay</span>
+              </div>
+              <div class="flex items-baseline gap-1.5">
+                <span class="display text-sm font-bold" style="color: var(--text-main);">${caloriesIn} <span class="text-[9px] font-medium text-muted">kcal</span></span>
+                <span class="text-sm font-bold text-cyan-500">${waterIntake} <span class="text-[9px] font-medium text-muted">ml</span></span>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-xs text-muted flex items-start gap-1.5 mt-1" style="color: var(--text-muted);">
+            <i data-lucide="info" class="w-3.5 h-3.5 text-[var(--accent-purple)] mt-0.5 flex-shrink-0"></i>
+            Hãy duy trì ghi chép để AI phân tích và tối ưu hóa kế hoạch của bạn nhé!
+          </p>
+        </div>
       </div>
     `;
     if (window.lucide) window.lucide.createIcons();
@@ -157,13 +295,23 @@ async function refreshChatMessages(onStateUpdated) {
 
   const html = history.map(m => {
     if (m.role === 'user') {
-      return `<div class="chat-bubble user">${parseMarkdown(m.content)}</div>`;
-    } else {
-      // Assistant Bubble with Rich Markdown Formatting & Optional Proposed Change Card
       return `
-        <div class="chat-bubble assistant">
-          <div class="chat-markdown-body" style="line-height: 1.55;">${parseMarkdown(m.content)}</div>
-          ${m.proposedChange ? renderApprovalCard(m) : ''}
+        <div class="flex justify-end">
+          <div class="bg-gradient-to-br from-[#7C3AED] to-[#D946EF] text-white text-sm font-medium p-3.5 rounded-2xl rounded-tr-sm max-w-[82%] shadow-md">
+            ${parseMarkdown(m.content)}
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="flex items-start gap-2.5">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex-shrink-0 flex items-center justify-center mt-1 text-white shadow-sm">
+            <i data-lucide="bot" class="w-4 h-4"></i>
+          </div>
+          <div class="ai-bubble rounded-2xl rounded-tl-sm p-3.5 max-w-[88%] shadow-sm">
+            <div class="chat-markdown-body text-sm leading-relaxed" style="line-height: 1.55;">${parseMarkdown(m.content)}</div>
+            ${m.proposedChange ? renderApprovalCard(m) : ''}
+          </div>
         </div>
       `;
     }
@@ -178,13 +326,12 @@ async function refreshChatMessages(onStateUpdated) {
   // Attach Approval Card Listeners
   container.querySelectorAll('[data-approve-prop]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const msgId = parseInt(btn.getAttribute('data-approve-prop'));
+      const msgId = btn.getAttribute('data-approve-prop');
       const msg = history.find(item => item.id === msgId);
       if (msg && msg.proposedChange) {
         const success = await DataService.applyProposedChange(msg.proposedChange);
         if (success) {
           await DataService.updateChatMessageStatus(msgId, 'approved');
-          // Add confirmation response
           await DataService.addChatMessage({
             role: 'assistant',
             content: `✅ **Đã áp dụng thay đổi thành công!** ${msg.proposedChange.title} đã được cập nhật vào dữ liệu web.`
@@ -198,7 +345,7 @@ async function refreshChatMessages(onStateUpdated) {
 
   container.querySelectorAll('[data-reject-prop]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const msgId = parseInt(btn.getAttribute('data-reject-prop'));
+      const msgId = btn.getAttribute('data-reject-prop');
       const msg = history.find(item => item.id === msgId);
       if (msg) {
         await DataService.updateChatMessageStatus(msgId, 'rejected');
@@ -210,6 +357,146 @@ async function refreshChatMessages(onStateUpdated) {
       }
     });
   });
+} catch (err) {
+  console.error('❌ Error refreshing AI chat messages:', err);
+}
+}
+
+function formatApprovalTitle(titleStr) {
+  if (!titleStr) return '<h4 class="display text-base md:text-lg font-bold text-[var(--text-main)] leading-tight mt-1">Đề Xuất Thay Đổi Dữ Liệu</h4>';
+
+  let hasWarning = false;
+  let cleanTitle = titleStr;
+
+  if (cleanTitle.includes('[⚠️ GHI ĐÈ]') || cleanTitle.includes('GHI ĐÈ')) {
+    hasWarning = true;
+    cleanTitle = cleanTitle.replace(/\[?⚠️?\s*GHI ĐÈ\]?\s*/gi, '').trim();
+  }
+
+  const warningBadge = hasWarning ? `
+    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 mb-1 w-fit">
+      <i data-lucide="alert-triangle" class="w-3 h-3 text-amber-600 flex-shrink-0"></i> CẢNH BÁO GHI ĐÈ
+    </div>
+  ` : '';
+
+  let mainText = '';
+  let subText = '';
+
+  // Match 1: "Main (Sub)" e.g. "Ghi nhận Bữa Tối (Gà rán)"
+  const parenMatch = cleanTitle.match(/^(.*?)\s*[\(\（](.*?)[\)\）]$/);
+  if (parenMatch) {
+    mainText = parenMatch[1].trim();
+    subText = parenMatch[2].trim();
+  }
+  // Match 2: "Main : Sub" or "Main: Sub" e.g. "Ghi nhận bữa tối : Gà rán"
+  else if (cleanTitle.includes(':')) {
+    const idx = cleanTitle.indexOf(':');
+    mainText = cleanTitle.substring(0, idx).trim();
+    subText = cleanTitle.substring(idx + 1).trim();
+  }
+  // Match 3: "Main bằng Sub"
+  else if (cleanTitle.includes(' bằng ')) {
+    const parts = cleanTitle.split(' bằng ');
+    mainText = parts[0].trim();
+    subText = parts.slice(1).join(' bằng ').trim();
+  }
+
+  if (mainText && subText) {
+    if (!mainText.endsWith(':')) mainText += ':';
+    return `
+      ${warningBadge}
+      <h4 class="display text-base md:text-lg font-bold text-[var(--text-main)] leading-tight mt-0.5">${mainText}</h4>
+      <div class="text-xs md:text-sm font-semibold text-[var(--accent-purple)] mt-1.5 break-words bg-[var(--accent-purple-light)]/60 px-2.5 py-1 rounded-lg border border-[rgba(124,58,237,0.15)] w-fit">${subText}</div>
+    `;
+  }
+
+  return `
+    ${warningBadge}
+    <h4 class="display text-base md:text-lg font-bold text-[var(--text-main)] leading-tight mt-0.5">${cleanTitle}</h4>
+  `;
+}
+
+function renderApprovalDetailsContent(msg) {
+  const prop = msg.proposedChange;
+  if (!prop) return '';
+
+  const isPhotoAction = prop.type === 'LOG_PROGRESS_PHOTO' || 
+                        prop.type === 'UPLOAD_PHOTO' || 
+                        prop.type === 'UPDATE_PHOTO_TAG' ||
+                        prop.type === 'COMPARE_PHOTOS' ||
+                        Boolean(prop.payload?.oldPhotoUrl || prop.payload?.photoUrl || prop.payload?.journeyDay || (prop.title && prop.title.includes('Ảnh Tiến Trình')));
+
+  if (isPhotoAction) {
+    const targetDay = Number(prop.payload?.journeyDay || 1);
+    const cachedPhotos = appState ? appState.getPhotos() : [];
+    const matchedPhoto = cachedPhotos.find((p, idx) => (p.journeyDay && Number(p.journeyDay) === targetDay) || (idx + 1) === targetDay);
+
+    let oldImg = prop.payload?.oldPhotoUrl || prop.payload?.oldPhotoDataUrl;
+    if (!oldImg && matchedPhoto) {
+      oldImg = matchedPhoto.photoDataUrl || matchedPhoto.url || matchedPhoto.photoUrl || matchedPhoto.dataUrl;
+    }
+
+    let newImg = prop.payload?.photoUrl || prop.payload?.photoDataUrl;
+    if (!newImg && msg.attachments && msg.attachments.length > 0) {
+      const imgAtt = msg.attachments.find(a => a.dataUrl || a.url);
+      if (imgAtt) newImg = imgAtt.dataUrl || imgAtt.url;
+    }
+
+    if (oldImg || newImg) {
+      return `
+        <div class="info-box highlight p-2.5 rounded-xl flex items-center justify-center gap-3 border border-[rgba(124,58,237,0.25)] bg-[var(--accent-purple-light)]/30 w-fit mx-auto md:mx-0">
+          <!-- Old Image Thumbnail -->
+          ${oldImg ? `
+            <div class="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border border-gray-300 shadow-sm flex-shrink-0 bg-gray-100">
+              <img src="${oldImg}" class="w-full h-full object-cover" alt="Ảnh cũ" />
+              <span class="absolute bottom-0 inset-x-0 bg-black/65 text-white text-[9px] font-bold text-center py-0.5">Ảnh cũ</span>
+            </div>
+          ` : `
+            <div class="w-12 h-12 md:w-14 md:h-14 rounded-xl border-2 border-dashed border-purple-200 flex flex-col items-center justify-center text-purple-400 bg-white/60 flex-shrink-0">
+              <i data-lucide="image" class="w-4 h-4"></i>
+              <span class="text-[9px] font-bold mt-0.5">Chưa có</span>
+            </div>
+          `}
+
+          <!-- Arrow -->
+          <div class="flex flex-col items-center justify-center text-[var(--accent-purple)] flex-shrink-0 px-1">
+            <i data-lucide="arrow-right" class="w-4 h-4 md:w-5 md:h-5"></i>
+            <span class="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 mt-0.5 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">${oldImg ? 'Ghi đè' : 'Tải lên'}</span>
+          </div>
+
+          <!-- New Image Thumbnail (Side text removed as requested) -->
+          ${newImg ? `
+            <div class="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border-2 border-[var(--accent-purple)] shadow-md flex-shrink-0 bg-purple-50">
+              <img src="${newImg}" class="w-full h-full object-cover" alt="Ảnh mới" />
+              <span class="absolute bottom-0 inset-x-0 bg-[var(--accent-purple)] text-white text-[9px] font-bold text-center py-0.5">Mới</span>
+            </div>
+          ` : `
+            <div class="w-12 h-12 md:w-14 md:h-14 rounded-xl border-2 border-purple-400 flex flex-col items-center justify-center text-purple-600 bg-purple-50 flex-shrink-0 shadow-sm">
+              <i data-lucide="camera" class="w-4 h-4"></i>
+              <span class="text-[9px] font-bold mt-0.5">Ảnh mới</span>
+            </div>
+          `}
+        </div>
+      `;
+    }
+  }
+
+  // Standard details list (Food, Workout, Goals, Water, etc.)
+  const detailsList = prop.details || [];
+  return `
+    <div class="space-y-2">
+      ${detailsList.map((d, idx) => `
+        <div class="info-box ${idx === (detailsList.length - 1) && detailsList.length > 1 ? 'highlight' : ''} flex items-center justify-between gap-2">
+          <span class="text-xs font-bold ${idx === (detailsList.length - 1) && detailsList.length > 1 ? 'text-[var(--accent-purple)]' : 'text-gray-400'} uppercase tracking-wider">${d.field}:</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs md:text-sm text-gray-400 line-through">${d.from}</span>
+            <i data-lucide="arrow-right" class="w-4 h-4 text-[var(--text-muted)] flex-shrink-0"></i>
+            <span class="text-sm font-bold text-[var(--text-main)]">${d.to}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 function renderApprovalCard(msg) {
@@ -218,50 +505,74 @@ function renderApprovalCard(msg) {
 
   if (status === 'approved') {
     return `
-      <div class="approval-card" style="border-color: var(--primary); background: rgba(16, 185, 129, 0.1);">
-        <div class="approval-title" style="color: var(--primary);"><i data-lucide="check-circle"></i> ĐÃ ÁP DỤNG THAY ĐỔI ✓</div>
-        <div class="text-xs text-muted">${prop.title}</div>
+      <div class="approval-card-horizontal approved p-4 rounded-2xl flex items-center justify-between gap-3" style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.3);">
+        <div class="flex items-center gap-2.5 text-[#10B981] font-bold text-sm">
+          <div class="w-8 h-8 rounded-xl bg-[#10B981]/15 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="check-circle" class="w-5 h-5 text-[#10B981]"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-[#10B981] font-extrabold">ĐÃ ÁP DỤNG THAY ĐỔI ✓</div>
+            <div class="text-sm font-semibold text-[var(--text-main)] mt-0.5">${prop.title || 'Đã cập nhật dữ liệu'}</div>
+          </div>
+        </div>
+        <span class="text-xs font-bold px-3 py-1 rounded-full bg-[#10B981]/15 text-[#10B981]">Thành công</span>
       </div>
     `;
   }
 
   if (status === 'rejected') {
     return `
-      <div class="approval-card" style="border-color: var(--danger); background: rgba(239, 68, 68, 0.1);">
-        <div class="approval-title" style="color: var(--danger);"><i data-lucide="x-circle"></i> ĐÃ TỪ CHỐI ✗</div>
-        <div class="text-xs text-muted">${prop.title}</div>
+      <div class="approval-card-horizontal rejected p-4 rounded-2xl flex items-center justify-between gap-3" style="background: rgba(239, 68, 68, 0.08); border: 1.5px solid rgba(239, 68, 68, 0.3);">
+        <div class="flex items-center gap-2.5 text-[#EF4444] font-bold text-sm">
+          <div class="w-8 h-8 rounded-xl bg-[#EF4444]/15 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="x-circle" class="w-5 h-5 text-[#EF4444]"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-[#EF4444] font-extrabold">ĐÃ TỪ CHỐI ✗</div>
+            <div class="text-sm font-semibold text-[var(--text-main)] mt-0.5">${prop.title || 'Đã hủy đề xuất'}</div>
+          </div>
+        </div>
+        <span class="text-xs font-bold px-3 py-1 rounded-full bg-[#EF4444]/15 text-[#EF4444]">Đã từ chối</span>
       </div>
     `;
   }
 
-  // Pending Status -> Render Action Buttons [Đồng ý] & [Từ chối]
   return `
-    <div class="approval-card">
-      <div class="approval-title"><i data-lucide="alert-circle"></i> ${prop.title || 'Đề Xuất Thay Đổi Dữ Liệu'}</div>
-      <table class="approval-diff-table">
-        ${(prop.details || []).map(d => `
-          <tr>
-            <td style="color: var(--text-muted); font-weight: 600;">${d.field}:</td>
-            <td style="color: var(--danger); text-decoration: line-through;">${d.from}</td>
-            <td style="color: var(--primary); font-weight: 700;">➔ ${d.to}</td>
-          </tr>
-        `).join('')}
-      </table>
-      <div class="approval-actions">
-        <button class="btn btn-primary btn-sm" style="flex: 1;" data-approve-prop="${msg.id}">
-          <i data-lucide="check"></i> Đồng Ý
-        </button>
-        <button class="btn btn-danger btn-sm" style="flex: 1;" data-reject-prop="${msg.id}">
-          <i data-lucide="x"></i> Từ Chối
-        </button>
+    <div class="approval-card-horizontal">
+      <div class="blob"></div>
+      
+      <!-- Layout ngang: Flex row (Đã bỏ icon theo yêu cầu) -->
+      <div class="relative z-10 p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
+        
+        <!-- Cột 1: Title & Tag (Không có icon) -->
+        <div class="md:w-2/5 lg:w-1/3 border-b md:border-b-0 md:border-r border-[var(--border-color)] pb-3 md:pb-0 md:pr-4">
+          <span class="text-[10px] font-bold text-[var(--accent-purple)] bg-[var(--accent-purple-light)] px-2 py-0.5 rounded-md uppercase tracking-wider">Cập Nhật</span>
+          ${formatApprovalTitle(prop.title)}
+          <p class="text-xs text-muted hidden md:block mt-1">AI đã nhận diện thay đổi</p>
+        </div>
+
+        <!-- Cột 2: Thông số / Thumbnail Ảnh thay đổi -->
+        <div class="flex-1">
+          ${renderApprovalDetailsContent(msg)}
+        </div>
+
+        <!-- Cột 3: Nút bấm -->
+        <div class="flex md:flex-col gap-2.5 md:w-1/4 lg:w-1/5 flex-shrink-0">
+          <button class="btn-accept flex-1 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 text-xs md:text-sm whitespace-nowrap cursor-pointer" data-approve-prop="${msg.id}">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            Đồng Ý
+          </button>
+          <button class="btn-reject flex-1 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 text-xs md:text-sm whitespace-nowrap cursor-pointer" data-reject-prop="${msg.id}">
+            <i data-lucide="x" class="w-4 h-4"></i>
+            Từ Chối
+          </button>
+        </div>
+
       </div>
     </div>
   `;
 }
 
-/**
- * Lightweight Markdown Parser for AI Coach Rich Text Responses
- */
 function parseMarkdown(text = '') {
   if (!text) return '';
   let html = text;
@@ -313,20 +624,13 @@ function parseMarkdown(text = '') {
   html = html.replace(/^## (.*$)/gim, '<h4 style="margin: 0.5rem 0; font-weight: 800; color: var(--text-main); font-size: 0.95rem;">$1</h4>');
   html = html.replace(/^# (.*$)/gim, '<h3 style="margin: 0.6rem 0; font-weight: 800; color: var(--text-main); font-size: 1.05rem;">$1</h3>');
 
-  // Strict Semantic Bold Keyword Highlighting (ONLY matches exact numbers & units)
-  // 1. Calo
+  // Strict Semantic Bold Keyword Highlighting
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*(?:kcal|calo|calories))\s*\*\*/gi, '<span class="badge-highlight badge-calo">🔥 $1</span>');
-  // 2. Protein
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*g?\s*(?:protein|đạm))\s*\*\*/gi, '<span class="badge-highlight badge-protein">🥩 $1</span>');
-  // 3. Carb / Fat / Macro
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*g?\s*(?:carb|fat|tinh bột|chất béo))\s*\*\*/gi, '<span class="badge-highlight badge-macro">🥑 $1</span>');
-  // 4. Water / Hydration
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*(?:ml|lít|l))\s*\*\*/gi, '<span class="badge-highlight badge-water">💧 $1</span>');
-  // 5. Journey Day
   html = html.replace(/\*\*\s*(ngày\s*\d+(?:\/\d+)?)\s*\*\*/gi, '<span class="badge-highlight badge-journey">🚩 $1</span>');
-  // 6. Weight
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*kg)\s*\*\*/gi, '<span class="badge-highlight badge-weight">⚖️ $1</span>');
-  // 7. General bold & italic
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 800; color: var(--accent-purple);">$1</strong>');
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
@@ -335,7 +639,7 @@ function parseMarkdown(text = '') {
   html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li style="margin-left: 1.1rem; list-style-type: disc; margin-bottom: 0.25rem;">$1</li>');
   html = html.replace(/(<li.*?>.*?<\/li>\n?)+/g, '<ul style="margin: 0.4rem 0; padding-left: 0.2rem;">$&</ul>');
 
-  // Clean up excess newlines & line breaks
+  // Clean up excess newlines
   html = html.replace(/\n{3,}/g, '\n\n');
   html = html.replace(/\n/g, '<br/>');
   html = html.replace(/(?:<br\/>\s*){3,}/gi, '<br/><br/>');

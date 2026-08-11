@@ -178,7 +178,7 @@ export function renderCalorieChart(canvasId, dailyLogs = [], targetCalorie = 200
         borderRadiusApplication: 'end'
       }
     },
-    colors: ['#7556D9', '#FBBF24'],
+    colors: ['#7556D9', '#D946EF'],
     dataLabels: { enabled: false },
     stroke: { show: true, width: 2, colors: ['transparent'] },
     xaxis: {
@@ -193,11 +193,7 @@ export function renderCalorieChart(canvasId, dailyLogs = [], targetCalorie = 200
     },
     grid: { borderColor: 'rgba(117, 86, 217, 0.08)' },
     tooltip: { theme: 'dark' },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'right',
-      labels: { colors: 'var(--text-main)' }
-    }
+    legend: { show: false }
   };
 
   const chart = new ApexCharts(container, options);

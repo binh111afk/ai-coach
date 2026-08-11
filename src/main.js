@@ -7,7 +7,6 @@ import { renderMealTracker } from './components/MealTracker.js';
 import { renderWorkoutTracker } from './components/WorkoutTracker.js';
 import { renderPhotoVault } from './components/PhotoVault.js';
 import { renderGamificationPage } from './components/GamificationPage.js';
-import { renderAiCoachChat } from './components/AiCoachChat.js';
 import { renderAiChatPage } from './components/AiChatPage.js';
 import { renderSettingsPage } from './components/SettingsPage.js';
 import { showAchievementToast } from './components/ui/AchievementToast.js';
@@ -65,12 +64,6 @@ async function initApp() {
 
   // Render active main content view
   await renderActiveView();
-
-  // Render floating AI Coach chat drawer
-  await renderAiCoachChat(async () => {
-    // Callback when AI proposed changes are approved by user
-    await refreshAllViews();
-  });
 
   // Check if first visit of the day to show Fire Streak Celebration Overlay
   const todayStr = DataService.getTodayString();
@@ -196,9 +189,7 @@ async function renderActiveView() {
 }
 
 function handleOpenAiCoach() {
-  if (window.openAiCoachDrawer) {
-    window.openAiCoachDrawer();
-  }
+  handleTabChange('ai');
 }
 
 async function handleOpenSettings() {

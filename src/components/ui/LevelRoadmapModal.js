@@ -22,7 +22,7 @@ export async function showLevelRoadmapModal() {
             </svg>
           </button>
 
-          <div class="lrm-label">Lộ trình cấp độ</div>
+          <div class="lrm-label">Lộ trình ${levelInfo.maxLevel} cấp độ (${goal.totalJourneyDays || goal.targetDays || 60} ngày)</div>
           <h2 class="lrm-title">Hành trình Level ${currentLevel.level}</h2>
 
           <div class="lrm-progress-info">

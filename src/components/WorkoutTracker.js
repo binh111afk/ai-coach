@@ -69,9 +69,21 @@ export async function renderWorkoutTracker() {
           </h1>
         </div>
 
-        <!-- Date Strip Widget -->
-        <div class="flex gap-1 bg-card p-2 rounded-2xl border border-color shadow-sm" id="workoutDateStrip" style="background: var(--bg-card); border: 1px solid var(--border-color);">
-          ${datePillsHtml}
+        <!-- Date Switcher Wow Component -->
+        <div class="date-switcher">
+          <div class="glow-center"></div>
+          <button id="btn-workout-day-prev" class="arrow-btn" ${selectedWorkoutJourneyDay <= 1 ? 'disabled' : ''} aria-label="Ngày trước">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <div class="date-display" id="workout-date-display">
+            <div class="date-content slide-active">
+              <div class="text-[10px] font-bold tracking-widest uppercase mb-0.5" style="color: var(--accent-purple);">${dayNameVi} · Ngày ${selectedWorkoutJourneyDay}/${totalJourneyDays}</div>
+              <div class="display text-sm font-bold leading-none" style="color: var(--text-main);">${dateObj.getDate()} Tháng ${String(dateObj.getMonth() + 1).padStart(2, '0')}</div>
+            </div>
+          </div>
+          <button id="btn-workout-day-next" class="arrow-btn" ${selectedWorkoutJourneyDay >= totalJourneyDays ? 'disabled' : ''} aria-label="Ngày sau">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+          </button>
         </div>
       </div>
 
@@ -212,15 +224,33 @@ export async function renderWorkoutTracker() {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
 
-    // Date Strip Pill Click Listeners
-    mountNode.querySelectorAll('[data-select-workout-day]').forEach(pill => {
-      pill.addEventListener('click', () => {
-        const targetDay = parseInt(pill.getAttribute('data-select-workout-day'));
-        if (targetDay && targetDay !== selectedWorkoutJourneyDay) {
-          selectedWorkoutJourneyDay = targetDay;
-          renderWorkoutTracker();
+    // Date Switcher Prev & Next Listeners with slide animation
+    document.getElementById('btn-workout-day-prev')?.addEventListener('click', () => {
+      if (selectedWorkoutJourneyDay > 1) {
+        const dateText = document.querySelector('#workout-date-display .date-content');
+        if (dateText) {
+          dateText.classList.add('slide-out-right');
+          dateText.classList.remove('slide-active');
         }
-      });
+        setTimeout(() => {
+          selectedWorkoutJourneyDay--;
+          renderWorkoutTracker();
+        }, 200);
+      }
+    });
+
+    document.getElementById('btn-workout-day-next')?.addEventListener('click', () => {
+      if (selectedWorkoutJourneyDay < totalJourneyDays) {
+        const dateText = document.querySelector('#workout-date-display .date-content');
+        if (dateText) {
+          dateText.classList.add('slide-out-left');
+          dateText.classList.remove('slide-active');
+        }
+        setTimeout(() => {
+          selectedWorkoutJourneyDay++;
+          renderWorkoutTracker();
+        }, 200);
+      }
     });
 
     // Rest Day Toggle

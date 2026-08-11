@@ -11,23 +11,30 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const profile = await DataService.getUserProfile();
   const goal = await DataService.getUserGoal();
   const plan = await DataService.getUserPlan();
-  const todayLog = await DataService.getDailyLog();
-  const progress = await DataService.getUserProgress();
-
-  const todayStr = DataService.getTodayString();
   const currentJourneyDay = DataService.calculateCurrentJourneyDay(goal.startDate);
+  const activeDateStr = DataService.getDateStrForJourneyDay(goal.startDate, currentJourneyDay);
+  const todayLog = await DataService.getDailyLog(activeDateStr);
+  const progress = await DataService.getUserProgress();
 
   const { mealEntry: todayRecommendedMeals, workout: todayRecommendedWorkout, phase: currentPhase } = getPlanForJourneyDay(plan, currentJourneyDay);
 
   // Calorie calculations
-  const caloriesIn = todayLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
-  const caloriesOut = todayLog.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
+  const caloriesIn = (todayLog.meals || []).reduce((sum, m) => sum + (m.calories || m.kcal || 0), 0);
+  const caloriesOut = (todayLog.workouts || []).reduce((sum, w) => sum + (w.caloriesBurned || w.calories || w.caloBurned || 0), 0);
   const netCalories = caloriesIn - caloriesOut;
   const calorieTarget = goal.dailyCalorieTarget || 2214;
 
-  // Calorie ring progress
-  const calRingProgress = Math.min(1, Math.max(0, netCalories / calorieTarget));
-  const calDashOffset = Math.round(534 * (1 - calRingProgress));
+  // Dual-segment Calorie Ring Calculations (In vs Out Ratio)
+  const totalCal = caloriesIn + caloriesOut;
+  let inLen = 267;
+  let outLen = 267;
+  if (totalCal > 0) {
+    inLen = Math.round(534 * (caloriesIn / totalCal));
+    if (caloriesIn > 0 && inLen < 15) inLen = 15;
+    if (caloriesOut > 0 && (534 - inLen) < 15) inLen = 534 - 15;
+    outLen = 534 - inLen;
+  }
+  const diffCal = Math.abs(caloriesIn - caloriesOut);
 
   // Macros
   const currentProtein = todayLog.meals.reduce((sum, m) => sum + (m.protein || 0), 0);
@@ -95,29 +102,36 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       <!-- Overview Grid (Top Stats - 3 Columns) -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         
-        <!-- 1. Calorie Ring -->
+        <!-- 1. Calorie Dual Ring (In vs Out Interactive) -->
         <div class="card p-6 flex flex-col items-center justify-center fade-up" style="animation-delay: 0.1s">
-          <div class="text-[10px] uppercase tracking-[0.2em] text-muted font-bold mb-4" style="color: var(--text-muted);">CALO RÒNG HÔM NAY</div>
+          <div class="text-[10px] uppercase tracking-[0.2em] text-muted font-bold mb-4" style="color: var(--text-muted);" id="dash-cal-card-title">ĐỘ CHÊNH LỆCH CALO (IN vs OUT)</div>
           <div class="relative w-48 h-48">
-            <svg viewBox="0 0 200 200" class="w-full h-full">
-              <defs>
-                <linearGradient id="calGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#7C3AED"/>
-                  <stop offset="100%" stop-color="#D946EF"/>
-                </linearGradient>
-              </defs>
-              <circle cx="100" cy="100" r="85" fill="none" class="ring-bg" stroke-width="14"/>
-              <circle cx="100" cy="100" r="85" fill="none" stroke="url(#calGrad)" stroke-width="14" stroke-linecap="round" 
-                      stroke-dasharray="534" stroke-dashoffset="${calDashOffset}" transform="rotate(-90 100 100)" class="ring-fg"/>
+            <svg viewBox="0 0 200 200" class="w-full h-full cursor-pointer">
+              <!-- Background ring fallback -->
+              <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(124, 58, 237, 0.1)" stroke-width="14"/>
+              
+              <!-- In Segment (Tím #7C3AED) -->
+              <circle id="dash-ring-in" cx="100" cy="100" r="85" fill="none" stroke="#7C3AED" stroke-width="14" 
+                      stroke-dasharray="${inLen} ${534 - inLen}" stroke-dashoffset="0" transform="rotate(-90 100 100)"
+                      class="transition-all duration-300 hover:stroke-[18px]"/>
+                      
+              <!-- Out Segment (Hồng #D946EF) -->
+              <circle id="dash-ring-out" cx="100" cy="100" r="85" fill="none" stroke="#D946EF" stroke-width="14" 
+                      stroke-dasharray="${outLen} ${534 - outLen}" stroke-dashoffset="-${inLen}" transform="rotate(-90 100 100)"
+                      class="transition-all duration-300 hover:stroke-[18px]"/>
             </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <div class="display text-4xl font-semibold" style="color: var(--text-main);" id="dash-net-calories">${netCalories}</div>
-              <div class="text-sm text-muted mt-1" style="color: var(--text-muted);">/ ${calorieTarget} kcal</div>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div class="display text-4xl font-semibold transition-all duration-200" style="color: var(--text-main);" id="dash-cal-center-num">${diffCal}</div>
+              <div class="text-xs font-medium text-muted mt-1 transition-all duration-200" style="color: var(--text-muted);" id="dash-cal-center-label">/ ${calorieTarget} kcal</div>
             </div>
           </div>
           <div class="mt-4 flex gap-4 text-xs font-semibold">
-            <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-purple);"></div> In: ${caloriesIn}</span>
-            <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></div> Out: ${caloriesOut}</span>
+            <span class="flex items-center gap-1.5 cursor-pointer transition hover:scale-105" id="dash-tag-in" style="color: var(--text-main);">
+              <div class="w-2.5 h-2.5 rounded-full" style="background: #7C3AED;"></div> In: ${caloriesIn}
+            </span>
+            <span class="flex items-center gap-1.5 cursor-pointer transition hover:scale-105" id="dash-tag-out" style="color: var(--text-main);">
+              <div class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></div> Out: ${caloriesOut}
+            </span>
           </div>
         </div>
 
@@ -218,11 +232,15 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
 
         <!-- Calorie In/Out Chart -->
         <div class="card p-6 fade-up" style="animation-delay: 0.35s">
-          <div class="flex justify-between items-center mb-4">
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
             <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Biểu Đồ Calo Nạp & Đốt</h2>
-            <div class="flex gap-3 text-xs font-semibold">
-              <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-purple);"></div> In</span>
-              <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></div> Out</span>
+            <div class="flex items-center gap-2 text-xs font-bold">
+              <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background: rgba(124, 58, 237, 0.1); color: var(--accent-purple);">
+                <span class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-purple);"></span> Calo Nạp (In)
+              </span>
+              <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background: rgba(217, 70, 239, 0.1); color: #D946EF;">
+                <span class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></span> Calo Đốt (Out)
+              </span>
             </div>
           </div>
           <div id="chart-calorie-io" style="min-height: 250px;"></div>
@@ -383,7 +401,42 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     renderCalorieChart('chart-calorie-io', historyLogs, calorieTarget);
     renderMacroChart('chart-macro-doughnut', { protein: currentProtein, carb: currentCarb, fat: currentFat }, goal.macroTarget);
 
-    // Navigation and Action Event Handlers
+    // Calorie Ring Hover Event Handlers
+    const ringIn = document.getElementById('dash-ring-in');
+    const ringOut = document.getElementById('dash-ring-out');
+    const tagIn = document.getElementById('dash-tag-in');
+    const tagOut = document.getElementById('dash-tag-out');
+    const centerNum = document.getElementById('dash-cal-center-num');
+    const centerLabel = document.getElementById('dash-cal-center-label');
+
+    const defaultNum = diffCal;
+    const defaultLabel = `/ ${calorieTarget} kcal`;
+
+    const showIn = () => {
+      if (centerNum) { centerNum.textContent = caloriesIn; centerNum.style.color = '#7C3AED'; }
+      if (centerLabel) centerLabel.textContent = 'Calo Nạp Vào (In)';
+    };
+
+    const showOut = () => {
+      if (centerNum) { centerNum.textContent = caloriesOut; centerNum.style.color = '#D946EF'; }
+      if (centerLabel) centerLabel.textContent = 'Calo Tiêu Hao (Out)';
+    };
+
+    const resetDefault = () => {
+      if (centerNum) { centerNum.textContent = defaultNum; centerNum.style.color = 'var(--text-main)'; }
+      if (centerLabel) centerLabel.textContent = defaultLabel;
+    };
+
+    ringIn?.addEventListener('mouseenter', showIn);
+    ringIn?.addEventListener('mouseleave', resetDefault);
+    tagIn?.addEventListener('mouseenter', showIn);
+    tagIn?.addEventListener('mouseleave', resetDefault);
+
+    ringOut?.addEventListener('mouseenter', showOut);
+    ringOut?.addEventListener('mouseleave', resetDefault);
+    tagOut?.addEventListener('mouseenter', showOut);
+    tagOut?.addEventListener('mouseleave', resetDefault);
+
     document.getElementById('dash-level-badge')?.addEventListener('click', () => showLevelRoadmapModal());
     document.getElementById('dash-btn-ai-coach')?.addEventListener('click', onOpenAiCoach);
     document.getElementById('btn-quick-checkin')?.addEventListener('click', () => onNavigateTab('meals'));

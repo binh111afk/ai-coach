@@ -1,5 +1,6 @@
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
+import { appState } from '../services/appState.js';
 import { CONFIG } from '../config.js';
 import { renderGeminiIcon, renderPdfIcon, renderProviderIcon } from './ui/Icons.js';
 
@@ -9,6 +10,7 @@ export async function renderAiChatPage(onStateUpdated) {
 
   const profile = await DataService.getUserProfile();
   let activeSessionId = await DataService.getCurrentSessionId();
+  await DataService.getPhotos(); // Warm up photos cache for instant approval card lookup
 
   const chatPageHtml = `
     <div class="ai-chat-app">
@@ -449,12 +451,7 @@ async function showPageThinkingIndicator(container) {
         <svg class="thinking-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
         </svg>
-        <div class="thinking-text">
-          AI đang suy nghĩ
-          <span class="dots">
-            <span>.</span><span>.</span><span>.</span>
-          </span>
-        </div>
+        <span class="thinking-text">AI Coach đang suy nghĩ</span>
         <div class="thinking-dots">
           <span></span><span></span><span></span>
         </div>
@@ -549,7 +546,7 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
 
   container.querySelectorAll('[data-approve-prop]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const msgId = parseInt(btn.getAttribute('data-approve-prop'));
+      const msgId = btn.getAttribute('data-approve-prop');
       const msg = history.find(item => item.id === msgId);
       if (msg && msg.proposedChange) {
         const success = await DataService.applyProposedChange(msg.proposedChange);
@@ -568,7 +565,7 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
 
   container.querySelectorAll('[data-reject-prop]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const msgId = parseInt(btn.getAttribute('data-reject-prop'));
+      const msgId = btn.getAttribute('data-reject-prop');
       const msg = history.find(item => item.id === msgId);
       if (msg) {
         await DataService.updateChatMessageStatus(msgId, 'rejected');
@@ -582,47 +579,212 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
   });
 }
 
+function formatApprovalTitle(titleStr) {
+  if (!titleStr) return '<h4 class="display text-base md:text-lg font-bold text-[var(--text-main)] leading-tight mt-1">Đề Xuất Thay Đổi Dữ Liệu</h4>';
+
+  let hasWarning = false;
+  let cleanTitle = titleStr;
+
+  if (cleanTitle.includes('[⚠️ GHI ĐÈ]') || cleanTitle.includes('GHI ĐÈ')) {
+    hasWarning = true;
+    cleanTitle = cleanTitle.replace(/\[?⚠️?\s*GHI ĐÈ\]?\s*/gi, '').trim();
+  }
+
+  const warningBadge = hasWarning ? `
+    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 mb-1 w-fit">
+      <i data-lucide="alert-triangle" class="w-3 h-3 text-amber-600 flex-shrink-0"></i> CẢNH BÁO GHI ĐÈ
+    </div>
+  ` : '';
+
+  let mainText = '';
+  let subText = '';
+
+  // Match 1: "Main (Sub)" e.g. "Ghi nhận Bữa Tối (Gà rán)"
+  const parenMatch = cleanTitle.match(/^(.*?)\s*[\(\（](.*?)[\)\）]$/);
+  if (parenMatch) {
+    mainText = parenMatch[1].trim();
+    subText = parenMatch[2].trim();
+  }
+  // Match 2: "Main : Sub" or "Main: Sub" e.g. "Ghi nhận bữa tối : Gà rán"
+  else if (cleanTitle.includes(':')) {
+    const idx = cleanTitle.indexOf(':');
+    mainText = cleanTitle.substring(0, idx).trim();
+    subText = cleanTitle.substring(idx + 1).trim();
+  }
+  // Match 3: "Main bằng Sub"
+  else if (cleanTitle.includes(' bằng ')) {
+    const parts = cleanTitle.split(' bằng ');
+    mainText = parts[0].trim();
+    subText = parts.slice(1).join(' bằng ').trim();
+  }
+
+  if (mainText && subText) {
+    if (!mainText.endsWith(':')) mainText += ':';
+    return `
+      ${warningBadge}
+      <h4 class="display text-base md:text-lg font-bold text-[var(--text-main)] leading-tight mt-0.5">${mainText}</h4>
+      <div class="text-xs md:text-sm font-semibold text-[var(--accent-purple)] mt-1.5 break-words bg-[var(--accent-purple-light)]/60 px-2.5 py-1 rounded-lg border border-[rgba(124,58,237,0.15)] w-fit">${subText}</div>
+    `;
+  }
+
+  return `
+    ${warningBadge}
+    <h4 class="display text-base md:text-lg font-bold text-[var(--text-main)] leading-tight mt-0.5">${cleanTitle}</h4>
+  `;
+}
+
+function renderApprovalDetailsContent(msg) {
+  const prop = msg.proposedChange;
+  if (!prop) return '';
+
+  const isPhotoAction = prop.type === 'LOG_PROGRESS_PHOTO' || 
+                        prop.type === 'UPLOAD_PHOTO' || 
+                        prop.type === 'UPDATE_PHOTO_TAG' ||
+                        prop.type === 'COMPARE_PHOTOS' ||
+                        Boolean(prop.payload?.oldPhotoUrl || prop.payload?.photoUrl || prop.payload?.journeyDay || (prop.title && prop.title.includes('Ảnh Tiến Trình')));
+
+  if (isPhotoAction) {
+    const targetDay = Number(prop.payload?.journeyDay || 1);
+    const cachedPhotos = appState ? appState.getPhotos() : [];
+    const matchedPhoto = cachedPhotos.find((p, idx) => (p.journeyDay && Number(p.journeyDay) === targetDay) || (idx + 1) === targetDay);
+
+    let oldImg = prop.payload?.oldPhotoUrl || prop.payload?.oldPhotoDataUrl;
+    if (!oldImg && matchedPhoto) {
+      oldImg = matchedPhoto.photoDataUrl || matchedPhoto.url || matchedPhoto.photoUrl || matchedPhoto.dataUrl;
+    }
+
+    let newImg = prop.payload?.photoUrl || prop.payload?.photoDataUrl;
+    if (!newImg && msg.attachments && msg.attachments.length > 0) {
+      const imgAtt = msg.attachments.find(a => a.dataUrl || a.url);
+      if (imgAtt) newImg = imgAtt.dataUrl || imgAtt.url;
+    }
+
+    if (oldImg || newImg) {
+      return `
+        <div class="info-box highlight p-2.5 rounded-xl flex items-center justify-center gap-3 border border-[rgba(124,58,237,0.25)] bg-[var(--accent-purple-light)]/30 w-fit mx-auto md:mx-0">
+          <!-- Old Image Thumbnail -->
+          ${oldImg ? `
+            <div class="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border border-gray-300 shadow-sm flex-shrink-0 bg-gray-100">
+              <img src="${oldImg}" class="w-full h-full object-cover" alt="Ảnh cũ" />
+              <span class="absolute bottom-0 inset-x-0 bg-black/65 text-white text-[9px] font-bold text-center py-0.5">Ảnh cũ</span>
+            </div>
+          ` : `
+            <div class="w-12 h-12 md:w-14 md:h-14 rounded-xl border-2 border-dashed border-purple-200 flex flex-col items-center justify-center text-purple-400 bg-white/60 flex-shrink-0">
+              <i data-lucide="image" class="w-4 h-4"></i>
+              <span class="text-[9px] font-bold mt-0.5">Chưa có</span>
+            </div>
+          `}
+
+          <!-- Arrow -->
+          <div class="flex flex-col items-center justify-center text-[var(--accent-purple)] flex-shrink-0 px-1">
+            <i data-lucide="arrow-right" class="w-4 h-4 md:w-5 md:h-5"></i>
+            <span class="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 mt-0.5 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">${oldImg ? 'Ghi đè' : 'Tải lên'}</span>
+          </div>
+
+          <!-- New Image Thumbnail (Side text removed as requested) -->
+          ${newImg ? `
+            <div class="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border-2 border-[var(--accent-purple)] shadow-md flex-shrink-0 bg-purple-50">
+              <img src="${newImg}" class="w-full h-full object-cover" alt="Ảnh mới" />
+              <span class="absolute bottom-0 inset-x-0 bg-[var(--accent-purple)] text-white text-[9px] font-bold text-center py-0.5">Mới</span>
+            </div>
+          ` : `
+            <div class="w-12 h-12 md:w-14 md:h-14 rounded-xl border-2 border-purple-400 flex flex-col items-center justify-center text-purple-600 bg-purple-50 flex-shrink-0 shadow-sm">
+              <i data-lucide="camera" class="w-4 h-4"></i>
+              <span class="text-[9px] font-bold mt-0.5">Ảnh mới</span>
+            </div>
+          `}
+        </div>
+      `;
+    }
+  }
+
+  // Standard details list (Food, Workout, Goals, Water, etc.)
+  const detailsList = prop.details || [];
+  return `
+    <div class="space-y-2">
+      ${detailsList.map((d, idx) => `
+        <div class="info-box ${idx === (detailsList.length - 1) && detailsList.length > 1 ? 'highlight' : ''} flex items-center justify-between gap-2">
+          <span class="text-xs font-bold ${idx === (detailsList.length - 1) && detailsList.length > 1 ? 'text-[var(--accent-purple)]' : 'text-gray-400'} uppercase tracking-wider">${d.field}:</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs md:text-sm text-gray-400 line-through">${d.from}</span>
+            <i data-lucide="arrow-right" class="w-4 h-4 text-[var(--text-muted)] flex-shrink-0"></i>
+            <span class="text-sm font-bold text-[var(--text-main)]">${d.to}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderApprovalCardPage(msg) {
   const prop = msg.proposedChange;
   const status = msg.status || 'pending';
 
   if (status === 'approved') {
     return `
-      <div class="approval-card" style="border-color: var(--primary); background: rgba(16, 185, 129, 0.1); margin-top: 0.75rem;">
-        <div class="approval-title" style="color: var(--primary);"><i data-lucide="check-circle"></i> ĐÃ ÁP DỤNG THAY ĐỔI ✓</div>
-        <div class="text-xs text-muted">${prop.title}</div>
+      <div class="approval-card-horizontal approved p-4 rounded-2xl flex items-center justify-between gap-3" style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.3);">
+        <div class="flex items-center gap-2.5 text-[#10B981] font-bold text-sm">
+          <div class="w-8 h-8 rounded-xl bg-[#10B981]/15 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="check-circle" class="w-5 h-5 text-[#10B981]"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-[#10B981] font-extrabold">ĐÃ ÁP DỤNG THAY ĐỔI ✓</div>
+            <div class="text-sm font-semibold text-[var(--text-main)] mt-0.5">${prop.title || 'Đã cập nhật dữ liệu'}</div>
+          </div>
+        </div>
+        <span class="text-xs font-bold px-3 py-1 rounded-full bg-[#10B981]/15 text-[#10B981]">Thành công</span>
       </div>
     `;
   }
 
   if (status === 'rejected') {
     return `
-      <div class="approval-card" style="border-color: var(--danger); background: rgba(239, 68, 68, 0.1); margin-top: 0.75rem;">
-        <div class="approval-title" style="color: var(--danger);"><i data-lucide="x-circle"></i> ĐÃ TỪ CHỐI ✗</div>
-        <div class="text-xs text-muted">${prop.title}</div>
+      <div class="approval-card-horizontal rejected p-4 rounded-2xl flex items-center justify-between gap-3" style="background: rgba(239, 68, 68, 0.08); border: 1.5px solid rgba(239, 68, 68, 0.3);">
+        <div class="flex items-center gap-2.5 text-[#EF4444] font-bold text-sm">
+          <div class="w-8 h-8 rounded-xl bg-[#EF4444]/15 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="x-circle" class="w-5 h-5 text-[#EF4444]"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-[#EF4444] font-extrabold">ĐÃ TỪ CHỐI ✗</div>
+            <div class="text-sm font-semibold text-[var(--text-main)] mt-0.5">${prop.title || 'Đã hủy đề xuất'}</div>
+          </div>
+        </div>
+        <span class="text-xs font-bold px-3 py-1 rounded-full bg-[#EF4444]/15 text-[#EF4444]">Đã từ chối</span>
       </div>
     `;
   }
 
   return `
-    <div class="approval-card" style="margin-top: 0.75rem;">
-      <div class="approval-title"><i data-lucide="alert-circle"></i> ${prop.title || 'Đề Xuất Thay Đổi Dữ Liệu'}</div>
-      <table class="approval-diff-table">
-        ${(prop.details || []).map(d => `
-          <tr>
-            <td style="color: var(--text-muted); font-weight: 600;">${d.field}:</td>
-            <td style="color: var(--danger); text-decoration: line-through;">${d.from}</td>
-            <td style="color: var(--primary); font-weight: 700;">➔ ${d.to}</td>
-          </tr>
-        `).join('')}
-      </table>
-      <div class="approval-actions">
-        <button class="btn btn-primary btn-sm" style="flex: 1;" data-approve-prop="${msg.id}">
-          <i data-lucide="check"></i> Đồng Ý
-        </button>
-        <button class="btn btn-danger btn-sm" style="flex: 1;" data-reject-prop="${msg.id}">
-          <i data-lucide="x"></i> Từ Chối
-        </button>
+    <div class="approval-card-horizontal">
+      <div class="blob"></div>
+      
+      <!-- Layout ngang: Flex row (Đã bỏ icon theo yêu cầu) -->
+      <div class="relative z-10 p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
+        
+        <!-- Cột 1: Title & Tag (Không có icon) -->
+        <div class="md:w-2/5 lg:w-1/3 border-b md:border-b-0 md:border-r border-[var(--border-color)] pb-3 md:pb-0 md:pr-4">
+          <span class="text-[10px] font-bold text-[var(--accent-purple)] bg-[var(--accent-purple-light)] px-2 py-0.5 rounded-md uppercase tracking-wider">Cập Nhật</span>
+          ${formatApprovalTitle(prop.title)}
+          <p class="text-xs text-muted hidden md:block mt-1">AI đã nhận diện thay đổi</p>
+        </div>
+
+        <!-- Cột 2: Thông số / Thumbnail Ảnh thay đổi -->
+        <div class="flex-1">
+          ${renderApprovalDetailsContent(msg)}
+        </div>
+
+        <!-- Cột 3: Nút bấm -->
+        <div class="flex md:flex-col gap-2.5 md:w-1/4 lg:w-1/5 flex-shrink-0">
+          <button class="btn-accept flex-1 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 text-xs md:text-sm whitespace-nowrap cursor-pointer" data-approve-prop="${msg.id}">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            Đồng Ý
+          </button>
+          <button class="btn-reject flex-1 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 text-xs md:text-sm whitespace-nowrap cursor-pointer" data-reject-prop="${msg.id}">
+            <i data-lucide="x" class="w-4 h-4"></i>
+            Từ Chối
+          </button>
+        </div>
+
       </div>
     </div>
   `;

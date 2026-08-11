@@ -125,37 +125,70 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         </button>
       </div>
 
-      <!-- Control Panel: Budget, Location Dropdown, Equipment & Update Button -->
-      <div class="card p-6 mb-6 fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
-        <div class="text-xs font-bold uppercase tracking-wider mb-4" style="color: var(--accent-purple);">⚙️ Cấu Hình Ngân Sách & Địa Điểm Tập Luyện</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-          <div class="w-full min-w-0">
-            <label class="text-xs font-bold text-muted mb-1 block" style="color: var(--text-muted);">Ngân Sách (VNĐ/Ngày)</label>
-            <input type="number" class="form-input text-sm rounded-xl px-3 py-2 w-full truncate" id="plan-budget-input" value="${plan.dailyBudgetVnd || 100000}" step="10000" style="background: var(--bg-input); color: var(--text-main);" title="${plan.dailyBudgetVnd || 100000}">
-          </div>
+      <!-- Control Panel: Budget, Location Toggle, Equipment & Update Button -->
+      <div class="w-full glass-card rounded-[32px] p-6 relative overflow-hidden mb-6 border border-color fade-up">
+        <!-- Đốm sáng trang trí -->
+        <div class="blob bg-[var(--accent-purple)] w-40 h-40 -top-10 -right-10"></div>
+        <div class="blob bg-[var(--accent)] w-32 h-32 -bottom-10 -left-10 opacity-20"></div>
 
-          <div class="w-full min-w-0">
-            <label class="text-xs font-bold text-muted mb-1 block" style="color: var(--text-muted);">Địa Điểm Tập</label>
-            <div id="plan-workout-dropdown-container" class="w-full min-w-0">
-              ${renderDropdown({
-                id: 'plan-workout-dropdown',
-                options: workoutOptions,
-                value: currentWorkoutType,
-                placeholder: 'Chọn địa điểm tập...'
-              })}
+        <div class="relative z-10 flex flex-col lg:flex-row gap-5 items-stretch lg:items-end min-w-0">
+          
+          <!-- Nhóm Input Bên Trái -->
+          <div class="flex flex-col md:flex-row gap-4 flex-1 items-end min-w-0">
+            
+            <!-- 1. Ngân Sách -->
+            <div class="w-full md:w-52 flex-shrink-0">
+              <label class="form-label text-xs font-bold text-muted uppercase tracking-wider" style="color: var(--text-muted);">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+                Ngân Sách / Ngày
+              </label>
+              <div class="input-field rounded-xl flex items-center px-4 py-3.5">
+                <span class="text-gray-400 font-bold mr-2">₫</span>
+                <input id="plan-budget-input" type="text" value="${(plan.dailyBudgetVnd || 100000).toLocaleString('de-DE')}" class="font-bold text-base" style="color: var(--text-main);">
+              </div>
             </div>
+
+            <!-- 2. Địa Điểm -->
+            <div class="w-full md:w-64 flex-shrink-0">
+              <label class="form-label text-xs font-bold text-muted uppercase tracking-wider" style="color: var(--text-muted);">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                Địa Điểm Tập
+              </label>
+              <div class="toggle-container">
+                <div id="toggle-indicator-plan" class="toggle-indicator" style="transform: ${currentWorkoutType === 'gym' ? 'translateX(100%)' : 'translateX(0%)'};"></div>
+                <button id="btn-loc-home" type="button" class="toggle-btn ${currentWorkoutType !== 'gym' ? 'active' : ''}">
+                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Tại Nhà
+                </button>
+                <button id="btn-loc-gym" type="button" class="toggle-btn ${currentWorkoutType === 'gym' ? 'active' : ''}">
+                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>
+                  Phòng Gym
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. Dụng Cụ Cơ Bản -->
+            <div id="home-equipment-container" class="equip-wrapper ${currentWorkoutType !== 'gym' ? 'active' : 'inactive'} w-full min-w-0">
+              <label class="form-label text-xs font-bold text-muted uppercase tracking-wider" style="color: var(--text-muted);">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                Dụng Cụ Cơ Bản
+              </label>
+              <div class="input-field rounded-xl flex items-center px-4 py-3.5 overflow-hidden">
+                <input id="plan-home-equipment-input" type="text" value="${currentHomeEquipment}" placeholder="Ví dụ: Thảm yoga, Dây kháng lực, Tạ tay..." class="font-medium text-base whitespace-nowrap overflow-hidden text-ellipsis min-w-0" style="color: var(--text-main);">
+              </div>
+            </div>
+
           </div>
 
-          <div class="w-full min-w-0" id="home-equipment-container" style="display: ${currentWorkoutType === 'home' ? 'block' : 'none'};">
-            <label class="text-xs font-bold text-muted mb-1 block" style="color: var(--text-muted);">Dụng Cụ Có Sẵn</label>
-            <input type="text" class="form-input text-sm rounded-xl px-3 py-2 w-full truncate" id="plan-home-equipment-input" value="${currentHomeEquipment}" placeholder="Ví dụ: Thảm yoga, Tạ 5kg..." style="background: var(--bg-input); color: var(--text-main);" title="${currentHomeEquipment}">
-          </div>
-
-          <div class="w-full min-w-0">
-            <button class="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2" id="btn-save-plan-controls">
-              <i data-lucide="refresh-cw" class="w-4 h-4 flex-shrink-0"></i> <span class="truncate">Cập Nhật Kế Hoạch</span>
+          <!-- Nhóm Nút Bấm Bên Phải -->
+          <div class="flex-shrink-0 w-full md:w-auto">
+            <div class="hidden md:block h-[28px] mb-2"></div>
+            <button id="btn-save-plan-controls" type="button" class="btn-glow w-full md:w-auto text-white font-bold py-3.5 px-8 rounded-xl flex items-center justify-center gap-2.5 text-[15px] cursor-pointer">
+              <span>Cập Nhật Kế Hoạch</span>
+              <svg class="icon-svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </button>
           </div>
+
         </div>
       </div>
 
@@ -198,22 +231,26 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
       <!-- Daily Schedule Timeline (Scrollable with Segment Vertical Lines) -->
       <div class="card p-6 mb-6 fade-up" style="animation-delay: 0.25s">
-        <div class="flex justify-between items-center mb-6 pb-4 border-b border-color" style="border-bottom: 1px solid var(--border-color);">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-color" style="border-bottom: 1px solid var(--border-color);">
           <div>
             <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Lịch Trình Hôm Nay (${activeDayName})</h2>
             <p class="text-xs text-muted mt-1" style="color: var(--text-muted);">Thực đơn & Tập luyện chi tiết theo giờ (Bấm mốc để xem chi tiết)</p>
           </div>
 
-          <!-- Day selector navigation -->
-          <div class="flex items-center gap-2">
-            <button class="btn-ghost w-8 h-8 rounded-lg flex items-center justify-center" id="btn-plan-day-prev" ${selectedJourneyDay <= 1 ? 'disabled' : ''}>
-              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          <!-- Day selector navigation (Date Switcher Wow) -->
+          <div class="date-switcher">
+            <div class="glow-center"></div>
+            <button id="btn-plan-day-prev" class="arrow-btn" ${selectedJourneyDay <= 1 ? 'disabled' : ''} aria-label="Ngày trước">
+              <i data-lucide="chevron-left" class="w-5 h-5"></i>
             </button>
-            <span class="text-xs font-bold px-3 py-1.5 rounded-full" style="background: var(--primary-soft); color: var(--accent-purple);">
-              Ngày ${selectedJourneyDay}/${totalJourneyDays}
-            </span>
-            <button class="btn-ghost w-8 h-8 rounded-lg flex items-center justify-center" id="btn-plan-day-next" ${selectedJourneyDay >= totalJourneyDays ? 'disabled' : ''}>
-              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            <div class="date-display" id="plan-date-display">
+              <div class="date-content slide-active">
+                <div class="text-[10px] font-bold tracking-widest uppercase mb-0.5" style="color: var(--accent-purple);">${activeDayName} · Ngày ${selectedJourneyDay}/${totalJourneyDays}</div>
+                <div class="display text-sm font-bold leading-none" style="color: var(--text-main);">${DataService.parseLocalDate(DataService.getDateStrForJourneyDay(goal.startDate, selectedJourneyDay)).getDate()} Tháng ${String(DataService.parseLocalDate(DataService.getDateStrForJourneyDay(goal.startDate, selectedJourneyDay)).getMonth() + 1).padStart(2, '0')}</div>
+              </div>
+            </div>
+            <button id="btn-plan-day-next" class="arrow-btn" ${selectedJourneyDay >= totalJourneyDays ? 'disabled' : ''} aria-label="Ngày sau">
+              <i data-lucide="chevron-right" class="w-5 h-5"></i>
             </button>
           </div>
         </div>
@@ -597,15 +634,44 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     if (window.lucide) window.lucide.createIcons();
 
-    // Initialize custom dropdown component & toggle Home Equipment Input
-    initDropdownListeners(mountNode, (selectedVal, dropdownId) => {
-      if (dropdownId === 'plan-workout-dropdown' || !dropdownId) {
-        currentWorkoutType = selectedVal;
-        activeWorkoutTypeSelection = selectedVal;
-        const equipContainer = document.getElementById('home-equipment-container');
-        if (equipContainer) {
-          equipContainer.style.display = (selectedVal === 'home') ? 'block' : 'none';
-        }
+    // Location toggle buttons & Equipment wrapper collapsible animation
+    const btnLocHome = document.getElementById('btn-loc-home');
+    const btnLocGym = document.getElementById('btn-loc-gym');
+    const indicatorPlan = document.getElementById('toggle-indicator-plan');
+    const equipWrapper = document.getElementById('home-equipment-container');
+
+    btnLocHome?.addEventListener('click', () => {
+      activeWorkoutTypeSelection = 'home';
+      currentWorkoutType = 'home';
+      btnLocHome.classList.add('active');
+      btnLocGym?.classList.remove('active');
+      if (indicatorPlan) indicatorPlan.style.transform = 'translateX(0%)';
+      if (equipWrapper) {
+        equipWrapper.classList.add('active');
+        equipWrapper.classList.remove('inactive');
+      }
+    });
+
+    btnLocGym?.addEventListener('click', () => {
+      activeWorkoutTypeSelection = 'gym';
+      currentWorkoutType = 'gym';
+      btnLocGym.classList.add('active');
+      btnLocHome?.classList.remove('active');
+      if (indicatorPlan) indicatorPlan.style.transform = 'translateX(100%)';
+      if (equipWrapper) {
+        equipWrapper.classList.remove('active');
+        equipWrapper.classList.add('inactive');
+      }
+    });
+
+    // Format budget input with thousand separators in real-time
+    const budgetInput = document.getElementById('plan-budget-input');
+    budgetInput?.addEventListener('input', function(e) {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value) {
+        e.target.value = new Intl.NumberFormat('de-DE').format(value);
+      } else {
+        e.target.value = '';
       }
     });
 
@@ -646,11 +712,19 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     // Save Controls & Regenerate full journey phases
     document.getElementById('btn-save-plan-controls')?.addEventListener('click', async () => {
-      const budget = parseInt(document.getElementById('plan-budget-input').value) || 100000;
+      const btn = document.getElementById('btn-save-plan-controls');
+      const rawBudgetValue = document.getElementById('plan-budget-input')?.value || '100000';
+      const budget = parseInt(rawBudgetValue.replace(/\D/g, '')) || 100000;
       const homeEquipInput = document.getElementById('plan-home-equipment-input');
       const homeEquipVal = homeEquipInput ? homeEquipInput.value.trim() : currentHomeEquipment;
 
       const chosenWorkoutType = activeWorkoutTypeSelection || currentWorkoutType || 'home';
+
+      if (btn) {
+        btn.style.opacity = '0.85';
+        btn.style.pointerEvents = 'none';
+        btn.innerHTML = `<svg class="icon-svg-lg animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> <span>Đang lưu...</span>`;
+      }
 
       const profile = await DataService.getUserProfile();
       const allergies = profile.foodAllergies || '';

@@ -727,7 +727,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         proposedChange = {
           id: 'prop_' + Date.now(),
           type: 'LOG_MEAL',
-          title: `[⚠️ GHI ĐÈ] Thay thế Bữa ${mealTypeLabel} bằng ${foodName}`,
+          title: `[⚠️ GHI ĐÈ] Thay thế Bữa ${mealTypeLabel}: ${foodName}`,
           details: [
             { field: `Bữa ${mealTypeLabel} Hôm Nay`, from: `${existingMeal.name} (${existingMeal.calories} kcal)`, to: `${foodName} (${cal} kcal - Ghi đè)` }
           ],
@@ -741,7 +741,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         proposedChange = {
           id: 'prop_' + Date.now(),
           type: 'LOG_MEAL',
-          title: `Đề xuất ghi nhận Bữa ${mealTypeLabel} (${foodName})`,
+          title: `Ghi nhận Bữa ${mealTypeLabel}: ${foodName}`,
           details: [
             { field: 'Món ăn thực tế', from: 'Thực đơn AI cũ', to: foodName },
             { field: 'Calo & Macro', from: '-', to: `${cal} kcal (P:${p}g, C:${c}g, F:${f}g)` }
@@ -824,11 +824,13 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
           type: 'LOG_PROGRESS_PHOTO',
           title: `[⚠️ GHI ĐÈ] Thay thế Ảnh Tiến Trình Ngày ${dayNum}`,
           details: [
-            { field: `Ảnh Tiến Trình Ngày ${dayNum}`, from: `Ảnh cũ (Tải lên ngày ${existingPhoto.date})`, to: `Bức ảnh mới (Ghi đè)` }
+            { field: `Ảnh Tiến Trình Ngày ${dayNum}`, from: `Ảnh cũ (${existingPhoto.date})`, to: `Bức ảnh mới (Ghi đè)` }
           ],
           payload: {
             journeyDay: dayNum,
             photoUrl: attachedImg ? (attachedImg.dataUrl || attachedImg.url) : null,
+            oldPhotoUrl: existingPhoto.photoUrl || existingPhoto.url || existingPhoto.dataUrl,
+            oldPhotoDate: existingPhoto.date,
             note: `Ảnh tiến trình Ngày ${dayNum} do AI Coach ghi nhận (Đã ghi đè)`,
             weight: profile.currentWeight,
             isOverwrite: true

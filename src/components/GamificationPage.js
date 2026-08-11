@@ -38,14 +38,14 @@ export async function renderGamificationPage() {
     return renderBadgeCard(b, isUnlocked);
   }).join('');
 
-  // First 14 badges for PC desktop initial view
-  const initial14BadgesHtml = sortedBadges.slice(0, 14).map(b => {
+  // First 12 badges for PC desktop initial view (2 full rows of 6)
+  const initial12BadgesHtml = sortedBadges.slice(0, 12).map(b => {
     const isUnlocked = progress.badges.includes(b.id);
     return renderBadgeCard(b, isUnlocked);
   }).join('');
 
-  // Remaining badges (14+) for PC desktop expanded view
-  const remainingBadgesHtml = sortedBadges.slice(14).map(b => {
+  // Remaining badges (12+) for PC desktop expanded view
+  const remainingBadgesHtml = sortedBadges.slice(12).map(b => {
     const isUnlocked = progress.badges.includes(b.id);
     return renderBadgeCard(b, isUnlocked);
   }).join('');
@@ -144,126 +144,255 @@ export async function renderGamificationPage() {
       </div>
 
       <!-- Badges Showcase -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i data-lucide="award" style="color: var(--accent-amber);"></i> Bộ Sưu Tập Huy Hiệu (${progress.badges.length}/${sortedBadges.length})</div>
-        </div>
+      <div class="glass-card rounded-[32px] p-6 md:p-8 relative overflow-hidden fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+        <!-- Decorative blobs -->
+        <div class="blob bg-[var(--accent-purple)] w-48 h-48 -top-12 -right-12"></div>
+        <div class="blob bg-[var(--accent)] w-40 h-40 -bottom-10 -left-10 opacity-20"></div>
 
-        <!-- Desktop: 14 initial badges + smooth expandable section for remaining -->
-        <div class="badges-grid-desktop">
-          <div class="badges-desktop-initial">
-            ${initial14BadgesHtml}
-          </div>
-          ${sortedBadges.length > 14 ? `
-            <div class="badges-desktop-more" id="desktop-badges-more-container">
-              <div class="badges-desktop-more-inner">
-                ${remainingBadgesHtml}
-              </div>
+        <div class="relative z-10">
+          <!-- Header -->
+          <div class="flex items-center gap-3.5 mb-6">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0" style="background: linear-gradient(135deg, #F59E0B, #D946EF);">
+              <i data-lucide="award" class="w-6 h-6" style="color: #FFFFFF;"></i>
             </div>
-            <button class="btn btn-secondary" id="btn-expand-desktop-badges" style="width: 100%; margin-top: 1rem; justify-content: center; gap: 0.5rem; font-weight: 700;">
-              <i data-lucide="chevron-down" class="expand-icon" style="width: 16px; height: 16px; transition: transform 0.3s ease;"></i>
-              <span id="btn-expand-desktop-text">Xem thêm ${sortedBadges.length - 14} huy hiệu còn lại</span>
-            </button>
-          ` : ''}
-        </div>
-
-        <!-- Mobile: 4 badges preview + "Xem tất cả" button -->
-        <div class="badges-grid-mobile">
-          <div class="badges-preview-row">
-            ${previewBadgesHtml}
+            <div>
+              <p class="text-[11px] font-bold tracking-widest uppercase mb-0.5" style="color: var(--accent-purple);">DANH HIỆU & THÀNH TÍCH</p>
+              <h2 class="display text-xl md:text-2xl font-bold leading-tight" style="color: var(--text-main);">Bộ Sưu Tập Huy Hiệu (${progress.badges.length}/${sortedBadges.length})</h2>
+            </div>
           </div>
-          ${sortedBadges.length > 4 ? `
-            <button class="btn btn-secondary" id="btn-view-all-badges" style="width: 100%; margin-top: 0.85rem; justify-content: center; gap: 0.4rem;">
-              <i data-lucide="grid-2x2" style="width: 15px; height: 15px;"></i>
-              Xem tất cả ${sortedBadges.length} huy hiệu
-            </button>
-          ` : ''}
+
+          <!-- Desktop: 12 initial badges (2 rows of 6) + smooth expandable section for remaining -->
+          <div class="badges-grid-desktop">
+            <div class="badges-desktop-initial">
+              ${initial12BadgesHtml}
+            </div>
+            ${sortedBadges.length > 12 ? `
+              <div class="badges-desktop-more" id="desktop-badges-more-container">
+                <div class="badges-desktop-more-inner">
+                  ${remainingBadgesHtml}
+                </div>
+              </div>
+              <button class="btn btn-secondary" id="btn-expand-desktop-badges" style="width: 100%; margin-top: 1rem; justify-content: center; gap: 0.5rem; font-weight: 700;">
+                <i data-lucide="chevron-down" class="expand-icon" style="width: 16px; height: 16px; transition: transform 0.3s ease;"></i>
+                <span id="btn-expand-desktop-text">Xem thêm ${sortedBadges.length - 12} huy hiệu còn lại</span>
+              </button>
+            ` : ''}
+          </div>
+
+          <!-- Mobile: 4 badges preview + "Xem tất cả" button -->
+          <div class="badges-grid-mobile">
+            <div class="badges-preview-row">
+              ${previewBadgesHtml}
+            </div>
+            ${sortedBadges.length > 4 ? `
+              <button class="btn btn-secondary" id="btn-view-all-badges" style="width: 100%; margin-top: 0.85rem; justify-content: center; gap: 0.4rem;">
+                <i data-lucide="grid-2x2" style="width: 15px; height: 15px;"></i>
+                Xem tất cả ${sortedBadges.length} huy hiệu
+              </button>
+            ` : ''}
+          </div>
         </div>
       </div>
 
       <!-- Level Roadmap Section -->
-      <div class="roadmap-card">
-        <!-- Header -->
-        <div class="roadmap-header">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z"/>
-              <path d="M9 3v15"/>
-              <path d="M15 6v15"/>
-            </svg>
+      <div class="glass-card rounded-[32px] p-6 md:p-8 relative overflow-hidden fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+        <!-- Decorative blobs -->
+        <div class="blob bg-[var(--accent-purple)] w-48 h-48 -top-12 -right-12"></div>
+        <div class="blob bg-[var(--accent)] w-40 h-40 -bottom-10 -left-10 opacity-20"></div>
+
+        <div class="relative z-10">
+          <!-- Header -->
+          <div class="flex items-center gap-3.5 mb-6">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #3B82F6);">
+              <i data-lucide="map" class="w-6 h-6" style="color: #FFFFFF;"></i>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold tracking-widest uppercase mb-0.5" style="color: var(--accent-purple);">LỘ TRÌNH ${levelInfo.maxLevel} CẤP ĐỘ</p>
+              <h2 class="display text-xl md:text-2xl font-bold leading-tight" style="color: var(--text-main);">Lộ Trình ${levelInfo.maxLevel} Cấp Độ Fitness (${goal.totalJourneyDays || goal.targetDays || 60} Ngày)</h2>
+            </div>
           </div>
-          <h2>Lộ Trình ${levelInfo.maxLevel} Cấp Độ Fitness (${goal.totalJourneyDays || goal.targetDays || 60} Ngày)</h2>
-        </div>
 
-        <!-- Levels Grid -->
-        <div class="levels-grid">
-          ${levelInfo.allLevels.map(l => {
-            const isCurrent = levelInfo.currentLevel.level === l.level;
-            const isCompleted = levelInfo.currentLevel.level > l.level;
-            const statusClass = isCurrent ? 'current' : (isCompleted ? 'completed' : 'locked');
+          <!-- Levels Grid -->
+          <div class="levels-grid">
+            ${levelInfo.allLevels.map(l => {
+              const isCurrent = levelInfo.currentLevel.level === l.level;
+              const isCompleted = levelInfo.currentLevel.level > l.level;
+              const statusClass = isCurrent ? 'current' : (isCompleted ? 'completed' : 'locked');
 
-            return `
-              <div class="level-item ${statusClass}">
-                <div class="level-badge">Lvl ${l.level}</div>
-                <div class="level-name" title="${l.name}">${l.name}</div>
-                <div style="font-size: 0.725rem; color: var(--text-muted); margin-top: 0.15rem; font-weight: 600;">Cột mốc: Ngày ${l.dayMilestone || l.level * 10}</div>
-                <div class="level-xp">
-                  ${isCurrent ? `
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                    </svg>
-                    ${l.minXp} XP
-                    <span class="current-tag">
+              return `
+                <div class="level-item ${statusClass}">
+                  <div class="level-badge">Lvl ${l.level}</div>
+                  <div class="level-name" title="${l.name}">${l.name}</div>
+                  <div style="font-size: 0.725rem; color: var(--text-muted); margin-top: 0.15rem; font-weight: 600;">Cột mốc: Ngày ${l.dayMilestone || l.level * 10}</div>
+                  <div class="level-xp">
+                    ${isCurrent ? `
                       <svg viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="4"/>
+                        <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
                       </svg>
-                      Hiện tại
-                    </span>
-                  ` : (isCompleted ? `
-                    <svg viewBox="0 0 24 24" fill="currentColor" style="color: #22c55e;">
-                      <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                    </svg>
-                    ${l.minXp} XP
-                  ` : `
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                    </svg>
-                    ${l.minXp} XP
-                  `)}
+                      ${l.minXp} XP
+                      <span class="current-tag">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="12" r="4"/>
+                        </svg>
+                        Hiện tại
+                      </span>
+                    ` : (isCompleted ? `
+                      <svg viewBox="0 0 24 24" fill="currentColor" style="color: #22c55e;">
+                        <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
+                      </svg>
+                      ${l.minXp} XP
+                    ` : `
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
+                      </svg>
+                      ${l.minXp} XP
+                    `)}
+                  </div>
                 </div>
-              </div>
-            `;
-          }).join('')}
+              `;
+            }).join('')}
+          </div>
         </div>
       </div>
 
-      <!-- XP Rules -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i data-lucide="book-open" class="text-purple"></i> Quy Tắc Thưởng XP & Điều Kiện Mở Khóa</div>
-        </div>
-        <div style="font-size: 0.9rem; line-height: 1.6; display: flex; flex-direction: column; gap: 1rem;">
-          <div style="background: var(--bg-subtle); padding: 1.1rem; border-radius: 16px; border-left: 4px solid var(--accent-purple);">
-            <h4 style="color: var(--accent-purple); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-              <i data-lucide="star" style="width: 18px; height: 18px;"></i> Cách Tích Lũy XP Hàng Ngày
-            </h4>
-            <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem;">
-              <li><b>Đạt chỉ tiêu Calo (±15%):</b> +30 XP</li>
-              <li><b>Nạp đủ Protein:</b> +20 XP</li>
-              <li><b>Uống đủ nước:</b> +20 XP</li>
-              <li><b>Hoàn thành tập luyện / nghỉ:</b> +25 XP</li>
-              <li><b>Full checklist hàng ngày:</b> +30 XP</li>
-              <li><b>Thưởng Streak:</b> +10 XP / ngày liên tiếp</li>
-              <li><b>Trò chuyện với AI Coach:</b> +5 XP / tin nhắn</li>
-              <li><b>Upload ảnh tiến trình:</b> +15 XP / ảnh</li>
-            </ul>
+      <!-- XP Rules & Unlock Conditions -->
+      <div class="glass-card rounded-[32px] p-6 md:p-8 relative overflow-hidden fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+        
+        <!-- Decorative blobs -->
+        <div class="blob bg-[var(--accent-purple)] w-48 h-48 -top-12 -right-12"></div>
+        <div class="blob bg-[var(--accent)] w-40 h-40 -bottom-10 -left-10 opacity-20"></div>
+
+        <div class="relative z-10">
+          <!-- Header -->
+          <div class="flex items-center gap-3.5 mb-6">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF);">
+              <i data-lucide="award" class="w-6 h-6" style="color: #FFFFFF;"></i>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold tracking-widest uppercase mb-0.5" style="color: var(--accent-purple);">Hệ Thống Điểm</p>
+              <h2 class="display text-xl md:text-2xl font-bold leading-tight" style="color: var(--text-main);">Quy Tắc Thưởng XP & Điều Kiện Mở Khóa</h2>
+            </div>
           </div>
-          <div style="background: var(--bg-subtle); padding: 1.1rem; border-radius: 16px; border-left: 4px solid var(--accent-amber);">
-            <h4 style="color: var(--accent-amber); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-              <i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Bảo Vệ Streak & Năng Lượng Tích Cực
-            </h4>
-            <p>FitCoach AI áp dụng triết lý <b>Năng Lượng Tích Cực</b>. Nếu bỏ lỡ ngày tập, hãy đánh dấu <b>"Ngày Nghỉ Phục Hồi"</b> để streak không bị ngắt. AI Coach sẽ động viên nhẹ nhàng!</p>
+
+          <!-- Section 1: Accumulate XP -->
+          <div class="mb-6">
+            <h3 class="text-xs font-bold uppercase tracking-wider mb-3.5 flex items-center gap-2" style="color: var(--text-muted);">
+              <i data-lucide="zap" class="w-4 h-4" style="color: var(--accent-purple);"></i>
+              Cách Tích Lũy XP Hàng Ngày
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <!-- Item 1 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(249, 115, 22, 0.15); color: #EA580C;">
+                    <i data-lucide="flame" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Đạt chỉ tiêu Calo (±15%)</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+30 XP</span>
+              </div>
+
+              <!-- Item 2 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(239, 68, 68, 0.15); color: #DC2626;">
+                    <i data-lucide="utensils" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Nạp đủ lượng Protein</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+20 XP</span>
+              </div>
+
+              <!-- Item 3 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(59, 130, 246, 0.15); color: #2563EB;">
+                    <i data-lucide="dumbbell" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Hoàn thành bài tập AI / nghỉ</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+25 XP</span>
+              </div>
+
+              <!-- Item 4 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(6, 182, 212, 0.15); color: #0891B2;">
+                    <i data-lucide="droplet" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Uống đủ nước (2.7L)</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+15 XP</span>
+              </div>
+
+              <!-- Item 5 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(16, 185, 129, 0.15); color: #059669;">
+                    <i data-lucide="check-square" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Full checklist hàng ngày</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+30 XP</span>
+              </div>
+
+              <!-- Item 6 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(245, 158, 11, 0.15); color: #D97706;">
+                    <i data-lucide="award" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Thưởng Streak chuỗi liên tục</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+10 XP / ngày</span>
+              </div>
+
+              <!-- Item 7 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(168, 85, 247, 0.15); color: #9333EA;">
+                    <i data-lucide="bot" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Trò chuyện tư vấn AI Coach</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+5 XP / tin</span>
+              </div>
+
+              <!-- Item 8 -->
+              <div class="xp-item flex items-center justify-between gap-3 p-3.5 rounded-2xl">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(236, 72, 153, 0.15); color: #DB2777;">
+                    <i data-lucide="camera" class="w-5 h-5"></i>
+                  </div>
+                  <span class="text-sm font-semibold truncate" style="color: var(--text-main);">Upload ảnh tiến trình vóc dáng</span>
+                </div>
+                <span class="display text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF); color: #FFFFFF;">+15 XP / ảnh</span>
+              </div>
+            </div>
           </div>
+
+          <!-- Section 2: Streak Protection -->
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider mb-3.5 flex items-center gap-2" style="color: var(--text-muted);">
+              <i data-lucide="shield" class="w-4 h-4" style="color: var(--accent-purple);"></i>
+              Bảo Vệ Streak & Năng Lượng Tích Cực
+            </h3>
+
+            <div class="streak-box rounded-2xl p-4 md:p-5 flex gap-3.5 items-start">
+              <div class="flex-shrink-0 pt-0.5">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-md flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF);">
+                  <i data-lucide="shield" class="w-5 h-5" style="color: #FFFFFF;"></i>
+                </div>
+              </div>
+              <div class="text-sm leading-relaxed" style="color: var(--text-main);">
+                AI Coach áp dụng triết lý <span class="font-bold">Năng Lượng Tích Cực</span>: cho phép bạn <span class="font-bold" style="color: var(--accent-purple);">nghỉ tập để phục hồi</span>. Hãy đánh dấu 
+                <span class="font-bold px-2 py-0.5 rounded-md text-xs mx-1" style="background: var(--primary-soft); color: var(--accent-purple);">Ngày Nghỉ Phục Hồi</span> 
+                để không làm đứt chuỗi Streak và luôn giữ vững động lực!
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -306,7 +435,7 @@ export async function renderGamificationPage() {
       if (isExpanded) {
         moreContainerDesktop.classList.remove('is-expanded');
         btnExpandDesktop.classList.remove('is-expanded');
-        if (btnExpandText) btnExpandText.textContent = `Xem thêm ${sortedBadges.length - 14} huy hiệu còn lại`;
+        if (btnExpandText) btnExpandText.textContent = `Xem thêm ${sortedBadges.length - 12} huy hiệu còn lại`;
       } else {
         moreContainerDesktop.classList.add('is-expanded');
         btnExpandDesktop.classList.add('is-expanded');

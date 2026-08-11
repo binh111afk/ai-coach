@@ -29,7 +29,9 @@ export async function renderMealTracker(onOpenAiCoach) {
   const todayLog = await DataService.getDailyLog(activeDateStr);
   const dailyBudget = plan.dailyBudgetVnd || 100000;
 
-  const caloriesIn = todayLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
+  const caloriesIn = (todayLog.meals || []).reduce((sum, m) => sum + (m.calories || m.kcal || 0), 0);
+  const caloriesOut = (todayLog.workouts || []).reduce((sum, w) => sum + (w.caloriesBurned || w.calories || w.caloBurned || 0), 0);
+  const netCalories = caloriesIn - caloriesOut;
   const totalProtein = todayLog.meals.reduce((sum, m) => sum + (m.protein || 0), 0);
   const totalCarb = todayLog.meals.reduce((sum, m) => sum + (m.carb || 0), 0);
   const totalFat = todayLog.meals.reduce((sum, m) => sum + (m.fat || 0), 0);
@@ -69,10 +71,17 @@ export async function renderMealTracker(onOpenAiCoach) {
     }
   }
 
-  // Calorie Ring Calculations
-  const calProgress = Math.min(1, caloriesIn / calTarget);
-  const calDashOffset = Math.round(534 * (1 - calProgress));
-  const calDiff = calTarget - caloriesIn;
+  // Dual-segment Calorie Ring Calculations (In vs Out Ratio)
+  const totalCal = caloriesIn + caloriesOut;
+  let inLen = 267;
+  let outLen = 267;
+  if (totalCal > 0) {
+    inLen = Math.round(534 * (caloriesIn / totalCal));
+    if (caloriesIn > 0 && inLen < 15) inLen = 15;
+    if (caloriesOut > 0 && (534 - inLen) < 15) inLen = 534 - 15;
+    outLen = 534 - inLen;
+  }
+  const diffCal = Math.abs(caloriesIn - caloriesOut);
 
   // Macro percentages
   const pPercent = Math.min(100, Math.round((totalProtein / pTarget) * 100));
@@ -112,9 +121,21 @@ export async function renderMealTracker(onOpenAiCoach) {
           </h1>
         </div>
 
-        <!-- Date Strip Widget -->
-        <div class="flex gap-1 bg-card p-2 rounded-2xl border border-color shadow-sm" id="dateStrip" style="background: var(--bg-card); border: 1px solid var(--border-color);">
-          ${datePillsHtml}
+        <!-- Date Switcher Wow Component -->
+        <div class="date-switcher">
+          <div class="glow-center"></div>
+          <button id="btn-meal-day-prev" class="arrow-btn" ${selectedMealJourneyDay <= 1 ? 'disabled' : ''} aria-label="Ngày trước">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <div class="date-display" id="meal-date-display">
+            <div class="date-content slide-active">
+              <div class="text-[10px] font-bold tracking-widest uppercase mb-0.5" style="color: var(--accent-purple);">${dayNameVi} · Ngày ${selectedMealJourneyDay}/${totalJourneyDays}</div>
+              <div class="display text-sm font-bold leading-none" style="color: var(--text-main);">${dateObj.getDate()} Tháng ${String(dateObj.getMonth() + 1).padStart(2, '0')}</div>
+            </div>
+          </div>
+          <button id="btn-meal-day-next" class="arrow-btn" ${selectedMealJourneyDay >= totalJourneyDays ? 'disabled' : ''} aria-label="Ngày sau">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+          </button>
         </div>
       </div>
 
@@ -162,38 +183,36 @@ export async function renderMealTracker(onOpenAiCoach) {
         
         <!-- Calorie Ring Card -->
         <div class="card p-7 lg:col-span-2 flex flex-col items-center justify-center fade-up">
-          <div class="text-[10px] uppercase tracking-[0.2em] text-muted font-bold mb-5" style="color: var(--text-muted);">TỔNG CALORIES HÔM NAY</div>
+          <div class="text-[10px] uppercase tracking-[0.2em] text-muted font-bold mb-5" style="color: var(--text-muted);" id="meal-cal-card-title">ĐỘ CHÊNH LỆCH CALO (IN vs OUT)</div>
           <div class="relative w-60 h-60">
-            <svg viewBox="0 0 200 200" class="w-full h-full">
-              <defs>
-                <linearGradient id="calGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#7C3AED"/>
-                  <stop offset="60%" stop-color="#8B5CF6"/>
-                  <stop offset="100%" stop-color="#D946EF"/>
-                </linearGradient>
-              </defs>
-              <circle cx="100" cy="100" r="85" fill="none" class="ring-bg" stroke-width="14"/>
-              <circle cx="100" cy="100" r="85" fill="none" class="ring-fg" stroke-width="14"
-                      stroke-dasharray="534" stroke-dashoffset="${calDashOffset}" id="calorieRing"/>
+            <svg viewBox="0 0 200 200" class="w-full h-full cursor-pointer">
+              <!-- Background ring fallback -->
+              <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(124, 58, 237, 0.1)" stroke-width="14"/>
+              
+              <!-- In Segment (Tím #7C3AED) -->
+              <circle id="meal-ring-in" cx="100" cy="100" r="85" fill="none" stroke="#7C3AED" stroke-width="14" 
+                      stroke-dasharray="${inLen} ${534 - inLen}" stroke-dashoffset="0" transform="rotate(-90 100 100)"
+                      class="transition-all duration-300 hover:stroke-[18px]"/>
+                      
+              <!-- Out Segment (Hồng #D946EF) -->
+              <circle id="meal-ring-out" cx="100" cy="100" r="85" fill="none" stroke="#D946EF" stroke-width="14" 
+                      stroke-dasharray="${outLen} ${534 - outLen}" stroke-dashoffset="-${inLen}" transform="rotate(-90 100 100)"
+                      class="transition-all duration-300 hover:stroke-[18px]"/>
             </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <div class="display text-4xl md:text-5xl font-semibold leading-none" style="color: var(--text-main);">${caloriesIn.toLocaleString('vi-VN')}</div>
-              <div class="text-sm text-muted mt-1" style="color: var(--text-muted);">/ ${calTarget.toLocaleString('vi-VN')} kcal</div>
-              <div class="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full" style="background: rgba(124, 58, 237, 0.14); color: var(--accent-purple);">
-                <i data-lucide="trending-up" class="w-3 h-3"></i>
-                ${calDiff >= 0 ? `còn ${calDiff.toLocaleString('vi-VN')} kcal` : `vượt ${Math.abs(calDiff).toLocaleString('vi-VN')} kcal`}
-              </div>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div class="display text-4xl md:text-5xl font-semibold leading-none transition-all duration-200" style="color: var(--text-main);" id="meal-cal-center-num">${diffCal}</div>
+              <div class="text-xs font-medium text-muted mt-1 transition-all duration-200" style="color: var(--text-muted);" id="meal-cal-center-label">/ ${calTarget.toLocaleString('vi-VN')} kcal</div>
             </div>
           </div>
-          <div class="flex items-center gap-4 mt-6 text-xs">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-purple);"></span>
-              <span class="text-muted" style="color: var(--text-muted);">Tiêu thụ</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full opacity-25" style="background: var(--accent-purple);"></span>
-              <span class="text-muted" style="color: var(--text-muted);">Mục tiêu</span>
-            </div>
+          <div class="flex items-center gap-4 mt-6 text-xs font-semibold">
+            <span class="flex items-center gap-1.5 cursor-pointer transition hover:scale-105" id="meal-tag-in" style="color: var(--text-main);">
+              <span class="w-2.5 h-2.5 rounded-full" style="background: #7C3AED;"></span>
+              <span>In: ${caloriesIn.toLocaleString('vi-VN')}</span>
+            </span>
+            <span class="flex items-center gap-1.5 cursor-pointer transition hover:scale-105" id="meal-tag-out" style="color: var(--text-main);">
+              <span class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></span>
+              <span>Out: ${caloriesOut.toLocaleString('vi-VN')}</span>
+            </span>
           </div>
         </div>
 
@@ -318,16 +337,70 @@ export async function renderMealTracker(onOpenAiCoach) {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
 
-    // Date Strip Pill Click Listeners
-    mountNode.querySelectorAll('[data-select-day]').forEach(pill => {
-      pill.addEventListener('click', () => {
-        const targetDay = parseInt(pill.getAttribute('data-select-day'));
-        if (targetDay && targetDay !== selectedMealJourneyDay) {
-          selectedMealJourneyDay = targetDay;
-          renderMealTracker(onOpenAiCoach);
+    // Date Switcher Prev & Next Listeners with slide animation
+    document.getElementById('btn-meal-day-prev')?.addEventListener('click', () => {
+      if (selectedMealJourneyDay > 1) {
+        const dateText = document.querySelector('#meal-date-display .date-content');
+        if (dateText) {
+          dateText.classList.add('slide-out-right');
+          dateText.classList.remove('slide-active');
         }
-      });
+        setTimeout(() => {
+          selectedMealJourneyDay--;
+          renderMealTracker(onOpenAiCoach);
+        }, 200);
+      }
     });
+
+    document.getElementById('btn-meal-day-next')?.addEventListener('click', () => {
+      if (selectedMealJourneyDay < totalJourneyDays) {
+        const dateText = document.querySelector('#meal-date-display .date-content');
+        if (dateText) {
+          dateText.classList.add('slide-out-left');
+          dateText.classList.remove('slide-active');
+        }
+        setTimeout(() => {
+          selectedMealJourneyDay++;
+          renderMealTracker(onOpenAiCoach);
+        }, 200);
+      }
+    });
+
+    // Calorie Ring Hover Event Handlers
+    const mealRingIn = document.getElementById('meal-ring-in');
+    const mealRingOut = document.getElementById('meal-ring-out');
+    const mealTagIn = document.getElementById('meal-tag-in');
+    const mealTagOut = document.getElementById('meal-tag-out');
+    const mealCenterNum = document.getElementById('meal-cal-center-num');
+    const mealCenterLabel = document.getElementById('meal-cal-center-label');
+
+    const defaultMealNum = diffCal;
+    const defaultMealLabel = `/ ${calTarget.toLocaleString('vi-VN')} kcal`;
+
+    const showMealIn = () => {
+      if (mealCenterNum) { mealCenterNum.textContent = caloriesIn.toLocaleString('vi-VN'); mealCenterNum.style.color = '#7C3AED'; }
+      if (mealCenterLabel) mealCenterLabel.textContent = 'Calo Nạp Vào (In)';
+    };
+
+    const showMealOut = () => {
+      if (mealCenterNum) { mealCenterNum.textContent = caloriesOut.toLocaleString('vi-VN'); mealCenterNum.style.color = '#D946EF'; }
+      if (mealCenterLabel) mealCenterLabel.textContent = 'Calo Tiêu Hao (Out)';
+    };
+
+    const resetMealDefault = () => {
+      if (mealCenterNum) { mealCenterNum.textContent = defaultMealNum; mealCenterNum.style.color = 'var(--text-main)'; }
+      if (mealCenterLabel) mealCenterLabel.textContent = defaultMealLabel;
+    };
+
+    mealRingIn?.addEventListener('mouseenter', showMealIn);
+    mealRingIn?.addEventListener('mouseleave', resetMealDefault);
+    mealTagIn?.addEventListener('mouseenter', showMealIn);
+    mealTagIn?.addEventListener('mouseleave', resetMealDefault);
+
+    mealRingOut?.addEventListener('mouseenter', showMealOut);
+    mealRingOut?.addEventListener('mouseleave', resetMealDefault);
+    mealTagOut?.addEventListener('mouseenter', showMealOut);
+    mealTagOut?.addEventListener('mouseleave', resetMealDefault);
 
     // Quick AI Food NLP Parser
     document.getElementById('btn-quick-parse-food')?.addEventListener('click', async () => {
@@ -512,11 +585,11 @@ function openAddMealModal(dateStr, defaultType = 'Lunch', onSaveSuccess) {
             <label class="form-label text-xs font-bold uppercase tracking-wider" style="color: var(--text-muted);">Bữa ăn ghi nhận</label>
             <div id="meal-type-dropdown-container">
               ${renderDropdown({
-                id: 'meal-type-dropdown',
-                options: mealOptions,
-                value: currentType,
-                placeholder: 'Chọn bữa ăn...'
-              })}
+    id: 'meal-type-dropdown',
+    options: mealOptions,
+    value: currentType,
+    placeholder: 'Chọn bữa ăn...'
+  })}
             </div>
           </div>
 
