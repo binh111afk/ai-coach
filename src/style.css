@@ -4895,3 +4895,67 @@ body.dark .seg {
 .dot {
   animation: dot 1.4s ease-in-out infinite;
 }
+
+/* Bottom Floating Navigation Bar */
+.bottom-nav {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 720px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color, rgba(124, 58, 237, 0.15));
+  border-radius: 28px;
+  box-shadow: 0 14px 40px -10px rgba(124, 58, 237, 0.22);
+  z-index: 99;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark .bottom-nav {
+  background: rgba(30, 27, 46, 0.92);
+  border-color: rgba(168, 145, 255, 0.22);
+  box-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.6);
+}
+
+.bottom-nav .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 18px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  border: none;
+  background: transparent;
+}
+
+.bottom-nav .nav-item:hover {
+  color: var(--text-main);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.bottom-nav .nav-item.active {
+  color: var(--accent-purple);
+  background: rgba(124, 58, 237, 0.12);
+}
+
+body.dark .bottom-nav .nav-item.active {
+  color: #A891FF;
+  background: rgba(168, 145, 255, 0.18);
+}
+
+body {
+  padding-bottom: 90px;
+}
