@@ -120,23 +120,23 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             </div>
           </div>
         </div>
-        <button id="btn-recalculate-plan" class="btn-accent ai-glow px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold">
-          <i data-lucide="sparkles" class="w-4 h-4"></i> Lập Kế Hoạch AI Mới
+        <button id="btn-recalculate-plan" class="ai-glow px-4 py-2.5 rounded-2xl flex items-center gap-2 text-sm font-bold shadow-sm transition hover:shadow-md cursor-pointer" style="background: var(--bg-card); border: 1.5px solid rgba(124, 58, 237, 0.2); color: var(--text-main);">
+          <i data-lucide="sparkles" class="w-4 h-4 text-[var(--accent-purple)]"></i> Lập Kế Hoạch AI Mới
         </button>
       </div>
 
       <!-- Control Panel: Budget, Location Dropdown, Equipment & Update Button -->
-      <div class="card p-6 mb-6 fade-up">
+      <div class="card p-6 mb-6 fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
         <div class="text-xs font-bold uppercase tracking-wider mb-4" style="color: var(--accent-purple);">⚙️ Cấu Hình Ngân Sách & Địa Điểm Tập Luyện</div>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div class="w-full min-w-0">
             <label class="text-xs font-bold text-muted mb-1 block" style="color: var(--text-muted);">Ngân Sách (VNĐ/Ngày)</label>
-            <input type="number" class="form-input text-sm rounded-xl px-3 py-2" id="plan-budget-input" value="${plan.dailyBudgetVnd || 100000}" step="10000" style="background: var(--bg-input); color: var(--text-main);">
+            <input type="number" class="form-input text-sm rounded-xl px-3 py-2 w-full truncate" id="plan-budget-input" value="${plan.dailyBudgetVnd || 100000}" step="10000" style="background: var(--bg-input); color: var(--text-main);" title="${plan.dailyBudgetVnd || 100000}">
           </div>
 
-          <div>
+          <div class="w-full min-w-0">
             <label class="text-xs font-bold text-muted mb-1 block" style="color: var(--text-muted);">Địa Điểm Tập</label>
-            <div id="plan-workout-dropdown-container">
+            <div id="plan-workout-dropdown-container" class="w-full min-w-0">
               ${renderDropdown({
                 id: 'plan-workout-dropdown',
                 options: workoutOptions,
@@ -146,14 +146,14 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             </div>
           </div>
 
-          <div id="home-equipment-container" style="display: ${currentWorkoutType === 'home' ? 'block' : 'none'};">
+          <div class="w-full min-w-0" id="home-equipment-container" style="display: ${currentWorkoutType === 'home' ? 'block' : 'none'};">
             <label class="text-xs font-bold text-muted mb-1 block" style="color: var(--text-muted);">Dụng Cụ Có Sẵn</label>
-            <input type="text" class="form-input text-sm rounded-xl px-3 py-2" id="plan-home-equipment-input" value="${currentHomeEquipment}" placeholder="Ví dụ: Thảm yoga, Tạ 5kg..." style="background: var(--bg-input); color: var(--text-main);">
+            <input type="text" class="form-input text-sm rounded-xl px-3 py-2 w-full truncate" id="plan-home-equipment-input" value="${currentHomeEquipment}" placeholder="Ví dụ: Thảm yoga, Tạ 5kg..." style="background: var(--bg-input); color: var(--text-main);" title="${currentHomeEquipment}">
           </div>
 
-          <div>
+          <div class="w-full min-w-0">
             <button class="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2" id="btn-save-plan-controls">
-              <i data-lucide="refresh-cw" class="w-4 h-4"></i> Cập Nhật Kế Hoạch
+              <i data-lucide="refresh-cw" class="w-4 h-4 flex-shrink-0"></i> <span class="truncate">Cập Nhật Kế Hoạch</span>
             </button>
           </div>
         </div>
@@ -161,35 +161,35 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
       <!-- Info Overview Grid (3 Cards) -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-        <div class="card p-5 flex items-center gap-4 fade-up" style="animation-delay: 0.1s">
-          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--accent-purple)]" style="background: var(--primary-soft);">
+        <div class="card p-5 flex items-center gap-4 fade-up" style="animation-delay: 0.1s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[var(--accent-purple)] flex-shrink-0" style="background: var(--primary-soft);">
             <i data-lucide="wallet" class="w-5 h-5"></i>
           </div>
-          <div>
+          <div class="min-w-0 flex-1">
             <div class="text-[10px] text-muted font-bold uppercase tracking-wider" style="color: var(--text-muted);">Ngân Sách / Ngày</div>
-            <div class="display text-2xl font-semibold" style="color: var(--text-main);">${(plan.dailyBudgetVnd || 100000).toLocaleString('vi-VN')}₫</div>
+            <div class="display text-2xl font-semibold truncate" style="color: var(--text-main);" id="disp-card-budget" title="${(plan.dailyBudgetVnd || 100000).toLocaleString('vi-VN')}₫">${(plan.dailyBudgetVnd || 100000).toLocaleString('vi-VN')}₫</div>
           </div>
         </div>
 
-        <div class="card p-5 flex items-center gap-4 fade-up" style="animation-delay: 0.15s">
-          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[#3B82F6]" style="background: #DBEAFE;">
+        <div class="card p-5 flex items-center gap-4 fade-up" style="animation-delay: 0.15s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[#3B82F6] flex-shrink-0" style="background: #DBEAFE;">
             <i data-lucide="home" class="w-5 h-5"></i>
           </div>
-          <div>
+          <div class="min-w-0 flex-1">
             <div class="text-[10px] text-muted font-bold uppercase tracking-wider" style="color: var(--text-muted);">Địa Điểm Tập</div>
-            <div class="display text-xl font-semibold leading-tight" style="color: var(--text-main);">
+            <div class="display text-xl font-semibold leading-tight truncate" style="color: var(--text-main);" id="disp-card-location">
               ${currentWorkoutType === 'home' ? 'Tập Tại Nhà' : currentWorkoutType === 'gym' ? 'Phòng Gym' : 'Outdoor'}
             </div>
           </div>
         </div>
 
-        <div class="card p-5 flex items-center gap-4 fade-up" style="animation-delay: 0.2s">
-          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[#EC4899]" style="background: #FCE7F3;">
+        <div class="card p-5 flex items-center gap-4 fade-up" style="animation-delay: 0.2s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[#EC4899] flex-shrink-0" style="background: #FCE7F3;">
             <i data-lucide="dumbbell" class="w-5 h-5"></i>
           </div>
-          <div>
+          <div class="min-w-0 flex-1">
             <div class="text-[10px] text-muted font-bold uppercase tracking-wider" style="color: var(--text-muted);">Dụng Cụ Tập</div>
-            <div class="display text-sm font-semibold leading-tight mt-1 truncate max-w-[200px]" style="color: var(--text-main);" title="${currentHomeEquipment}">
+            <div class="display text-sm font-semibold leading-tight mt-1 truncate" style="color: var(--text-main);" id="disp-card-equipment" title="${currentHomeEquipment || 'Bodyweight'}">
               ${currentHomeEquipment || 'Bodyweight'}
             </div>
           </div>
@@ -614,7 +614,25 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       await DataService.saveUserPlan(plan);
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
 
-      const locationName = chosenWorkoutType === 'gym' ? 'Phòng Gym' : chosenWorkoutType === 'outdoor' ? 'Outdoor / Công Viên' : 'Tập Tại Nhà';
+      const locationName = chosenWorkoutType === 'gym' ? 'Phòng Gym' : chosenWorkoutType === 'outdoor' ? 'Outdoor' : 'Tập Tại Nhà';
+
+      // Update 3 display boxes in real-time
+      const budgetEl = document.getElementById('disp-card-budget');
+      const locationEl = document.getElementById('disp-card-location');
+      const equipmentEl = document.getElementById('disp-card-equipment');
+
+      if (budgetEl) {
+        budgetEl.textContent = `${budget.toLocaleString('vi-VN')}₫`;
+        budgetEl.setAttribute('title', `${budget.toLocaleString('vi-VN')}₫`);
+      }
+      if (locationEl) {
+        locationEl.textContent = locationName;
+      }
+      if (equipmentEl) {
+        equipmentEl.textContent = homeEquipVal || 'Bodyweight';
+        equipmentEl.setAttribute('title', homeEquipVal || 'Bodyweight');
+      }
+
       await Modal.success({
         title: 'Cập Nhật Lộ Trình Thành Công!',
         message: `Đã đổi địa điểm tập sang: ${locationName}\nAI Coach đã thiết kế lại ${plan.journeyPhases.length} giai đoạn cho ${totalJourneyDays} ngày hành trình!`
