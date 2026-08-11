@@ -365,9 +365,9 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     </div>
 
-    <!-- POPUP 1: Modal Hướng Dẫn Bài Tập Cụ Thể (Workout Guide Modal - Image 2) -->
-    <div class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" id="workout-guide-modal">
-      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px;">
+    <!-- POPUP 1: Modal Hướng Dẫn Bài Tập Cụ Thể (Workout Guide Modal) -->
+    <div class="modal-overlay" id="workout-guide-modal">
+      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
         <div class="flex justify-between items-start mb-4">
           <div>
             <h3 id="wg-modal-title" class="display text-xl font-bold" style="color: var(--text-main);">Hướng Dẫn Bài Tập</h3>
@@ -418,9 +418,9 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       </div>
     </div>
 
-    <!-- POPUP 2: Modal Chi Tiết Thực Đơn & Công Thức Chế Biến (Recipe Details Modal - Images 3 & 4) -->
-    <div class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" id="recipe-details-modal">
-      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px;">
+    <!-- POPUP 2: Modal Chi Tiết Thực Đơn & Công Thức Chế Biến (Recipe Details Modal) -->
+    <div class="modal-overlay" id="recipe-details-modal">
+      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
         <div class="flex justify-between items-start mb-4">
           <div>
             <span class="text-xs font-bold px-3 py-1 rounded-full inline-block mb-1" style="background: #FEF3C7; color: #F59E0B;" id="rd-modal-type-badge">Bữa Sáng</span>
@@ -499,9 +499,9 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       </div>
     </div>
 
-    <!-- POPUP 3: Modal Chi Tiết Mốc Lịch Trình Sinh Hoạt AI (Schedule Details Modal - Image 5) -->
-    <div class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" id="schedule-details-modal">
-      <div class="modal-card card p-6 w-full max-w-lg" style="background: var(--bg-card); border-radius: 28px;">
+    <!-- POPUP 3: Modal Chi Tiết Mốc Lịch Trình Sinh Hoạt AI (Schedule Details Modal) -->
+    <div class="modal-overlay" id="schedule-details-modal">
+      <div class="modal-card card p-6 w-full max-w-lg" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
         <div class="flex justify-between items-start mb-4">
           <div>
             <span class="text-xs font-bold px-3 py-1 rounded-full inline-block mb-1" style="background: #DBEAFE; color: #3B82F6;" id="sd-modal-badge">⏰ Sinh Hoạt</span>
@@ -649,8 +649,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         const customInput = document.getElementById('wg-custom-video-input');
         if (customInput) customInput.value = activeWorkoutItem.videoUrl || '';
 
-        wgModal.classList.remove('hidden');
-        wgModal.classList.add('flex');
+        wgModal.classList.add('active');
       }
     };
 
@@ -682,15 +681,14 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     const closeWgModal = () => {
       if (wgModal) {
-        wgModal.classList.add('hidden');
-        wgModal.classList.remove('flex');
+        wgModal.classList.remove('active');
         const iframe = document.getElementById('wg-modal-iframe');
         if (iframe) iframe.src = '';
       }
     };
 
     document.getElementById('btn-close-wg-modal')?.addEventListener('click', closeWgModal);
-    wgModal?.addEventListener('click', (e) => { if (e.target === wgModal) closeWgModal(); });
+    wgModal?.addEventListener('click', (e) => { if (!e.target.closest('.modal-card')) closeWgModal(); });
 
     document.getElementById('btn-start-confirm-workout')?.addEventListener('click', async () => {
       if (activeWorkoutItem) {
@@ -775,8 +773,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       const customInput = document.getElementById('rd-custom-video-input');
       if (customInput) customInput.value = details.videoUrl || '';
 
-      rdModal.classList.remove('hidden');
-      rdModal.classList.add('flex');
+      rdModal.classList.add('active');
     };
 
     document.getElementById('btn-rd-apply-video')?.addEventListener('click', () => {
@@ -797,8 +794,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     const closeRdModal = () => {
       if (rdModal) {
-        rdModal.classList.add('hidden');
-        rdModal.classList.remove('flex');
+        rdModal.classList.remove('active');
         const iframe = document.getElementById('rd-modal-iframe');
         if (iframe) iframe.src = '';
       }
@@ -806,7 +802,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     document.getElementById('btn-close-rd-modal')?.addEventListener('click', closeRdModal);
     document.getElementById('btn-close-rd-modal-bottom')?.addEventListener('click', closeRdModal);
-    rdModal?.addEventListener('click', (e) => { if (e.target === rdModal) closeRdModal(); });
+    rdModal?.addEventListener('click', (e) => { if (!e.target.closest('.modal-card')) closeRdModal(); });
 
     document.getElementById('btn-apply-single-meal-to-today')?.addEventListener('click', async () => {
       if (activeRecipeMeal) {
@@ -865,8 +861,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             document.getElementById('sd-modal-title').innerText = item.activity;
             document.getElementById('sd-modal-day-label').innerText = `Lịch trình Ngày ${selectedJourneyDay}/${totalJourneyDays}`;
 
-            sdModal.classList.remove('hidden');
-            sdModal.classList.add('flex');
+            sdModal.classList.add('active');
           }
         }
       });
@@ -874,13 +869,12 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     const closeSdModal = () => {
       if (sdModal) {
-        sdModal.classList.add('hidden');
-        sdModal.classList.remove('flex');
+        sdModal.classList.remove('active');
       }
     };
 
     document.getElementById('btn-close-sd-modal')?.addEventListener('click', closeSdModal);
-    sdModal?.addEventListener('click', (e) => { if (e.target === sdModal) closeSdModal(); });
+    sdModal?.addEventListener('click', (e) => { if (!e.target.closest('.modal-card')) closeSdModal(); });
 
     document.getElementById('btn-confirm-schedule-habit')?.addEventListener('click', async () => {
       if (activeScheduleItem) {
