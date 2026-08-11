@@ -5018,3 +5018,39 @@ body.ai-tab-active .nav-toggle-fab {
 .nav-toggle-fab.nav-is-hidden svg {
   transform: rotate(0deg);
 }
+
+/* ===== Toggle Switch Component ===== */
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  background: #E5E7EB;
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  flex-shrink: 0;
+}
+
+body.dark .toggle-switch {
+  background: #374151;
+}
+
+.toggle-switch.active {
+  background: var(--primary, #7C3AED) !important;
+}
+
+.toggle-knob {
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-switch.active .toggle-knob {
+  transform: translateX(20px);
+}

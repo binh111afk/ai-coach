@@ -101,17 +101,17 @@ export async function renderSettingsPage(onSaveComplete) {
 
         <!-- Body Stats (3 Boxes) -->
         <div class="grid grid-cols-3 gap-3 mb-6">
-          <div class="bg-[var(--primary-soft)] p-3 md:p-4 rounded-2xl text-center">
+          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.14);">
             <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Tuổi</div>
-            <div class="display text-xl md:text-2xl font-semibold mt-1" id="stat-disp-age">${profile.age || 19}</div>
+            <div class="display text-xl md:text-2xl font-semibold mt-1" id="stat-disp-age" style="color: var(--fg);">${profile.age || 19}</div>
           </div>
-          <div class="bg-[var(--primary-soft)] p-3 md:p-4 rounded-2xl text-center">
+          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.14);">
             <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Chiều cao</div>
-            <div class="display text-xl md:text-2xl font-semibold mt-1"><span id="stat-disp-height">${profile.height || 171}</span> <span class="text-xs font-normal text-[var(--muted)]">cm</span></div>
+            <div class="display text-xl md:text-2xl font-semibold mt-1" style="color: var(--fg);"><span id="stat-disp-height">${profile.height || 171}</span> <span class="text-xs font-normal text-[var(--muted)]">cm</span></div>
           </div>
-          <div class="bg-[var(--primary-soft)] p-3 md:p-4 rounded-2xl text-center">
+          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.14);">
             <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Cân nặng</div>
-            <div class="display text-xl md:text-2xl font-semibold mt-1"><span id="stat-disp-weight">${profile.currentWeight || 77}</span> <span class="text-xs font-normal text-[var(--muted)]">kg</span></div>
+            <div class="display text-xl md:text-2xl font-semibold mt-1" style="color: var(--fg);"><span id="stat-disp-weight">${profile.currentWeight || 77}</span> <span class="text-xs font-normal text-[var(--muted)]">kg</span></div>
           </div>
         </div>
 
@@ -123,7 +123,7 @@ export async function renderSettingsPage(onSaveComplete) {
             </div>
             <div>
               <div class="text-xs text-[var(--muted)] font-semibold">BMR (Năng lượng nghỉ)</div>
-              <div class="font-bold text-lg" id="stat-disp-bmr">~${bmrVal.toLocaleString('vi-VN')} kcal</div>
+              <div class="font-bold text-lg" id="stat-disp-bmr" style="color: var(--fg);">~${bmrVal.toLocaleString('vi-VN')} kcal</div>
             </div>
           </div>
           <div class="border border-[rgba(124,58,237,0.16)] p-4 rounded-2xl flex items-center gap-3">
@@ -132,7 +132,7 @@ export async function renderSettingsPage(onSaveComplete) {
             </div>
             <div>
               <div class="text-xs text-[var(--muted)] font-semibold">TDEE (Tiêu hao/ngày)</div>
-              <div class="font-bold text-lg" id="stat-disp-tdee">~${tdeeVal.toLocaleString('vi-VN')} kcal</div>
+              <div class="font-bold text-lg" id="stat-disp-tdee" style="color: var(--fg);">~${tdeeVal.toLocaleString('vi-VN')} kcal</div>
             </div>
           </div>
         </div>
@@ -191,7 +191,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
           <div class="border-t border-[rgba(124,58,237,0.12)]"></div>
 
-          <!-- DARK MODE / LIGHT MODE TOGGLE (Requirement #6) -->
+          <!-- DARK MODE / LIGHT MODE TOGGLE -->
           <div class="flex items-center justify-between py-3">
             <div class="flex items-center gap-3">
               <i data-lucide="${isDarkMode ? 'sun' : 'moon'}" class="w-5 h-5 text-[var(--muted)]" id="theme-icon-indicator"></i>

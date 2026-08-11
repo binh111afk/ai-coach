@@ -35,10 +35,6 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         ${renderGeminiIcon({ width: 20, height: 20, color: 'var(--accent-purple)' })}
         <span>AI Coach</span>
       </a>
-      <button class="nav-item border-0 bg-transparent" id="btn-toggle-theme" title="Chuyển chế độ Sáng / Tối">
-        <i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-5 h-5"></i>
-        <span>${isDark ? 'Sáng' : 'Tối'}</span>
-      </button>
       <a class="nav-item ${activeTab === 'settings' ? 'active' : ''}" data-tab="settings" title="Cài Đặt Hệ Thống">
         <i data-lucide="settings" class="w-5 h-5"></i>
         <span>Cài đặt</span>
@@ -63,12 +59,6 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         e.preventDefault();
         onTabChange(el.getAttribute('data-tab'));
       });
-    });
-
-    // Theme Switcher Listener
-    document.getElementById('btn-toggle-theme')?.addEventListener('click', () => {
-      document.body.classList.toggle('dark');
-      renderNavigation(activeTab, onTabChange, onOpenAiCoach, onOpenSettings);
     });
 
     // Settings Listener
