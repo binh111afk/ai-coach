@@ -118,7 +118,7 @@ async function handleTabChange(tab) {
   }
 
   // Re-render navigation to switch between horizontal and right-vertical mode
-  await renderNavigation(tab, handleTabChange, handleOpenAiCoach, handleOpenSettingsModal);
+  await renderNavigation(tab, handleTabChange, handleOpenAiCoach, handleOpenSettings);
 
   await updateNavigationXp();
   await renderActiveView();
