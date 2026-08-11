@@ -56,43 +56,89 @@ export async function renderGamificationPage() {
     return renderBadgeCard(b, isUnlocked);
   }).join('');
 
+  const remainingXpNeeded = levelInfo.nextLevel ? Math.max(0, levelInfo.xpNeededForNext - levelInfo.xpInCurrentLevel) : 0;
+
   const html = `
-    <div style="display: flex; flex-direction: column; gap: 1.75rem;">
-      <!-- Level Hero Banner -->
-      <div class="card hero-banner-card">
-        <div class="gami-hero-row">
-          <div style="display: flex; align-items: center; gap: 1.25rem;">
-            <div class="gami-crown-icon">
-              <i data-lucide="crown" style="width: 36px; height: 36px;"></i>
+    <div class="max-w-6xl mx-auto w-full space-y-6 fade-up">
+      
+      <!-- ==================== STATUS HUB WOW EFFECT ==================== -->
+      <div class="relative mb-6 fade-up">
+        <!-- Background Glows -->
+        <div class="absolute -top-4 left-10 w-48 h-48 bg-[var(--primary)] rounded-full blur-3xl opacity-20"></div>
+        <div class="absolute -top-2 right-10 w-48 h-48 bg-[var(--accent)] rounded-full blur-3xl opacity-20"></div>
+        
+        <div class="relative glass-card rounded-[28px] p-6 md:p-8" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+          <div class="flex flex-col md:flex-row gap-8 items-center justify-between">
+            
+            <!-- Left: Level & XP Progress -->
+            <div class="flex-1 w-full">
+              <div class="flex items-center gap-4 mb-6">
+                <!-- Level Icon -->
+                <div class="relative animate-float">
+                  <div class="absolute inset-0 bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] blur-lg opacity-50 animate-glow-pulse"></div>
+                  <div class="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex items-center justify-center text-white shadow-xl border border-white/40">
+                    <i data-lucide="crown" class="w-8 h-8 drop-shadow-lg"></i>
+                  </div>
+                </div>
+                
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[10px] font-bold text-[var(--primary)] tracking-[0.2em] bg-[var(--primary-soft)] px-2.5 py-0.5 rounded-md">LEVEL ${levelInfo.currentLevel.level}</span>
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+                  </div>
+                  <h2 class="display text-2xl md:text-3xl font-semibold leading-tight" style="color: var(--fg);">${levelInfo.currentLevel.name}</h2>
+                  <p class="text-sm text-[var(--muted)] mt-0.5">Tổng điểm: <span class="font-bold" style="color: var(--fg);">${progress.totalXp} XP</span></p>
+                </div>
+              </div>
+              
+              <!-- Progress Bar -->
+              <div class="mb-2 flex justify-between items-baseline">
+                <span class="text-xs font-bold text-[var(--muted)] uppercase tracking-wider">Tiến độ lên Level ${levelInfo.nextLevel ? levelInfo.nextLevel.level : 'MAX'}</span>
+                <span class="text-xs font-bold text-[var(--primary)]">${levelInfo.progressPercent}%</span>
+              </div>
+              <div class="relative h-4 neon-track rounded-full overflow-hidden">
+                <div class="absolute top-0 left-0 h-full neon-fill rounded-full flex items-center justify-end pr-2" style="width: ${levelInfo.progressPercent}%;">
+                  <div class="w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_8px_white]"></div>
+                </div>
+              </div>
+              <div class="mt-2.5 flex justify-between text-xs">
+                <span class="font-semibold text-[var(--muted)]">${levelInfo.xpInCurrentLevel} / ${levelInfo.xpNeededForNext} XP</span>
+                <span class="font-bold text-[var(--accent)] flex items-center gap-1">
+                  ${levelInfo.nextLevel ? `${remainingXpNeeded} XP nữa` : 'Đã Đạt Cấp Tối Đa'} 
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </span>
+              </div>
             </div>
-            <div>
-              <div class="badge badge-secondary" style="margin-bottom: 0.35rem;">LEVEL ${levelInfo.currentLevel.level}</div>
-              <h2 class="gami-level-name">${levelInfo.currentLevel.name}</h2>
-              <div class="text-sm text-muted" style="margin-top: 0.25rem;">Tổng điểm: <b style="color: var(--accent-purple); font-size: 1rem;">${progress.totalXp} XP</b></div>
-            </div>
-          </div>
 
-          <!-- Streak Card -->
-          <div class="gami-streak-card">
-            <div class="gami-streak-icon">
-              <i data-lucide="flame" style="width: 26px; height: 26px;"></i>
-            </div>
-            <div>
-              <div class="text-xs text-muted" style="font-weight: 800; text-transform: uppercase;">Chuỗi Kỷ Luật</div>
-              <div class="gami-streak-value">${progress.currentStreak} Ngày</div>
-              <div class="text-xs text-muted">Kỷ lục: ${progress.longestStreak} ngày</div>
-            </div>
-          </div>
-        </div>
+            <!-- Divider -->
+            <div class="hidden md:block w-px h-36 bg-gradient-to-b from-transparent via-[rgba(124,58,237,0.2)] to-transparent"></div>
 
-        <!-- Level Progress Bar -->
-        <div style="margin-top: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.4rem; font-weight: 700;">
-            <span>Tiến độ lên Level ${levelInfo.nextLevel ? levelInfo.nextLevel.level : 'MAX'}</span>
-            <span style="color: var(--accent-purple);">${levelInfo.xpInCurrentLevel} / ${levelInfo.xpNeededForNext} XP (${levelInfo.progressPercent}%)</span>
-          </div>
-          <div class="progress-bar-bg" style="height: 12px;">
-            <div class="progress-bar-fill" style="width: ${levelInfo.progressPercent}%; background: var(--primary-gradient);"></div>
+            <!-- Right: Streak Card -->
+            <div class="w-full md:w-80 relative">
+              <div class="absolute inset-0 bg-gradient-to-br from-orange-400 to-amber-500 rounded-3xl blur-xl opacity-15"></div>
+              <div class="relative bg-white/70 dark:bg-slate-900/70 backdrop-blur-md rounded-3xl p-5 text-center shadow-sm" style="border: 1px solid rgba(249, 115, 22, 0.25);">
+                
+                <div class="relative inline-block mb-2 animate-float" style="animation-delay: 0.5s;">
+                  <div class="absolute inset-0 bg-orange-500 blur-md opacity-40 animate-glow-pulse"></div>
+                  <div class="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-lg border border-white">
+                    <i data-lucide="flame" class="w-7 h-7 text-white drop-shadow-lg"></i>
+                  </div>
+                </div>
+
+                <div class="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-0.5">Chuỗi Kỷ Luật</div>
+                <div class="display text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-orange-500 to-amber-500">
+                  ${progress.currentStreak} Ngày
+                </div>
+                
+                <div class="mt-2 pt-2 flex items-center justify-center gap-1.5 text-[10px] text-orange-500 font-semibold" style="border-top: 1px solid rgba(249, 115, 22, 0.15);">
+                  <i data-lucide="clock" class="w-3 h-3"></i> Cooldown: 1 ngày
+                </div>
+                <div class="mt-1 flex items-center justify-center gap-1.5 text-[10px] text-[var(--muted)] font-semibold">
+                  <i data-lucide="award" class="w-3 h-3"></i> Kỷ lục: ${progress.longestStreak} ngày
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
