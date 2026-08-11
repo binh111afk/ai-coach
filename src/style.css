@@ -4981,3 +4981,16 @@ body {
 .animate-rest-day {
   animation: restDayIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Dark Glass Overlay Backdrop for All Modals */
+.modal-backdrop,
+.modal-overlay {
+  background: rgba(15, 12, 29, 0.65) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+body.dark .modal-backdrop,
+body.dark .modal-overlay {
+  background: rgba(8, 6, 16, 0.78) !important;
+}
