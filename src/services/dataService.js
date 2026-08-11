@@ -826,6 +826,16 @@ export const DataService = {
     return { photoItem, newBadges };
   },
 
+  async deletePhoto(photoId) {
+    if (!photoId) return false;
+    await dbManager.delete('photos', photoId);
+    // Invalidate appState photos cache and update
+    const currentPhotos = appState.getPhotos() || [];
+    const updatedPhotos = currentPhotos.filter(p => p.id !== photoId);
+    appState.setPhotos(updatedPhotos);
+    return true;
+  },
+
   async updatePhotoTag(photoIdOrJourneyDay, journeyDay, note = '') {
     const photos = await this.getPhotos();
     let target = photos.find(p => p.id === photoIdOrJourneyDay || p.journeyDay === journeyDay);

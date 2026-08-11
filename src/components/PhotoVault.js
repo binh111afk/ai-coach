@@ -70,8 +70,8 @@ export async function renderPhotoVault() {
                     <div class="text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg" style="background: var(--accent-purple);">
                       Ngày ${dayNum}
                     </div>
-                    <button class="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-500" data-delete-photo="${p.id}" title="Xóa ảnh">
-                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <button class="w-8 h-8 rounded-full bg-black/60 hover:bg-red-600 text-white flex items-center justify-center transition shadow-lg z-20 cursor-pointer" data-delete-photo="${p.id}" title="Xóa ảnh">
+                      <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
                     </button>
                   </div>
 
@@ -268,8 +268,12 @@ export async function renderPhotoVault() {
     // DELETE PHOTO HANDLER
     mountNode.querySelectorAll('[data-delete-photo]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
+        e.preventDefault();
         e.stopPropagation();
-        const id = btn.getAttribute('data-delete-photo');
+        const deleteBtn = e.target.closest('[data-delete-photo]');
+        const id = deleteBtn ? deleteBtn.getAttribute('data-delete-photo') : btn.getAttribute('data-delete-photo');
+        if (!id) return;
+
         const confirmed = await Modal.confirm({
           title: 'Xóa Ảnh Tiến Trình',
           message: 'Bạn có chắc chắn muốn xóa bức ảnh tiến trình này không?',
@@ -277,6 +281,7 @@ export async function renderPhotoVault() {
           confirmText: 'Đồng Ý Xóa',
           cancelText: 'Hủy Bỏ'
         });
+
         if (confirmed) {
           if (activeComparisonResult && (activeComparisonResult.photoA?.id === id || activeComparisonResult.photoB?.id === id)) {
             activeComparisonResult = null;
