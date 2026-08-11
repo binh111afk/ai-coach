@@ -365,56 +365,64 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     </div>
 
-    <!-- POPUP 1: Modal Hướng Dẫn Bài Tập Cụ Thể (Workout Guide Modal) -->
-    <div class="modal-overlay" id="workout-guide-modal">
-      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
-        <div class="flex justify-between items-start mb-4">
-          <div>
-            <h3 id="wg-modal-title" class="display text-xl font-bold" style="color: var(--text-main);">Hướng Dẫn Bài Tập</h3>
-          </div>
-          <button class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-wg-modal">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-
-        <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-          <span class="font-bold text-sm flex items-center gap-2" style="color: var(--text-main);">
-            <i data-lucide="play-circle" class="w-4 h-4 text-[var(--accent-purple)]"></i> Video Hướng Dẫn Động Tác:
-          </span>
-          <a id="wg-youtube-search-btn" href="#" target="_blank" rel="noopener" class="btn-ghost px-3 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-1">
-            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Mở Xem Trên YouTube ↗
-          </a>
-        </div>
-
-        <div class="mb-4 p-3.5 rounded-2xl border border-dashed border-[var(--accent-purple)]" style="background: var(--primary-soft);">
-          <label class="text-xs font-bold block mb-2" style="color: var(--accent-purple);">
-            <i data-lucide="link" class="w-3.5 h-3.5 inline mr-1"></i> Dán Link Video TikTok / YouTube Đổi Video Hướng Dẫn:
-          </label>
-          <div class="flex gap-2 items-center flex-wrap">
-            <input type="text" class="form-input text-xs flex-1 rounded-xl px-3 py-2" id="wg-custom-video-input" onfocus="this.select()" placeholder="Dán link TikTok hoặc YouTube..." style="background: var(--bg-input); color: var(--text-main);" />
-            <button type="button" class="btn-primary btn-sm text-xs font-bold px-4 py-2 rounded-xl" id="btn-wg-apply-video">
-              ✓ Xác Nhận Đổi Video
+    <!-- POPUP 1: Modal Hướng Dẫn Bài Tập Cụ Thể (Workout Guide Bottom Sheet Popup) -->
+    <div class="workout-popup-overlay" id="workout-guide-modal">
+      <div class="workout-popup-sheet" onclick="event.stopPropagation()">
+        <div class="drag-handle"></div>
+        
+        <div class="p-6">
+          <!-- Header -->
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <span id="wg-modal-type-badge" class="text-[10px] font-bold text-[var(--accent-purple)] bg-[var(--primary-soft)] px-2.5 py-1 rounded-md uppercase tracking-wider">Cardio · HIIT</span>
+              <h2 id="wg-modal-title" class="display text-2xl font-semibold mt-2 leading-tight" style="color: var(--text-main);">Đốt Mỡ Tại Nhà <br>Cường Độ Cao</h2>
+            </div>
+            <button id="btn-close-wg-modal" class="w-9 h-9 rounded-full bg-[var(--bg-subtle)] flex items-center justify-center text-muted hover:bg-gray-200 transition cursor-pointer flex-shrink-0">
+              <i data-lucide="x" class="w-5 h-5"></i>
             </button>
           </div>
-        </div>
 
-        <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-2xl bg-black mb-2 shadow-sm">
-          <iframe id="wg-modal-iframe" class="absolute top-0 left-0 w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
-        <div class="text-xs text-muted mb-4 italic" style="color: var(--text-muted);">
-          <i data-lucide="info" class="w-3.5 h-3.5 inline mr-1"></i> Bạn có thể dán link video YouTube/TikTok bất kỳ và bấm <b>"Xác Nhận Đổi Video"</b> để phát trực tiếp!
-        </div>
+          <!-- Video Paste Input Bar (Retains YouTube/TikTok URL pasting feature) -->
+          <div class="mb-4 p-3 rounded-2xl border border-dashed border-[var(--accent-purple)]" style="background: var(--primary-soft);">
+            <div class="flex justify-between items-center mb-1.5 flex-wrap gap-1">
+              <label class="text-xs font-bold text-[var(--accent-purple)]">
+                <i data-lucide="link" class="w-3.5 h-3.5 inline mr-1"></i> Dán Link Video TikTok / YouTube Đổi Video:
+              </label>
+              <a id="wg-youtube-search-btn" href="#" target="_blank" rel="noopener" class="text-xs font-semibold hover:underline text-[var(--accent-purple)] flex items-center gap-1">
+                Tìm trên YouTube <i data-lucide="external-link" class="w-3 h-3"></i>
+              </a>
+            </div>
+            <div class="flex gap-2 items-center flex-wrap">
+              <input type="text" class="form-input text-xs flex-1 rounded-xl px-3 py-2" id="wg-custom-video-input" onfocus="this.select()" placeholder="Dán link TikTok hoặc YouTube..." style="background: var(--bg-card); color: var(--text-main);" />
+              <button type="button" class="btn-primary btn-sm text-xs font-bold px-3.5 py-2 rounded-xl whitespace-nowrap cursor-pointer" id="btn-wg-apply-video">
+                ✓ Đổi Video
+              </button>
+            </div>
+          </div>
 
-        <div class="p-4 rounded-2xl mb-5" style="background: rgba(217, 70, 239, 0.06); border: 1px solid rgba(217, 70, 239, 0.15);">
-          <h4 class="font-bold text-sm mb-2 flex items-center gap-2" style="color: var(--accent-purple);">
-            <i data-lucide="file-text" class="w-4 h-4"></i> Nội Dung Hướng Dẫn Thực Hiện:
-          </h4>
-          <div id="wg-modal-instructions" class="text-xs leading-relaxed space-y-1" style="color: var(--text-main);"></div>
-        </div>
+          <!-- Video Frame Thumbnail Container -->
+          <div class="video-thumb mb-6 relative">
+            <iframe id="wg-modal-iframe" class="w-full h-full border-0 absolute inset-0 z-10" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          </div>
 
-        <button class="btn-primary w-full py-3.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2" id="btn-start-confirm-workout">
-          <i data-lucide="check-circle" class="w-4 h-4"></i> Bắt Đầu Tập & Ghi Nhận Đã Tập Vào Nhật Ký
-        </button>
+          <!-- Exercise Instructions List -->
+          <div class="mb-6">
+            <h3 class="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2" style="color: var(--text-muted);">
+              <i data-lucide="list-checks" class="w-4 h-4 text-[var(--accent-purple)]"></i> Nội Dung & Động Tác Thực Hiện
+            </h3>
+            <div id="wg-modal-instructions" class="space-y-2.5">
+              <!-- Exercise items rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Start Button -->
+          <button class="btn-start w-full text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-base mb-2 cursor-pointer" id="btn-start-confirm-workout">
+            <i data-lucide="play-circle" class="w-5 h-5"></i>
+            Bắt Đầu Tập & Ghi Nhận Vào Nhật Ký
+          </button>
+          <p class="text-center text-[10px] text-muted font-medium" style="color: var(--text-muted);">Đảm bảo bạn đã khởi động kỹ trước khi bắt đầu.</p>
+
+        </div>
       </div>
     </div>
 
@@ -650,8 +658,48 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
     const openWorkoutModal = (workoutObj) => {
       activeWorkoutItem = workoutObj;
       if (activeWorkoutItem && wgModal) {
-        document.getElementById('wg-modal-title').innerText = `Hướng Dẫn: ${activeWorkoutItem.title}`;
-        document.getElementById('wg-modal-instructions').innerText = activeWorkoutItem.description || '1. Jumping Jacks 3 phút.\n2. Burpees: 45s tập, 15s nghỉ x 4 vòng.\n3. Mountain Climbers: 45s x 4 vòng.\n4. High Knees nâng cao đùi: 45s x 4 vòng.';
+        const titleEl = document.getElementById('wg-modal-title');
+        if (titleEl) titleEl.innerText = activeWorkoutItem.title || 'Bài Tập Cụ Thể';
+
+        const badgeEl = document.getElementById('wg-modal-type-badge');
+        if (badgeEl) badgeEl.innerText = activeWorkoutItem.type || 'Cardio · HIIT';
+
+        const instructionsContainer = document.getElementById('wg-modal-instructions');
+        if (instructionsContainer) {
+          const rawText = activeWorkoutItem.instructions || activeWorkoutItem.description || '1. Jumping Jacks: 3 phút liên tục\n2. Burpees: 4 vòng · 45s tập / 15s nghỉ\n3. Mountain Climbers: 4 lần · 45s / lần\n4. High Knees (Nâng cao đầu gối): 4 lần · 45s / lần';
+          const lines = rawText.split('\n').filter(l => l.trim().length > 0);
+          const icons = [
+            { name: 'flame', bg: 'bg-[#FFEDD5]', color: 'text-[var(--amber)]' },
+            { name: 'zap', bg: 'bg-[#FCE7F3]', color: 'text-[var(--pink)]' },
+            { name: 'mountain', bg: 'bg-[#DBEAFE]', color: 'text-[#3B82F6]' },
+            { name: 'footprints', bg: 'bg-[var(--primary-soft)]', color: 'text-[var(--accent-purple)]' }
+          ];
+
+          instructionsContainer.innerHTML = lines.map((line, idx) => {
+            const iconObj = icons[idx % icons.length];
+            const cleanLine = line.replace(/^\d+[\.\s]*/, '');
+            const parts = cleanLine.split(/[:·\-\|]/);
+            const exTitle = parts[0] ? parts[0].trim() : cleanLine;
+            const exSub = parts.length > 1 ? parts.slice(1).join(' · ').trim() : 'Động tác chuẩn kỹ thuật';
+
+            return `
+              <div class="exercise-item">
+                <div class="ex-icon ${iconObj.bg} ${iconObj.color}">
+                  <i data-lucide="${iconObj.name}"></i>
+                </div>
+                <div class="flex-1">
+                  <div class="font-bold text-sm" style="color: var(--text-main);">${exTitle}</div>
+                  <div class="text-xs text-muted flex items-center gap-1 mt-0.5" style="color: var(--text-muted);">
+                    <i data-lucide="clock" class="w-3 h-3"></i> ${exSub}
+                  </div>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-300"></i>
+              </div>
+            `;
+          }).join('');
+
+          if (window.lucide) window.lucide.createIcons();
+        }
 
         const searchQuery = encodeURIComponent(`${activeWorkoutItem.title} hướng dẫn tập luyện`);
         const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
