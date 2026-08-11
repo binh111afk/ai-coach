@@ -23,31 +23,31 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const caloriesIn = todayLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
   const caloriesOut = todayLog.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
   const netCalories = caloriesIn - caloriesOut;
-  const calorieTarget = goal.dailyCalorieTarget || 2000;
-  const remainingCalories = calorieTarget - netCalories;
+  const calorieTarget = goal.dailyCalorieTarget || 2214;
+
+  // Calorie ring progress
+  const calRingProgress = Math.min(1, Math.max(0, netCalories / calorieTarget));
+  const calDashOffset = Math.round(534 * (1 - calRingProgress));
 
   // Macros
   const currentProtein = todayLog.meals.reduce((sum, m) => sum + (m.protein || 0), 0);
   const currentCarb = todayLog.meals.reduce((sum, m) => sum + (m.carb || 0), 0);
   const currentFat = todayLog.meals.reduce((sum, m) => sum + (m.fat || 0), 0);
 
+  const pTarget = goal.macroTarget?.protein || 166;
+  const cTarget = goal.macroTarget?.carb || 221;
+  const fTarget = goal.macroTarget?.fat || 74;
+
   // Weight
-  const initialWeight = goal.startWeight || profile.currentWeight;
   const currentW = todayLog.weight || profile.currentWeight;
   const targetW = goal.targetWeight || 65;
-  const totalWeightDiff = initialWeight - targetW;
-  const weightLost = initialWeight - currentW;
-  let weightProgressPercent = 0;
-  if (totalWeightDiff !== 0) {
-    weightProgressPercent = Math.min(100, Math.max(0, Math.round((weightLost / totalWeightDiff) * 100)));
-  }
 
   // Water
   const waterIntake = todayLog.waterIntake || 0;
-  const waterTarget = goal.waterTarget || 2500;
+  const waterTarget = goal.waterTarget || 2695;
   const waterPercent = Math.min(100, Math.round((waterIntake / waterTarget) * 100));
 
-  // Check-in Touchpoints
+  // Check-in Touchpoints & Discipline Score
   const hasMeal = todayLog.meals.length > 0;
   const hasWater = waterIntake > 0;
   const hasWorkout = todayLog.workouts.length > 0 || todayLog.isRestDay;
@@ -55,308 +55,250 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
 
   const checkins = [hasMeal, hasWater, hasWorkout, hasChecklist];
   const completeCount = checkins.filter(Boolean).length;
-  const checkinPercent = Math.round((completeCount / 4) * 100);
+  const disciplineScore = Math.min(100, Math.round((completeCount / 4) * 80 + (waterPercent / 100) * 20));
 
   // Date String in Vietnamese
-  const dateFormatted = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-
-  const mascotStatus = 'active'; // Logic for mascot state
+  const dateFormatted = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
 
   const dashboardHtml = `
-    <div style="display: flex; flex-direction: column; gap: 1.75rem;">
+    <div class="max-w-6xl mx-auto py-2 fade-up">
       
-      <!-- Signature Hero Journal Card with Vector Mascot SVG -->
-      <div class="card hero-banner-card" style="position: relative; overflow: hidden;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr); gap: 1.5rem; align-items: center;" class="dash-grid">
-          <div>
-            <div class="status-badges-v2">
-              <!-- Date – Indigo -->
-              <div class="status-badge date">
-                <div class="icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                </div>
-                <span class="text">${dateFormatted}</span>
-              </div>
-
-              <!-- Level – Vàng -->
-              <div class="status-badge level" id="dash-level-badge" style="cursor: pointer;" title="Xem Lộ Trình Cấp Độ">
-                <div class="icon">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                  </svg>
-                </div>
-                <span class="text">Lv. ${progress.level} · ${progress.totalXp} XP</span>
-              </div>
-
-              <!-- Streak – Lửa tím -->
-              <div class="status-badge streak">
-                <div class="icon">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 23c-4.5 0-7-3.2-7-7 0-2.8 1.5-5 3-6.5.4 2.5 1.8 3.8 1.8 3.8C9.2 9.5 10.5 5 12 2c2 3.5 3 7 3 10 0 0 2-1.2 2-4 2 2 3 4.5 3 7.5 0 3.8-2.5 7-8 7z"/>
-                  </svg>
-                </div>
-                <span class="text">Streak: ${progress.currentStreak} Ngày</span>
-              </div>
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8 fade-up">
+        <div>
+          <div class="text-sm text-muted mb-2 flex items-center gap-2" style="color: var(--text-muted);">
+            <i data-lucide="calendar" class="w-4 h-4" style="color: var(--accent-purple);"></i> ${dateFormatted}
+          </div>
+          <h1 class="display text-4xl md:text-5xl font-medium leading-[1.05]" style="color: var(--text-main);">
+            Nhật Ký Hôm Nay<br><span class="italic" style="color: var(--accent-purple);">Chiến Binh ${profile.name || 'Fitness'}</span>
+          </h1>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <div class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer" style="background: rgba(217, 70, 239, 0.12); color: #D946EF;" id="dash-level-badge" title="Xem Lộ Trình Cấp Độ">
+              <i data-lucide="star" class="w-3.5 h-3.5"></i> Lv.${progress.level} · ${progress.totalXp} XP
             </div>
-            
-            <h1 style="font-size: 1.85rem; font-weight: 900; color: var(--text-main); margin-bottom: 0.5rem;">
-              Nhật ký hôm nay của ${profile.name}
-            </h1>
-            <p class="text-sm text-muted" style="margin-bottom: 1.25rem;">
-              Mỗi ghi nhận nhỏ đều góp phần tạo nên chuỗi thói quen bền vững. Bạn đã hoàn thành <strong style="color: var(--accent-purple);" id="dash-hero-touchpoint-count">${completeCount}/4</strong> điểm chạm hôm nay.
+            <div class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style="background: rgba(245, 158, 11, 0.12); color: #F59E0B;">
+              <i data-lucide="flame" class="w-3.5 h-3.5"></i> Streak: ${progress.currentStreak} Ngày
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button class="btn-ghost px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold" id="btn-quick-checkin">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> Ghi Bữa Ăn Nhanh
+          </button>
+          <button class="btn-accent ai-glow px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold" id="dash-btn-ai-coach">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Phân Tích AI Coach
+          </button>
+        </div>
+      </div>
+
+      <!-- Overview Grid (Top Stats - 3 Columns) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+        
+        <!-- 1. Calorie Ring -->
+        <div class="card p-6 flex flex-col items-center justify-center fade-up" style="animation-delay: 0.1s">
+          <div class="text-[10px] uppercase tracking-[0.2em] text-muted font-bold mb-4" style="color: var(--text-muted);">CALO RÒNG HÔM NAY</div>
+          <div class="relative w-48 h-48">
+            <svg viewBox="0 0 200 200" class="w-full h-full">
+              <defs>
+                <linearGradient id="calGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#7C3AED"/>
+                  <stop offset="100%" stop-color="#D946EF"/>
+                </linearGradient>
+              </defs>
+              <circle cx="100" cy="100" r="85" fill="none" class="ring-bg" stroke-width="14"/>
+              <circle cx="100" cy="100" r="85" fill="none" stroke="url(#calGrad)" stroke-width="14" stroke-linecap="round" 
+                      stroke-dasharray="534" stroke-dashoffset="${calDashOffset}" transform="rotate(-90 100 100)" class="ring-fg"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <div class="display text-4xl font-semibold" style="color: var(--text-main);" id="dash-net-calories">${netCalories}</div>
+              <div class="text-sm text-muted mt-1" style="color: var(--text-muted);">/ ${calorieTarget} kcal</div>
+            </div>
+          </div>
+          <div class="mt-4 flex gap-4 text-xs font-semibold">
+            <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-purple);"></div> In: ${caloriesIn}</span>
+            <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></div> Out: ${caloriesOut}</span>
+          </div>
+        </div>
+
+        <!-- 2. Discipline & Water Stack -->
+        <div class="grid grid-cols-1 gap-5">
+          <!-- Discipline Score -->
+          <div class="card p-6 fade-up" style="animation-delay: 0.15s">
+            <div class="flex justify-between items-start mb-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-muted font-bold" style="color: var(--text-muted);">ĐIỂM KỶ LUẬT</div>
+              <span class="text-xs font-bold px-2 py-1 rounded-full" style="background: rgba(217, 70, 239, 0.12); color: #D946EF;">
+                ${disciplineScore >= 80 ? 'Xuất sắc' : disciplineScore >= 50 ? 'Khá tốt' : 'Cần cố gắng'}
+              </span>
+            </div>
+            <div class="flex items-end gap-2 mb-3">
+              <span class="display text-4xl font-semibold" style="color: #D946EF;" id="dash-discipline-score">${disciplineScore}</span>
+              <span class="text-lg text-muted mb-1" style="color: var(--text-muted);">/ 100</span>
+            </div>
+            <div class="macro-bar">
+              <div class="macro-fill" style="width: ${disciplineScore}%; background: #D946EF;" id="dash-discipline-fill"></div>
+            </div>
+            <p class="text-xs text-muted mt-3 flex items-center gap-1.5" style="color: var(--text-muted);">
+              <i data-lucide="bot" class="w-3.5 h-3.5" style="color: var(--accent-purple);"></i> 
+              AI Coach: ${disciplineScore >= 80 ? 'Bạn đang duy trì chuỗi phong độ xuất sắc!' : 'Hãy tiếp tục hoàn thành checklist để tăng điểm kỷ luật!'}
             </p>
-
-            <!-- 4 Touchpoint Pills -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1.25rem;" id="dash-hero-touchpoint-pills">
-              ${renderTouchpointPill('Dinh dưỡng', hasMeal, 'utensils')}
-              ${renderTouchpointPill('Nước uống', hasWater, 'droplets')}
-              ${renderTouchpointPill('Tập luyện', hasWorkout, 'dumbbell')}
-              ${renderTouchpointPill('Checklist', hasChecklist, 'check-square')}
-            </div>
-
-            <div style="display: flex; gap: 0.75rem;">
-              <button class="btn btn-primary" id="btn-quick-update-journal">
-                <i data-lucide="plus-circle"></i> Cập Nhật Hôm Nay
-              </button>
-              <button class="btn btn-ai" id="dash-btn-ai-coach">
-                ${renderGeminiIcon({ width: 17, height: 17 })} AI Coach Cố Vấn
-              </button>
-            </div>
           </div>
 
-          <!-- Right Hero Widget with SVG Mascot Icon -->
-          <div style="background: var(--bg-card); padding: 1.25rem; border-radius: 20px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1rem; position: relative;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <div class="text-xs text-muted" style="font-weight: 800; text-transform: uppercase;">Tiến độ check-in</div>
-                <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);" id="dash-hero-checkin-remaining">Còn ${4 - completeCount} mục để trọn ngày</div>
+          <!-- Water Tracker -->
+          <div class="card p-6 fade-up" style="animation-delay: 0.2s" id="waterCard">
+            <div class="flex justify-between items-center mb-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background: #DBEAFE;">
+                  <i data-lucide="droplet" class="w-4 h-4 text-[#3B82F6]"></i>
+                </div>
+                <span class="text-sm font-semibold" style="color: var(--text-main);">Nước Uống</span>
               </div>
-              <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-purple-light); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 900; color: var(--accent-purple); border: 3px solid var(--accent-purple);" id="dash-hero-checkin-percent">
-                ${checkinPercent}%
-              </div>
+              <div class="text-right text-xs font-bold text-[#3B82F6]" id="water-text-display">${waterPercent}%</div>
             </div>
-
-            <!-- Compact Metrics Grid -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; text-align: center;">
-              <div style="background: var(--bg-subtle); padding: 0.6rem; border-radius: 12px; border: 1px solid var(--border-color);">
-                <div class="text-xs text-muted">Năng lượng</div>
-                <div style="font-weight: 800; font-size: 0.95rem; color: var(--accent-purple);" id="dash-hero-calories">${caloriesIn} kcal</div>
-              </div>
-              <div style="background: var(--bg-subtle); padding: 0.6rem; border-radius: 12px; border: 1px solid var(--border-color);">
-                <div class="text-xs text-muted">Nước</div>
-                <div style="font-weight: 800; font-size: 0.95rem; color: var(--accent-blue);" id="dash-hero-water">${(waterIntake / 1000).toFixed(1)} L</div>
-              </div>
-              <div style="background: var(--bg-subtle); padding: 0.6rem; border-radius: 12px; border: 1px solid var(--border-color);">
-                <div class="text-xs text-muted">Chuỗi ngày</div>
-                <div style="font-weight: 800; font-size: 0.95rem; color: var(--accent-amber);">${progress.currentStreak} ngày</div>
-              </div>
+            <div class="flex items-baseline gap-1 mb-2">
+              <span class="display text-2xl font-semibold" style="color: var(--text-main);" id="water-badge-display-val">${waterIntake}</span>
+              <span class="text-sm text-muted" style="color: var(--text-muted);">/ ${waterTarget} ml</span>
             </div>
-
-            <!-- AI Coach Message Card (No robot head icon) -->
-            <div class="dash-coach-msg">
-              <div class="msg-label">
-                <svg viewBox="0 0 24 24" fill="currentColor" style="width: 12px; height: 12px;">
-                  <path d="M12 2L9.5 8.5 3 9.5l5 4.5L6.5 21 12 17.5 17.5 21 16 14l5-4.5-6.5-1L12 2z"/>
-                </svg>
-                AI Coach
-              </div>
-              <p class="msg-text" id="dash-hero-coach-text">
-                "Cố lên <strong>${profile.name}</strong>! Chỉ còn <span class="highlight">${remainingCalories} kcal</span> nữa là hoàn thành mục tiêu ngày!"
-              </p>
+            <div class="macro-bar mb-3">
+              <div class="macro-fill" id="water-progress-fill" style="width: ${waterPercent}%; background: #3B82F6;"></div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="btn btn-secondary btn-sm flex-1 text-xs py-1.5 rounded-lg" id="btn-water-250">+250ml</button>
+              <button class="btn btn-secondary btn-sm flex-1 text-xs py-1.5 rounded-lg" id="btn-water-500">+500ml</button>
+              <button class="btn btn-secondary btn-sm text-xs py-1.5 rounded-lg px-2" id="btn-water-reset" title="Đặt lại">Reset</button>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Dedicated AI Summary & Progress Review Card (Daily / Weekly Tabs) -->
-      <div id="dashboard-ai-summary-container"></div>
-
-      <!-- Main Dashboard Content Grid -->
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.75rem;" class="dash-grid">
-        <!-- Left Column: ApexCharts -->
-        <div style="display: flex; flex-direction: column; gap: 1.75rem;">
-          <!-- Weight Trendline ApexChart -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><i data-lucide="trending-down" class="text-purple"></i> Hành Trình Cân Nặng (Thực tế vs Mục tiêu)</div>
-              <button class="btn btn-secondary btn-sm" id="btn-quick-log-weight"><i data-lucide="plus"></i> Ghi Cân Nặng</button>
-            </div>
-            <div id="chart-weight-trend" style="min-height: 270px;"></div>
+        <!-- 3. Checklist Progress -->
+        <div class="card p-6 fade-up" style="animation-delay: 0.25s">
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-muted font-bold" style="color: var(--text-muted);">CHECKLIST KỶ LUẬT</div>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full" style="background: rgba(124, 58, 237, 0.12); color: var(--accent-purple);" id="checklist-badge-count">
+              ${todayLog.checklist.filter(t => t.done).length}/${todayLog.checklist.length} Tick
+            </span>
           </div>
 
-          <!-- Calorie In / Out ApexChart -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><i data-lucide="bar-chart-3" style="color: var(--accent-blue);"></i> Biểu Đồ Calo Nạp & Đốt Theo Ngày</div>
-            </div>
-            <div id="chart-calorie-io" style="min-height: 250px;"></div>
-          </div>
-
-          <!-- Today AI Recommendation Quick-Log Card -->
-          <div class="card hero-banner-card" style="border-radius: 20px;">
-            <div class="card-header" style="margin-bottom: 0.85rem;">
-              <div>
-                <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); font-size: 1.05rem;">
-                  ${renderGeminiIcon({ width: 18, height: 18, color: 'var(--accent-purple)' })} Gợi Ý Thực Đơn & Tập Luyện AI Hôm Nay (Ngày ${currentJourneyDay})
+          <div class="space-y-3 max-h-60 overflow-y-auto pr-1" id="dash-checklist-container">
+            ${todayLog.checklist.map(item => `
+              <div class="checklist-item-row flex items-center justify-between">
+                <div style="flex: 1;">
+                  ${renderCheckbox({ taskId: item.id, checked: item.done, labelText: item.task })}
                 </div>
-                <div class="text-xs text-muted" style="margin-top: 0.2rem;">${currentPhase?.phaseLabel || 'Kế hoạch hành trình'} · Bấm để ghi nhận nhanh vào nhật ký</div>
-              </div>
-              <button class="btn btn-secondary btn-sm" id="dash-btn-view-full-plan" style="font-size: 0.78rem;">
-                Xem Kế Hoạch ↗
-              </button>
-            </div>
-
-            <!-- 2 Column Layout: Left Meals, Right Workout -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;" class="dash-grid">
-              <!-- Left: 4 Meals Summary -->
-              <div style="background: var(--bg-card); padding: 0.9rem; border-radius: 14px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; gap: 0.6rem;">
-                <div>
-                  <div style="font-size: 0.8rem; font-weight: 800; color: var(--accent-purple); display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
-                    <span>🥗 Thực Đơn AI Gợi Ý</span>
-                    <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">~${(todayRecommendedMeals?.breakfast?.calories || 0) + (todayRecommendedMeals?.lunch?.calories || 0) + (todayRecommendedMeals?.dinner?.calories || 0) + (todayRecommendedMeals?.snack?.calories || 0)} kcal</span>
-                  </div>
-                  <div style="font-size: 0.8rem; line-height: 1.45; color: var(--text-main);">
-                    <div>• <b>Sáng:</b> ${todayRecommendedMeals?.breakfast?.name || 'Chưa chọn'}</div>
-                    <div>• <b>Trưa:</b> ${todayRecommendedMeals?.lunch?.name || 'Chưa chọn'}</div>
-                    <div>• <b>Tối:</b> ${todayRecommendedMeals?.dinner?.name || 'Chưa chọn'}</div>
-                    <div>• <b>Phụ:</b> ${todayRecommendedMeals?.snack?.name || 'Chưa chọn'}</div>
-                  </div>
-                </div>
-                <button class="btn btn-primary btn-sm" id="dash-btn-quick-log-meals" style="font-size: 0.78rem; padding: 0.45rem; justify-content: center; width: 100%;">
-                  <i data-lucide="plus-circle" style="width: 14px; height: 14px;"></i> Ghi Nhận Thực Đơn Hôm Nay
+                <button class="btn btn-secondary btn-icon btn-sm" data-delete-task-id="${item.id}" style="width: 24px; height: 24px; border: 0; padding: 0; color: var(--text-muted);" title="Xóa">
+                  <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
                 </button>
               </div>
-
-              <!-- Right: Today Workout Card -->
-              <div style="background: var(--bg-card); padding: 0.9rem; border-radius: 14px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; gap: 0.6rem;">
-                <div>
-                  <div style="font-size: 0.8rem; font-weight: 800; color: var(--accent-amber); display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
-                    <span>🏋️ Lịch Tập AI Gợi Ý</span>
-                    <span class="badge badge-secondary" style="font-size: 0.7rem;">${todayRecommendedWorkout?.duration || 0} phút</span>
-                  </div>
-                  <div style="font-weight: 800; font-size: 0.925rem; color: var(--text-main); line-height: 1.35;">
-                    ${todayRecommendedWorkout?.title || 'Ngày Nghỉ Phục Hồi'}
-                  </div>
-                  <div class="text-xs text-muted" style="margin-top: 0.35rem;">
-                    Đốt ~<b>${todayRecommendedWorkout?.estBurn || 0} kcal</b> Out · Cường độ Moderate
-                  </div>
-                </div>
-
-                <button class="btn btn-secondary btn-sm" id="dash-btn-quick-log-workout" style="font-size: 0.78rem; padding: 0.45rem; justify-content: center; width: 100%;">
-                  <i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: var(--accent-green);"></i> Ghi Nhận Hoàn Thành Tập
-                </button>
-              </div>
-            </div>
+            `).join('')}
           </div>
+
+          <!-- Quick Add Daily Task Input -->
+          <form id="form-add-daily-task" class="flex gap-2 mt-4 pt-3 border-t border-color">
+            <input type="text" class="form-input text-xs flex-1 rounded-xl px-3 py-2" id="input-new-daily-task" placeholder="+ Thêm việc kỷ luật..." style="background: var(--bg-input); color: var(--text-main);" required>
+            <button type="submit" class="btn btn-primary btn-sm px-3 rounded-xl"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+          </form>
         </div>
 
-        <!-- Right Column: Widgets -->
-        <div style="display: flex; flex-direction: column; gap: 1.75rem;">
-          <!-- Improved Water Tracker Card -->
-          <div class="water-card ${waterIntake >= waterTarget ? 'goal-reached' : ''}" id="waterCard">
-            <!-- Header -->
-            <div class="water-header">
-              <div class="water-title">
-                <div class="icon">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0L12 2.69z"/>
-                  </svg>
-                </div>
-                <h2>Theo Dõi Nước Uống</h2>
-              </div>
-              <div class="water-total" id="water-badge-display">${waterIntake} / ${waterTarget} ml</div>
-            </div>
-
-            <!-- Progress -->
-            <div class="water-progress">
-              <div class="glass-icon">
-                <div class="glass-fill" id="glassFill" style="height: ${waterPercent}%;"></div>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M8 2h8l1 14a4 4 0 01-4 4h-2a4 4 0 01-4-4L8 2z"/>
-                  <path d="M8 6h8"/>
-                </svg>
-              </div>
-
-              <div class="progress-info">
-                <div class="progress-text">
-                  <span class="progress-percent" id="water-text-display">${waterPercent}%</span>
-                  <span class="progress-label">Đã Uống</span>
-                </div>
-                <div class="progress-track">
-                  <div class="progress-fill" id="water-progress-fill" style="width: ${waterPercent}%;"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="water-actions">
-              <button class="water-btn add-250" id="btn-water-250">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M8 2h8l1 14a4 4 0 01-4 4h-2a4 4 0 01-4-4L8 2z"/>
-                  <path d="M8 6h8"/>
-                </svg>
-                +250ml
-              </button>
-
-              <button class="water-btn add-500" id="btn-water-500">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0L12 2.69z"/>
-                </svg>
-                +500ml
-              </button>
-
-              <button class="water-btn reset" id="btn-water-reset">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px; flex-shrink: 0;"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill-rule="evenodd" clip-rule="evenodd" d="M13.7071 1.29289C14.0976 1.68342 14.0976 2.31658 13.7071 2.70711L12.4053 4.00896C17.1877 4.22089 21 8.16524 21 13C21 17.9706 16.9706 22 12 22C7.02944 22 3 17.9706 3 13C3 12.4477 3.44772 12 4 12C4.55228 12 5 12.4477 5 13C5 16.866 8.13401 20 12 20C15.866 20 19 16.866 19 13C19 9.2774 16.0942 6.23349 12.427 6.01281L13.7071 7.29289C14.0976 7.68342 14.0976 8.31658 13.7071 8.70711C13.3166 9.09763 12.6834 9.09763 12.2929 8.70711L9.29289 5.70711C9.10536 5.51957 9 5.26522 9 5C9 4.73478 9.10536 4.48043 9.29289 4.29289L12.2929 1.29289C12.6834 0.902369 13.3166 0.902369 13.7071 1.29289Z" fill="currentColor"></path> </g></svg>
-                Đặt lại
-              </button>
-            </div>
-          </div>
-
-          <!-- Daily AI Checklist -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><i data-lucide="check-circle-2" class="text-purple"></i> Checklist Kỷ Luật</div>
-              <span class="badge badge-primary" id="checklist-badge-count">${todayLog.checklist.filter(t => t.done).length}/${todayLog.checklist.length} Tick</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 0.65rem;" id="dash-checklist-container">
-              ${todayLog.checklist.map(item => `
-                <div class="checklist-item-row">
-                  <div style="flex: 1;">
-                    ${renderCheckbox({ taskId: item.id, checked: item.done, labelText: item.task })}
-                  </div>
-                  <button class="btn btn-secondary btn-icon btn-sm" data-delete-task-id="${item.id}" style="width: 26px; height: 26px; border: 0; padding: 0; color: var(--text-muted);" title="Xóa">
-                    <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
-                  </button>
-                </div>
-              `).join('')}
-            </div>
-
-            <!-- Quick Add Daily Task Input -->
-            <form id="form-add-daily-task" style="display: flex; gap: 0.5rem; margin-top: 0.85rem;">
-              <input type="text" class="form-input" id="input-new-daily-task" placeholder="+ Thêm việc kỷ luật hôm nay..." style="padding: 0.45rem 0.75rem; font-size: 0.825rem;" required>
-              <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.45rem 0.85rem;"><i data-lucide="plus"></i> Thêm</button>
-            </form>
-          </div>
-
-          <!-- Macro ApexChart Donut Widget -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><i data-lucide="pie-chart" class="text-purple"></i> Phân Bổ Macro</div>
-            </div>
-            <div id="chart-macro-doughnut" style="min-height: 200px;"></div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; margin-top: 0.5rem; font-size: 0.8rem;">
-              <div><span style="color: var(--accent-purple); font-weight: 700;">Protein:</span><br><b>${currentProtein}/${goal.macroTarget?.protein || 120}g</b></div>
-              <div><span style="color: var(--accent-blue); font-weight: 700;">Carb:</span><br><b>${currentCarb}/${goal.macroTarget?.carb || 160}g</b></div>
-              <div><span style="color: var(--accent-amber); font-weight: 700;">Fat:</span><br><b>${currentFat}/${goal.macroTarget?.fat || 50}g</b></div>
-            </div>
-          </div>
-        </div>
       </div>
+
+      <!-- Dedicated AI Summary Widget -->
+      <div id="dashboard-ai-summary-container" class="mb-6"></div>
+
+      <!-- Charts Row (ApexCharts preserved with new display title style as requested) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        
+        <!-- Weight Trend Chart -->
+        <div class="card p-6 fade-up" style="animation-delay: 0.3s">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Cân Nặng Thực Tế vs Mục Tiêu</h2>
+            <button class="btn btn-secondary btn-sm text-xs rounded-xl" id="btn-quick-log-weight"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Ghi Cân Nặng</button>
+          </div>
+          <div id="chart-weight-trend" style="min-height: 250px;"></div>
+        </div>
+
+        <!-- Calorie In/Out Chart -->
+        <div class="card p-6 fade-up" style="animation-delay: 0.35s">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Biểu Đồ Calo Nạp & Đốt</h2>
+            <div class="flex gap-3 text-xs font-semibold">
+              <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-purple);"></div> In</span>
+              <span class="flex items-center gap-1.5" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></div> Out</span>
+            </div>
+          </div>
+          <div id="chart-calorie-io" style="min-height: 250px;"></div>
+        </div>
+
+      </div>
+
+      <!-- AI Plan & Macros Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+        
+        <!-- AI Plan Card -->
+        <div class="card p-6 lg:col-span-2 fade-up" style="animation-delay: 0.4s">
+          <div class="flex justify-between items-center mb-4 pb-4 border-b border-color" style="border-bottom: 1px solid var(--border-color);">
+            <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Gợi Ý Thực Đơn & Tập Luyện AI Hôm Nay (Ngày ${currentJourneyDay})</h2>
+            <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5" id="dash-btn-view-full-plan">
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> Xem Kế Hoạch
+            </button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- Left: Meals Summary -->
+            <div class="space-y-3 p-4 rounded-2xl border border-color" style="background: var(--bg-subtle);">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-bold" style="color: var(--accent-purple);">🥗 Thực Đơn AI Gợi Ý</span>
+                <span class="text-xs text-muted" style="color: var(--text-muted);">~${(todayRecommendedMeals?.breakfast?.calories || 0) + (todayRecommendedMeals?.lunch?.calories || 0) + (todayRecommendedMeals?.dinner?.calories || 0) + (todayRecommendedMeals?.snack?.calories || 0)} kcal</span>
+              </div>
+              <div class="text-xs space-y-1.5" style="color: var(--text-main);">
+                <div>• <b>Sáng:</b> ${todayRecommendedMeals?.breakfast?.name || 'Chưa chọn'}</div>
+                <div>• <b>Trưa:</b> ${todayRecommendedMeals?.lunch?.name || 'Chưa chọn'}</div>
+                <div>• <b>Tối:</b> ${todayRecommendedMeals?.dinner?.name || 'Chưa chọn'}</div>
+                <div>• <b>Phụ:</b> ${todayRecommendedMeals?.snack?.name || 'Chưa chọn'}</div>
+              </div>
+              <button class="btn btn-primary btn-sm w-full mt-2 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5" id="dash-btn-quick-log-meals">
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Ghi Nhận Thực Đơn Hôm Nay
+              </button>
+            </div>
+
+            <!-- Right: Workouts Summary -->
+            <div class="space-y-3 p-4 rounded-2xl border border-color flex flex-col justify-between" style="background: var(--bg-subtle);">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-bold" style="color: #F59E0B;">🏋️ Lịch Tập AI Gợi Ý</span>
+                  <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background: rgba(245, 158, 11, 0.12); color: #F59E0B;">${todayRecommendedWorkout?.duration || 0} phút</span>
+                </div>
+                <div class="font-bold text-sm mb-1" style="color: var(--text-main);">
+                  ${todayRecommendedWorkout?.title || 'Ngày Nghỉ Phục Hồi'}
+                </div>
+                <div class="text-xs text-muted" style="color: var(--text-muted);">
+                  Đốt ~<b>${todayRecommendedWorkout?.estBurn || 0} kcal</b> Out · Cường độ Moderate
+                </div>
+              </div>
+
+              <button class="btn btn-secondary btn-sm w-full mt-2 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5" id="dash-btn-quick-log-workout">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5" style="color: #10B981;"></i> Ghi Nhận Hoàn Thành Tập
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Macros ApexChart Donut Widget -->
+        <div class="card p-6 fade-up" style="animation-delay: 0.45s">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Phân Bổ Macro</h2>
+            <span class="text-xs text-muted font-bold" style="color: var(--text-muted);">Tổng: ${currentProtein + currentCarb + currentFat}g</span>
+          </div>
+          <div id="chart-macro-doughnut" style="min-height: 200px;"></div>
+          <div class="grid grid-cols-3 text-center mt-3 text-xs">
+            <div><span style="color: #EC4899; font-weight: 700;">Protein:</span><br><b>${currentProtein}/${pTarget}g</b></div>
+            <div><span style="color: #F59E0B; font-weight: 700;">Carb:</span><br><b>${currentCarb}/${cTarget}g</b></div>
+            <div><span style="color: #3B82F6; font-weight: 700;">Fat:</span><br><b>${currentFat}/${fTarget}g</b></div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   `;
 
@@ -375,12 +317,13 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     renderCalorieChart('chart-calorie-io', historyLogs, calorieTarget);
     renderMacroChart('chart-macro-doughnut', { protein: currentProtein, carb: currentCarb, fat: currentFat }, goal.macroTarget);
 
-    // Handlers
+    // Navigation and Action Event Handlers
     document.getElementById('dash-level-badge')?.addEventListener('click', () => showLevelRoadmapModal());
     document.getElementById('dash-btn-ai-coach')?.addEventListener('click', onOpenAiCoach);
-    document.getElementById('btn-quick-update-journal')?.addEventListener('click', () => onNavigateTab('meals'));
+    document.getElementById('btn-quick-checkin')?.addEventListener('click', () => onNavigateTab('meals'));
     document.getElementById('dash-btn-view-full-plan')?.addEventListener('click', () => onNavigateTab('plan'));
 
+    // Quick Log Meals Handler
     document.getElementById('dash-btn-quick-log-meals')?.addEventListener('click', async () => {
       const today = DataService.getTodayString();
       if (todayRecommendedMeals?.breakfast) await DataService.addMealLog(today, { type: 'Breakfast', ...todayRecommendedMeals.breakfast });
@@ -397,6 +340,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       });
     });
 
+    // Quick Log Workout Handler
     document.getElementById('dash-btn-quick-log-workout')?.addEventListener('click', async () => {
       if (todayRecommendedWorkout) {
         const today = DataService.getTodayString();
@@ -416,27 +360,10 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       }
     });
 
-    // Smooth Water Tracker Animation Handler
-    function animateWaterUpdate(newMl, waterTarget) {
-      const newPercent = Math.min(100, Math.round((newMl / waterTarget) * 100));
-      const fillEl = document.getElementById('water-progress-fill');
-      const textEl = document.getElementById('water-text-display');
-      const badgeEl = document.getElementById('water-badge-display');
-      const glassFillEl = document.getElementById('glassFill');
-      const waterCard = document.getElementById('waterCard');
-
-      if (fillEl) fillEl.style.width = `${newPercent}%`;
-      if (glassFillEl) glassFillEl.style.height = `${newPercent}%`;
-      if (badgeEl) badgeEl.innerText = `${newMl} / ${waterTarget} ml`;
-      if (textEl) textEl.innerText = `${newPercent}%`;
-      if (waterCard) waterCard.classList.toggle('goal-reached', newMl >= waterTarget);
-    }
-
     function updateDashboardRealtime(updatedLog) {
       const cIn = updatedLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
       const cOut = updatedLog.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
       const net = cIn - cOut;
-      const rem = calorieTarget - net;
       const wIntake = updatedLog.waterIntake || 0;
 
       const hMeal = updatedLog.meals.length > 0;
@@ -446,69 +373,73 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
 
       const cIns = [hMeal, hWater, hWorkout, hChecklist];
       const cCount = cIns.filter(Boolean).length;
-      const cPercent = Math.round((cCount / 4) * 100);
+      const discScore = Math.min(100, Math.round((cCount / 4) * 80 + (Math.min(100, (wIntake / waterTarget) * 100) / 100) * 20));
 
-      const countEl = document.getElementById('dash-hero-touchpoint-count');
-      if (countEl) countEl.innerText = `${cCount}/4`;
+      const netCalEl = document.getElementById('dash-net-calories');
+      if (netCalEl) netCalEl.innerText = `${net}`;
 
-      const pillsEl = document.getElementById('dash-hero-touchpoint-pills');
-      if (pillsEl) {
-        pillsEl.innerHTML = `
-          ${renderTouchpointPill('Dinh dưỡng', hMeal, 'utensils')}
-          ${renderTouchpointPill('Nước uống', hWater, 'droplets')}
-          ${renderTouchpointPill('Tập luyện', hWorkout, 'dumbbell')}
-          ${renderTouchpointPill('Checklist', hChecklist, 'check-square')}
-        `;
-        if (window.lucide) window.lucide.createIcons({ el: pillsEl });
-      }
+      const discScoreEl = document.getElementById('dash-discipline-score');
+      if (discScoreEl) discScoreEl.innerText = `${discScore}`;
 
-      const remEl = document.getElementById('dash-hero-checkin-remaining');
-      if (remEl) remEl.innerText = `Còn ${4 - cCount} mục để trọn ngày`;
+      const discFillEl = document.getElementById('dash-discipline-fill');
+      if (discFillEl) discFillEl.style.width = `${discScore}%`;
 
-      const pctEl = document.getElementById('dash-hero-checkin-percent');
-      if (pctEl) pctEl.innerText = `${cPercent}%`;
-
-      const calEl = document.getElementById('dash-hero-calories');
-      if (calEl) calEl.innerText = `${cIn} kcal`;
-
-      const waterEl = document.getElementById('dash-hero-water');
-      if (waterEl) waterEl.innerText = `${(wIntake / 1000).toFixed(1)} L`;
-
-      const msgEl = document.getElementById('dash-hero-coach-text');
-      if (msgEl) {
-        msgEl.innerHTML = `"Cố lên <strong>${profile.name}</strong>! Chỉ còn <span class="highlight">${rem} kcal</span> nữa là hoàn thành mục tiêu ngày!"`;
-      }
-
-      // Live refresh AI Summary Widget
       renderAiSummaryWidget('dashboard-ai-summary-container');
     }
 
     // Water quick buttons + smooth animation
     document.getElementById('btn-water-250')?.addEventListener('click', async () => {
       const updatedLog = await DataService.addWaterIntake(todayLog.date, 250);
-      animateWaterUpdate(updatedLog.waterIntake, waterTarget);
+      const wMl = updatedLog.waterIntake || 0;
+      const wPct = Math.min(100, Math.round((wMl / waterTarget) * 100));
+
+      const wText = document.getElementById('water-text-display');
+      const wVal = document.getElementById('water-badge-display-val');
+      const wFill = document.getElementById('water-progress-fill');
+
+      if (wText) wText.innerText = `${wPct}%`;
+      if (wVal) wVal.innerText = `${wMl}`;
+      if (wFill) wFill.style.width = `${wPct}%`;
+
       updateDashboardRealtime(updatedLog);
       confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
     });
 
     document.getElementById('btn-water-500')?.addEventListener('click', async () => {
       const updatedLog = await DataService.addWaterIntake(todayLog.date, 500);
-      animateWaterUpdate(updatedLog.waterIntake, waterTarget);
+      const wMl = updatedLog.waterIntake || 0;
+      const wPct = Math.min(100, Math.round((wMl / waterTarget) * 100));
+
+      const wText = document.getElementById('water-text-display');
+      const wVal = document.getElementById('water-badge-display-val');
+      const wFill = document.getElementById('water-progress-fill');
+
+      if (wText) wText.innerText = `${wPct}%`;
+      if (wVal) wVal.innerText = `${wMl}`;
+      if (wFill) wFill.style.width = `${wPct}%`;
+
       updateDashboardRealtime(updatedLog);
       confetti({ particleCount: 50, spread: 80, origin: { y: 0.8 } });
     });
 
     document.getElementById('btn-water-reset')?.addEventListener('click', async () => {
       const updatedLog = await DataService.resetWaterIntake(todayLog.date);
-      animateWaterUpdate(0, waterTarget);
+
+      const wText = document.getElementById('water-text-display');
+      const wVal = document.getElementById('water-badge-display-val');
+      const wFill = document.getElementById('water-progress-fill');
+
+      if (wText) wText.innerText = `0%`;
+      if (wVal) wVal.innerText = `0`;
+      if (wFill) wFill.style.width = `0%`;
+
       updateDashboardRealtime(updatedLog);
     });
 
-    // Custom Circular Checkbox toggles + Smooth SVG Path Drawing (NO Full Page Re-render Flash!)
+    // Custom Checkbox toggles
     initCheckboxListeners(mountNode, async (taskId, isChecked) => {
       const updatedLog = await DataService.toggleChecklistItem(todayLog.date, taskId);
       
-      // Update badge count dynamically
       const badgeCountEl = document.getElementById('checklist-badge-count');
       if (badgeCountEl) {
         const doneCount = updatedLog.checklist.filter(t => t.done).length;
@@ -522,7 +453,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       }
     });
 
-    // Delete checklist item with Smooth Slide-Up Animation for items below
+    // Delete checklist item
     document.querySelectorAll('[data-delete-task-id]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -530,15 +461,14 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
         const itemRow = btn.closest('.checklist-item-row');
 
         if (itemRow) {
-          // Add notification-style swipe & collapse delete animation class
-          itemRow.classList.add('item-deleting');
+          itemRow.style.transition = 'all 0.3s ease';
+          itemRow.style.opacity = '0';
+          itemRow.style.transform = 'translateX(20px)';
 
-          // Wait 400ms for swipe transition before removing DOM element and updating IndexedDB
           setTimeout(async () => {
             itemRow.remove();
             const updatedLog = await DataService.deleteChecklistItem(todayLog.date, taskId);
 
-            // Update badge count dynamically
             const badgeCountEl = document.getElementById('checklist-badge-count');
             if (badgeCountEl) {
               const doneCount = updatedLog.checklist.filter(t => t.done).length;
@@ -546,7 +476,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
             }
 
             updateDashboardRealtime(updatedLog);
-          }, 400);
+          }, 300);
         }
       });
     });
@@ -581,15 +511,4 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       }
     });
   }
-}
-
-function renderTouchpointPill(label, isDone, iconName) {
-  return `
-    <div style="display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.6rem; border-radius: 12px; border: 1px solid ${isDone ? '#CFC0FF' : 'var(--border-color)'}; background: ${isDone ? 'var(--accent-purple-light)' : 'var(--bg-card)'}; font-size: 0.775rem; font-weight: 700; color: ${isDone ? 'var(--accent-purple)' : 'var(--text-subtle)'};">
-      <div style="width: 18px; height: 18px; border-radius: 50%; background: ${isDone ? 'var(--accent-purple)' : 'var(--bg-subtle)'}; color: ${isDone ? '#fff' : 'var(--text-subtle)'}; display: flex; align-items: center; justify-content: center;">
-        <i data-lucide="${isDone ? 'check' : iconName}" style="width: 11px; height: 11px;"></i>
-      </div>
-      <span>${label}</span>
-    </div>
-  `;
 }
