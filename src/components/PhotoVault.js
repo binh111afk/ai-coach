@@ -223,6 +223,14 @@ export async function renderPhotoVault() {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
 
+    // Teleport popup modals to document.body to break free from parent transform / animation boundaries
+    ['photoModal', 'uploadModal', 'comparePhotosModal'].forEach(modalId => {
+      const existingInBody = document.body.querySelector(`#${modalId}`);
+      const newInMount = mountNode.querySelector(`#${modalId}`);
+      if (existingInBody) existingInBody.remove();
+      if (newInMount) document.body.appendChild(newInMount);
+    });
+
     // Dropdown listener for compare modal
     initDropdownListeners(mountNode, (selectedVal, dropdownId) => {
       if (dropdownId === 'pv-modal-dropdown-a') {

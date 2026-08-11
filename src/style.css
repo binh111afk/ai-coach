@@ -4985,12 +4985,23 @@ body {
 /* Dark Glass Overlay Backdrop for All Modals */
 .modal-backdrop,
 .modal-overlay {
-  background: rgba(15, 12, 29, 0.65) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 1rem !important;
+  box-sizing: border-box !important;
+  background: rgba(15, 12, 29, 0.72) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  z-index: 9999 !important;
 }
 
 body.dark .modal-backdrop,
 body.dark .modal-overlay {
-  background: rgba(8, 6, 16, 0.78) !important;
+  background: rgba(8, 6, 16, 0.82) !important;
 }
