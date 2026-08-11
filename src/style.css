@@ -5005,3 +5005,18 @@ body.dark .modal-backdrop,
 body.dark .modal-overlay {
   background: rgba(8, 6, 16, 0.82) !important;
 }
+
+/* Timeline Vertical Line */
+.timeline-line {
+  position: absolute;
+  left: 19px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: linear-gradient(to bottom, #7C3AED, #8B5CF6, #D946EF) !important;
+  z-index: 1;
+}
+
+body.dark .timeline-line {
+  background: linear-gradient(to bottom, #8B5CF6, #A891FF, #EC4899) !important;
+}

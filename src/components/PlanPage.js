@@ -231,7 +231,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
             return `
               <div class="relative mb-8 cursor-pointer group" data-open-schedule-item="${idx}">
-                <div class="absolute -left-12 top-0 w-10 h-10 rounded-full flex items-center justify-center border-4 border-white dark:border-[var(--bg-card)] shadow-sm z-10" style="background: ${iconBg}; color: ${iconColor};">
+                <div class="absolute -left-12 top-0 w-10 h-10 rounded-full flex items-center justify-center border-4 border-white dark:border-[var(--bg-card)] shadow-md z-10" style="background: ${iconBg}; color: ${iconColor};">
                   <i data-lucide="${iconName}" class="w-4 h-4"></i>
                 </div>
                 
@@ -253,11 +253,11 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
                     </button>
                   </div>
                 ` : `
-                  <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 rounded-2xl hover:bg-[var(--bg-subtle)] transition">
+                  <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3.5 rounded-2xl border border-color hover:border-[var(--accent-purple)] hover:bg-[var(--bg-subtle)] transition" style="background: var(--bg-card);">
                     <div>
                       <div class="text-xs font-bold text-muted" style="color: var(--text-muted);">${item.time}</div>
                       <h3 class="font-semibold text-sm" style="color: var(--text-main);">${item.activity}</h3>
-                      <p class="text-xs text-muted" style="color: var(--text-muted);">${item.desc || ''}</p>
+                      <p class="text-xs text-muted mt-0.5" style="color: var(--text-muted);">${item.desc || ''}</p>
                     </div>
                     <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs font-semibold w-fit">Xem Chi Tiết</button>
                   </div>
@@ -321,19 +321,25 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             <p class="text-xs text-muted mt-1" style="color: var(--text-muted);">Tổng số ${totalJourneyDays} ngày chuyển đổi</p>
           </div>
 
-          <div class="space-y-5">
+          <div class="space-y-6">
             ${(plan.journeyPhases || []).map((p, idx) => {
               const isCurrentPhase = activePhase?.phaseIndex === p.phaseIndex;
+              const isLast = idx === (plan.journeyPhases.length - 1);
 
               return `
-                <div class="relative pl-8 cursor-pointer" data-select-phase-start="${p.startDay}">
-                  <div class="absolute left-0 top-0 w-6 h-6 rounded-full border-4 border-white dark:border-[var(--bg-card)] shadow-md flex items-center justify-center"
-                       style="background: ${isCurrentPhase ? 'var(--accent-purple)' : '#E5E7EB'};">
-                    <div class="w-1.5 h-1.5 rounded-full" style="background: ${isCurrentPhase ? '#FFFFFF' : '#9CA3AF'};"></div>
+                <div class="relative pl-8 cursor-pointer group" data-select-phase-start="${p.startDay}">
+                  <!-- Dot Icon -->
+                  <div class="absolute left-0 top-0 w-6 h-6 rounded-full border-4 border-white dark:border-[var(--bg-card)] shadow-md flex items-center justify-center z-10"
+                       style="background: ${isCurrentPhase ? 'var(--accent-purple)' : '#D1D5DB'};">
+                    <div class="w-1.5 h-1.5 rounded-full" style="background: ${isCurrentPhase ? '#FFFFFF' : '#6B7280'};"></div>
                   </div>
-                  ${idx < (plan.journeyPhases.length - 1) ? `
-                    <div class="absolute left-3 top-6 bottom-[-20px] w-0.5" style="background: ${isCurrentPhase ? 'var(--primary-light)' : '#E5E7EB'};"></div>
+
+                  <!-- Phase Vertical Connecting Line -->
+                  ${!isLast ? `
+                    <div class="absolute left-[11px] top-6 bottom-[-24px] w-[2px] z-0" 
+                         style="background: ${isCurrentPhase ? 'linear-gradient(to bottom, #7C3AED, #8B5CF6)' : 'rgba(124, 58, 237, 0.2)'};"></div>
                   ` : ''}
+
                   <div>
                     <div class="flex justify-between items-center mb-1">
                       <h4 class="font-semibold text-sm" style="color: ${isCurrentPhase ? 'var(--accent-purple)' : 'var(--text-main)'};">${p.phaseLabel}</h4>
