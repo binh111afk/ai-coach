@@ -3575,11 +3575,11 @@ body.ai-tab-active main {
 }
 
 /* Input Area */
-.input-area { padding: 16px 24px 22px; border-top: 1px solid var(--border-color); background: var(--bg-card); }
+.input-area { padding: 16px 24px 22px; background: linear-gradient(to bottom, transparent, var(--bg-subtle) 30%); position: relative; }
 
-.input-wrap { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 10px; background: var(--bg-subtle); border: 1.5px solid var(--border-color); border-radius: 18px; padding: 6px 6px 6px 14px; transition: border-color 0.2s, box-shadow 0.2s; }
+.input-wrap { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 24px; padding: 6px 6px 6px 14px; transition: border-color 0.2s, box-shadow 0.2s; box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(124,58,237,0.08); }
 
-.input-wrap:focus-within { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); background: var(--bg-card); }
+.input-wrap:focus-within { border-color: rgba(124,58,237,0.45); box-shadow: 0 4px 24px rgba(124,58,237,0.14), 0 0 0 3px rgba(124,58,237,0.07); background: var(--bg-card); }
 
 .btn-attach {
   width: 36px;
