@@ -381,12 +381,12 @@ export async function renderPhotoVault() {
       const weightVal = parseFloat(document.getElementById('input-modal-upload-weight')?.value) || profile.currentWeight;
       const noteVal = document.getElementById('input-modal-upload-note')?.value || '';
 
-      // Check if a photo for this journey day or date ALREADY exists
-      const existingPhoto = photos.find(p => (p.journeyDay && Number(p.journeyDay) === journeyDayVal) || p.date === dateVal);
+      // Check if a photo for this journey day ALREADY exists
+      const existingPhoto = photos.find(p => p.journeyDay && Number(p.journeyDay) === journeyDayVal);
       if (existingPhoto) {
         const confirmOverwrite = await Modal.confirm({
           title: 'Cảnh Báo Ghi Đè Ảnh Tiến Trình',
-          message: `Hệ thống ghi nhận đã có 1 bức ảnh tiến trình cho Ngày ${journeyDayVal} (${existingPhoto.date}).\n\nBạn có chắc chắn muốn GHI ĐÈ bằng bức ảnh mới này không?`,
+          message: `Hệ thống ghi nhận Ngày ${journeyDayVal} đã có sẵn 1 bức ảnh tiến trình (${existingPhoto.date}).\n\nBạn có chắc chắn muốn GHI ĐÈ bằng bức ảnh mới này không?`,
           type: 'warning',
           confirmText: 'Đồng Ý Ghi Đè',
           cancelText: 'Hủy Bỏ'

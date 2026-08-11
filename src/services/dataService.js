@@ -762,10 +762,8 @@ export const DataService = {
 
     const targetDay = journeyDay ? Number(journeyDay) : 1;
 
-    // Check if a photo for this journey day already exists (or index match)
-    const existing = existingPhotos.find((p, idx) => 
-      (p.journeyDay && Number(p.journeyDay) === targetDay) || (idx + 1) === targetDay
-    );
+    // Check if a photo for this journey day already exists
+    const existing = existingPhotos.find(p => p.journeyDay && Number(p.journeyDay) === targetDay);
 
     if (existing) {
       existing.photoDataUrl = compressedUrl;
