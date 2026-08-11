@@ -18,15 +18,13 @@ export async function renderSettingsPage(onSaveComplete) {
     ? profile.foodAllergies.split(',').map(s => s.trim()).filter(Boolean)
     : ['Hải sản', 'Muối biển'];
 
-  // Helper to format currency display
-  const formatCurrency = (val) => Number(val || 0).toLocaleString('vi-VN');
-
   // Compute BMR & TDEE
   const bmrVal = Math.round(calculateBMR(profile.gender || 'male', profile.currentWeight || 77, profile.height || 171, profile.age || 19));
   const tdeeVal = Math.round(calculateTDEE(bmrVal, profile.activityLevel || 1.2));
 
   // Find active model object
   const currentModelObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId) || CONFIG.SUPPORTED_MODELS[0];
+  const isDarkMode = document.body.classList.contains('dark');
 
   const pageHtml = `
     <div class="max-w-3xl mx-auto px-4 py-6 md:px-8 md:py-8 space-y-6 fade-up">
@@ -40,14 +38,11 @@ export async function renderSettingsPage(onSaveComplete) {
       </div>
 
       <!-- ==================== 1. PROFILE & BODY STATS CARD ==================== -->
-      <div class="card p-6 fade-up" style="animation-delay: 0.1s">
-        <!-- Top Profile Info -->
-        <div class="flex flex-col md:flex-row md:items-center gap-6 pb-6 mb-6 border-b border-[var(--border)]">
+      <div class="card p-6 fade-up" style="animation-delay: 0.1s; border: 1px solid rgba(124, 58, 237, 0.18);">
+        <!-- Top Profile Info (No PRO crown badge as requested) -->
+        <div class="flex flex-col md:flex-row md:items-center gap-6 pb-6 mb-6 border-b border-[rgba(124,58,237,0.12)]">
           <div class="relative flex-shrink-0">
-            <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-lg border-2 border-[var(--primary-light)]">
-            <div class="absolute -bottom-1 -right-1 bg-[var(--amber)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 border-2 border-white">
-              <i data-lucide="crown" class="w-3 h-3"></i> PRO
-            </div>
+            <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-md border-2 border-[var(--primary-light)]">
           </div>
           <div class="flex-1">
             <h2 class="display text-2xl font-semibold" id="disp-profile-name" style="color: var(--fg);">${profile.name || 'Chiến Binh Fitness'}</h2>
@@ -70,27 +65,27 @@ export async function renderSettingsPage(onSaveComplete) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Họ & Tên</label>
-              <input type="text" id="edit-input-name" value="${profile.name || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+              <input type="text" id="edit-input-name" value="${profile.name || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Email Liên Hệ</label>
-              <input type="email" id="edit-input-email" value="${profile.email || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+              <input type="email" id="edit-input-email" value="${profile.email || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Tuổi (năm)</label>
-              <input type="number" id="edit-input-age" value="${profile.age || 19}" min="12" max="100" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+              <input type="number" id="edit-input-age" value="${profile.age || 19}" min="12" max="100" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Chiều cao (cm)</label>
-              <input type="number" id="edit-input-height" value="${profile.height || 171}" min="100" max="230" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+              <input type="number" id="edit-input-height" value="${profile.height || 171}" min="100" max="230" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Cân nặng (kg)</label>
-              <input type="number" id="edit-input-weight" value="${profile.currentWeight || 77}" step="0.1" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+              <input type="number" id="edit-input-weight" value="${profile.currentWeight || 77}" step="0.1" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
             </div>
 
             <div>
@@ -122,7 +117,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
         <!-- Metabolism Stats (2 Boxes) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="border border-[var(--border)] p-4 rounded-2xl flex items-center gap-3">
+          <div class="border border-[rgba(124,58,237,0.16)] p-4 rounded-2xl flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-[#DBEAFE] flex items-center justify-center flex-shrink-0">
               <i data-lucide="flame" class="w-5 h-5 text-[var(--blue)]"></i>
             </div>
@@ -131,7 +126,7 @@ export async function renderSettingsPage(onSaveComplete) {
               <div class="font-bold text-lg" id="stat-disp-bmr">~${bmrVal.toLocaleString('vi-VN')} kcal</div>
             </div>
           </div>
-          <div class="border border-[var(--border)] p-4 rounded-2xl flex items-center gap-3">
+          <div class="border border-[rgba(124,58,237,0.16)] p-4 rounded-2xl flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-[#FCE7F3] flex items-center justify-center flex-shrink-0">
               <i data-lucide="zap" class="w-5 h-5 text-[var(--pink)]"></i>
             </div>
@@ -143,9 +138,9 @@ export async function renderSettingsPage(onSaveComplete) {
         </div>
       </div>
 
-      <!-- ==================== 2. AI CONFIGURATION CARD ==================== -->
-      <div class="card p-6 fade-up" style="animation-delay: 0.15s">
-        <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Cấu Hình AI Coach</h3>
+      <!-- ==================== 2. AI CONFIGURATION & THEME CARD ==================== -->
+      <div class="card p-6 fade-up" style="animation-delay: 0.15s; border: 1px solid rgba(124, 58, 237, 0.18);">
+        <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Cấu Hình AI Coach & Giao Diện</h3>
         
         <!-- Model Selector Button (Click opens Popup Modal) -->
         <div class="flex items-center justify-between p-4 bg-[var(--primary-soft)] rounded-2xl mb-4 cursor-pointer hover:bg-[#E5DEFF] transition border border-transparent hover:border-[var(--primary-light)]" id="btn-open-model-modal">
@@ -166,7 +161,7 @@ export async function renderSettingsPage(onSaveComplete) {
           </div>
         </div>
 
-        <!-- AI Toggles -->
+        <!-- AI Toggles & Dark Mode Switcher -->
         <div class="space-y-1">
           <div class="flex items-center justify-between py-3">
             <div class="flex items-center gap-3">
@@ -180,7 +175,9 @@ export async function renderSettingsPage(onSaveComplete) {
               <div class="toggle-knob"></div>
             </div>
           </div>
-          <div class="border-t border-[var(--border)]"></div>
+
+          <div class="border-t border-[rgba(124,58,237,0.12)]"></div>
+
           <div class="flex items-center justify-between py-3">
             <div class="flex items-center gap-3">
               <i data-lucide="message-square-heart" class="w-5 h-5 text-[var(--muted)]"></i>
@@ -191,11 +188,27 @@ export async function renderSettingsPage(onSaveComplete) {
             </div>
             <div class="text-xs font-bold text-[var(--accent)] bg-fuchsia-50 px-2.5 py-1 rounded-lg">Truyền cảm hứng</div>
           </div>
+
+          <div class="border-t border-[rgba(124,58,237,0.12)]"></div>
+
+          <!-- DARK MODE / LIGHT MODE TOGGLE (Requirement #6) -->
+          <div class="flex items-center justify-between py-3">
+            <div class="flex items-center gap-3">
+              <i data-lucide="${isDarkMode ? 'sun' : 'moon'}" class="w-5 h-5 text-[var(--muted)]" id="theme-icon-indicator"></i>
+              <div>
+                <div class="text-sm font-semibold" style="color: var(--fg);">Chế độ Giao diện</div>
+                <div class="text-xs text-[var(--muted)]" id="theme-status-text">${isDarkMode ? 'Giao diện Tối (Dark Mode)' : 'Giao diện Sáng (Light Mode)'}</div>
+              </div>
+            </div>
+            <div class="toggle-switch ${isDarkMode ? 'active' : ''}" id="toggle-theme-switch">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- ==================== 3. DIET & NUTRITION CARD ==================== -->
-      <div class="card p-6 fade-up" style="animation-delay: 0.2s">
+      <div class="card p-6 fade-up" style="animation-delay: 0.2s; border: 1px solid rgba(124, 58, 237, 0.18);">
         <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Dinh Dưỡng & Ngân Sách</h3>
         
         <!-- Budget -->
@@ -224,35 +237,22 @@ export async function renderSettingsPage(onSaveComplete) {
         </div>
       </div>
 
-      <!-- ==================== 4. DANGER ZONE & ACTION BUTTONS ==================== -->
-      <div class="card p-6 fade-up border-red-200" style="animation-delay: 0.25s; background: #FEF2F2;">
-        <div class="flex items-start gap-4">
-          <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>
-          </div>
-          <div class="flex-1">
-            <h3 class="display text-lg font-semibold text-red-600">Khu Vực Nguy Hiểm</h3>
-            <p class="text-xs text-[var(--muted)] mt-1 mb-4">Xóa toàn bộ dữ liệu bao gồm lịch sử tập luyện, bữa ăn, và cấu hình AI. Hành động này không thể hoàn tác.</p>
-            
-            <!-- Bottom Action Buttons: Lưu dữ liệu kế bên Xóa toàn bộ dữ liệu -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button class="btn-primary py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md" id="btn-main-save-settings">
-                <i data-lucide="save" class="w-4 h-4"></i> Lưu Cài Đặt
-              </button>
-              <button class="py-3 border-2 border-red-500 text-red-500 font-bold text-sm rounded-xl hover:bg-red-500 hover:text-white transition flex items-center justify-center gap-1.5" id="btn-main-reset-data">
-                <i data-lucide="trash-2" class="w-4 h-4"></i> Xóa Toàn Bộ Dữ Liệu
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- ==================== 4. BOTTOM DUAL ACTION BUTTONS (Requirement #5: No red box wrapping) ==================== -->
+      <div class="flex flex-col sm:flex-row gap-3 pt-2 fade-up" style="animation-delay: 0.25s">
+        <button class="btn-primary flex-1 py-3.5 rounded-2xl text-sm font-bold shadow-md flex items-center justify-center gap-2" id="btn-main-save-settings">
+          <i data-lucide="save" class="w-4 h-4"></i> Lưu Cài Đặt
+        </button>
+        <button class="flex-1 py-3.5 border-2 border-red-500 text-red-500 font-bold text-sm rounded-2xl hover:bg-red-500 hover:text-white transition flex items-center justify-center gap-2" id="btn-main-reset-data">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Xóa Toàn Bộ Dữ Liệu
+        </button>
       </div>
 
     </div>
 
-    <!-- ==================== MODEL SELECTION POPUP MODAL ==================== -->
+    <!-- ==================== MODEL SELECTION POPUP MODAL (Requirement #3: Teleported to body for 100% fullscreen blur) ==================== -->
     <div class="modal-overlay" id="model-selection-modal">
-      <div class="modal-card card p-6 w-full max-w-lg max-h-[85vh] flex flex-col" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
-        <div class="flex justify-between items-center mb-4 pb-3 border-b border-[var(--border)] flex-shrink-0">
+      <div class="modal-card card p-6 w-full max-w-lg max-h-[85vh] flex flex-col" style="background: var(--bg-card); border-radius: 28px; border: 1px solid rgba(124, 58, 237, 0.2); position: relative; z-index: 1;">
+        <div class="flex justify-between items-center mb-4 pb-3 border-b border-[rgba(124,58,237,0.12)] flex-shrink-0">
           <div class="flex items-center gap-2">
             <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
               <i data-lucide="brain-circuit" class="w-4 h-4"></i>
@@ -265,12 +265,12 @@ export async function renderSettingsPage(onSaveComplete) {
         </div>
 
         <div class="mb-3 flex-shrink-0">
-          <input type="text" id="model-search-input" placeholder="🔍 Tìm kiếm AI Model (Gemini, DeepSeek, Nemotron...)" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border)] font-semibold" style="background: var(--bg-input); color: var(--text-main);">
+          <input type="text" id="model-search-input" placeholder="🔍 Tìm kiếm AI Model (Gemini, DeepSeek, Nemotron...)" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] font-semibold" style="background: var(--bg-input); color: var(--text-main);">
         </div>
 
         <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="model-list-container">
           ${CONFIG.SUPPORTED_MODELS.map(m => `
-            <div class="model-select-item flex items-center justify-between p-3 rounded-2xl border ${m.id === currentModelId ? 'border-[var(--primary)] bg-[var(--primary-soft)] font-bold' : 'border-[var(--border)] hover:bg-slate-50'} cursor-pointer transition" data-model-id="${m.id}">
+            <div class="model-select-item flex items-center justify-between p-3 rounded-2xl border ${m.id === currentModelId ? 'border-[var(--primary)] bg-[var(--primary-soft)] font-bold' : 'border-[rgba(124,58,237,0.12)] hover:bg-slate-50'} cursor-pointer transition" data-model-id="${m.id}">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(124, 58, 237, 0.1);">
                   ${renderProviderIcon(m.id)}
@@ -287,7 +287,7 @@ export async function renderSettingsPage(onSaveComplete) {
           `).join('')}
         </div>
 
-        <div class="mt-4 pt-3 border-t border-[var(--border)] flex justify-end flex-shrink-0">
+        <div class="mt-4 pt-3 border-t border-[rgba(124,58,237,0.12)] flex justify-end flex-shrink-0">
           <button type="button" class="btn-ghost px-5 py-2 rounded-xl text-xs font-bold" id="btn-close-model-modal-bottom">Đóng</button>
         </div>
       </div>
@@ -298,6 +298,12 @@ export async function renderSettingsPage(onSaveComplete) {
   if (mountNode) {
     mountNode.innerHTML = pageHtml;
     if (window.lucide) window.lucide.createIcons();
+
+    // Teleport model selection modal to document.body to ensure 100% fullscreen backdrop-blur
+    const modelModal = document.getElementById('model-selection-modal');
+    if (modelModal) {
+      document.body.appendChild(modelModal);
+    }
 
     // 1. INLINE PROFILE EDIT BOX TOGGLE
     const editBox = document.getElementById('profile-edit-box');
@@ -369,8 +375,7 @@ export async function renderSettingsPage(onSaveComplete) {
       confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
     });
 
-    // 2. MODEL SELECTION POPUP MODAL
-    const modelModal = document.getElementById('model-selection-modal');
+    // 2. MODEL SELECTION POPUP MODAL (Teleported & full backdrop blur)
     const openModelModal = () => modelModal?.classList.add('active');
     const closeModelModal = () => modelModal?.classList.remove('active');
 
@@ -378,7 +383,7 @@ export async function renderSettingsPage(onSaveComplete) {
     document.getElementById('btn-close-model-modal')?.addEventListener('click', closeModelModal);
     document.getElementById('btn-close-model-modal-bottom')?.addEventListener('click', closeModelModal);
     modelModal?.addEventListener('click', (e) => {
-      if (!e.target.closest('.modal-card')) closeModelModal();
+      if (e.target === modelModal) closeModelModal();
     });
 
     // Model Search Filtering inside Popup
@@ -406,7 +411,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
           // Update active border styles in popup list
           document.querySelectorAll('#model-list-container .model-select-item').forEach(el => {
-            el.className = 'model-select-item flex items-center justify-between p-3 rounded-2xl border border-[var(--border)] hover:bg-slate-50 cursor-pointer transition';
+            el.className = 'model-select-item flex items-center justify-between p-3 rounded-2xl border border-[rgba(124,58,237,0.12)] hover:bg-slate-50 cursor-pointer transition';
           });
           item.className = 'model-select-item flex items-center justify-between p-3 rounded-2xl border border-[var(--primary)] bg-[var(--primary-soft)] font-bold cursor-pointer transition';
 
@@ -415,12 +420,25 @@ export async function renderSettingsPage(onSaveComplete) {
       });
     });
 
-    // Toggle switch handler
-    document.querySelectorAll('.toggle-switch').forEach(sw => {
-      sw.addEventListener('click', () => sw.classList.toggle('active'));
+    // 3. DARK MODE / LIGHT MODE TOGGLE (Requirement #6)
+    const themeSwitch = document.getElementById('toggle-theme-switch');
+    themeSwitch?.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const isDarkNow = document.body.classList.contains('dark');
+      themeSwitch.classList.toggle('active', isDarkNow);
+
+      const statusText = document.getElementById('theme-status-text');
+      if (statusText) {
+        statusText.textContent = isDarkNow ? 'Giao diện Tối (Dark Mode)' : 'Giao diện Sáng (Light Mode)';
+      }
     });
 
-    // 3. ALLERGY TAGS INTERACTIVE LOGIC
+    // Image analysis toggle
+    document.getElementById('toggle-image-analysis')?.addEventListener('click', function() {
+      this.classList.toggle('active');
+    });
+
+    // 4. ALLERGY TAGS INTERACTIVE LOGIC (Requirement #4: Uses Modal.prompt instead of browser prompt)
     const renderAllergyTags = () => {
       const container = document.getElementById('allergy-pills-container');
       if (!container) return;
@@ -446,9 +464,14 @@ export async function renderSettingsPage(onSaveComplete) {
         });
       });
 
-      // Add tag listener
+      // Add tag listener using custom Modal.prompt component!
       document.getElementById('btn-add-allergy-tag')?.addEventListener('click', async () => {
-        const newTag = prompt('Nhập thực phẩm/món ăn bạn bị dị ứng hoặc kiêng (Ví dụ: Đậu nành, Trứng, Sữa...):');
+        const newTag = await Modal.prompt({
+          title: 'Thêm Thực Phẩm Kiêng / Dị Ứng',
+          message: 'Nhập tên thực phẩm hoặc món ăn bạn muốn AI Coach tự động lọc khỏi thực đơn:',
+          placeholder: 'Ví dụ: Tôm, Mực, Đậu nành, Trứng, Sữa tươi...'
+        });
+
         if (newTag && newTag.trim()) {
           const cleaned = newTag.trim();
           if (!allergyList.includes(cleaned)) {
@@ -461,7 +484,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
     renderAllergyTags();
 
-    // 4. MAIN SAVE SETTINGS BUTTON & RESET DATA BUTTON AT BOTTOM
+    // 5. MAIN SAVE SETTINGS BUTTON & RESET DATA BUTTON AT BOTTOM
     document.getElementById('btn-main-save-settings')?.addEventListener('click', async () => {
       const budgetInput = document.getElementById('input-daily-budget');
       const newBudget = parseInt(budgetInput ? budgetInput.value : 100000) || 100000;
