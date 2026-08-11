@@ -821,16 +821,16 @@ export const DataService = {
     if (newBadges.length > 0) {
       window.dispatchEvent(new CustomEvent('achievement:unlocked', { detail: { badgeIds: newBadges } }));
     }
+    // Refresh appState cache
+    await this.getPhotos(true);
     return { photoItem, newBadges };
   },
 
   async deletePhoto(photoId) {
     if (!photoId) return false;
     await dbManager.delete('photos', photoId);
-    // Invalidate appState photos cache and update
-    const currentPhotos = appState.getPhotos() || [];
-    const updatedPhotos = currentPhotos.filter(p => p.id !== photoId);
-    appState.setPhotos(updatedPhotos);
+    // Invalidate & refresh appState photos cache
+    await this.getPhotos(true);
     return true;
   },
 

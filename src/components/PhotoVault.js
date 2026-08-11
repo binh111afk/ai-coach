@@ -12,7 +12,7 @@ let currentLightboxPhoto = null;
 export async function renderPhotoVault() {
   const profile = await DataService.getUserProfile();
   const goal = await DataService.getUserGoal();
-  const photos = await DataService.getPhotos(); // sorted by date ascending
+  const photos = await DataService.getPhotos(true); // sorted by date ascending (bypass cache)
 
   const currentJourneyDay = DataService.calculateCurrentJourneyDay ? DataService.calculateCurrentJourneyDay(goal.startDate) : (photos.length + 1);
 
@@ -254,8 +254,8 @@ export async function renderPhotoVault() {
           </button>
         </div>
 
-        <div class="p-5 overflow-y-auto max-h-[60vh]">
-          <div id="galleryGrid" class="grid grid-cols-3 gap-3">
+        <div class="p-5 overflow-y-auto max-h-[65vh]">
+          <div id="galleryGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
             <!-- Gallery items rendered dynamically -->
           </div>
         </div>
@@ -430,8 +430,8 @@ export async function renderPhotoVault() {
 
     // ==================== COMPARE POPUP LOGIC & GALLERY SHEET ====================
     let currentSelectTarget = null;
-    let selectedBefore = photos.length > 1 ? photos[photos.length - 2] : photos[0] || null;
-    let selectedAfter = photos.length > 0 ? photos[photos.length - 1] : null;
+    let selectedBefore = null;
+    let selectedAfter = null;
 
     const updateSlotDisplay = (target, imgData) => {
       const slot = document.getElementById(`slot-${target}`);
@@ -475,10 +475,12 @@ export async function renderPhotoVault() {
           message: 'Bạn cần tải lên ít nhất 2 bức ảnh tiến trình để thực hiện so sánh Before / After!\n\nHãy bấm "Upload Ảnh Mới" để thêm bức ảnh thứ 2.'
         });
       }
+      selectedBefore = null;
+      selectedAfter = null;
       const popup = document.getElementById('comparePopup');
       if (popup) popup.classList.add('active');
-      updateSlotDisplay('before', selectedBefore);
-      updateSlotDisplay('after', selectedAfter);
+      updateSlotDisplay('before', null);
+      updateSlotDisplay('after', null);
       checkAnalyzeButton();
     };
 
