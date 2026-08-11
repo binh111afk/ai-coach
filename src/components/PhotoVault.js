@@ -11,7 +11,10 @@ let currentLightboxPhoto = null;
 
 export async function renderPhotoVault() {
   const profile = await DataService.getUserProfile();
+  const goal = await DataService.getUserGoal();
   const photos = await DataService.getPhotos(); // sorted by date ascending
+
+  const currentJourneyDay = DataService.calculateCurrentJourneyDay ? DataService.calculateCurrentJourneyDay(goal.startDate) : (photos.length + 1);
 
   const newestPhoto = photos[photos.length - 1] || null;
   const secondNewestPhoto = photos[photos.length - 2] || newestPhoto;
@@ -152,9 +155,15 @@ export async function renderPhotoVault() {
         </div>
 
         <div class="space-y-3">
-          <div>
-            <label class="text-xs font-bold text-muted uppercase tracking-wider" style="color: var(--text-muted);">Ngày chụp</label>
-            <input type="date" id="input-modal-upload-date" value="${DataService.getTodayString()}" class="search-input w-full mt-1 px-4 py-2.5 rounded-xl text-sm font-medium" style="background: var(--bg-input); color: var(--text-main);">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-bold text-muted uppercase tracking-wider" style="color: var(--text-muted);">Ngày hành trình</label>
+              <input type="number" min="1" max="365" id="input-modal-upload-journey-day" value="${currentJourneyDay}" class="search-input w-full mt-1 px-4 py-2.5 rounded-xl text-sm font-bold text-[var(--primary)]" style="background: var(--bg-input);" title="Mốc ngày trong hành trình">
+            </div>
+            <div>
+              <label class="text-xs font-bold text-muted uppercase tracking-wider" style="color: var(--text-muted);">Ngày chụp</label>
+              <input type="date" id="input-modal-upload-date" value="${DataService.getTodayString()}" class="search-input w-full mt-1 px-4 py-2.5 rounded-xl text-sm font-medium" style="background: var(--bg-input); color: var(--text-main);">
+            </div>
           </div>
           <div>
             <label class="text-xs font-bold text-muted uppercase tracking-wider" style="color: var(--text-muted);">Cân nặng (kg)</label>
@@ -339,7 +348,7 @@ export async function renderPhotoVault() {
       openUploadModal();
     });
 
-    // SUBMIT UPLOAD PHOTO
+    // SUBMIT UPLOAD PHOTO WITH OVERWRITE WARNING MODAL
     document.getElementById('btn-submit-modal-upload')?.addEventListener('click', async () => {
       if (!currentUploadingDataUrl) {
         return Modal.warning({
@@ -348,10 +357,26 @@ export async function renderPhotoVault() {
         });
       }
 
+      const jDayInput = document.getElementById('input-modal-upload-journey-day');
+      const journeyDayVal = jDayInput ? (parseInt(jDayInput.value) || currentJourneyDay) : currentJourneyDay;
+      const dateVal = document.getElementById('input-modal-upload-date')?.value || DataService.getTodayString();
       const weightVal = parseFloat(document.getElementById('input-modal-upload-weight')?.value) || profile.currentWeight;
       const noteVal = document.getElementById('input-modal-upload-note')?.value || '';
 
-      await DataService.addPhoto(currentUploadingDataUrl, weightVal, noteVal);
+      // Check if a photo for this journey day or date ALREADY exists
+      const existingPhoto = photos.find(p => (p.journeyDay && Number(p.journeyDay) === journeyDayVal) || p.date === dateVal);
+      if (existingPhoto) {
+        const confirmOverwrite = await Modal.confirm({
+          title: 'Cảnh Báo Ghi Đè Ảnh Tiến Trình',
+          message: `Hệ thống ghi nhận đã có 1 bức ảnh tiến trình cho Ngày ${journeyDayVal} (${existingPhoto.date}).\n\nBạn có chắc chắn muốn GHI ĐÈ bằng bức ảnh mới này không?`,
+          type: 'warning',
+          confirmText: 'Đồng Ý Ghi Đè',
+          cancelText: 'Hủy Bỏ'
+        });
+        if (!confirmOverwrite) return;
+      }
+
+      await DataService.addPhoto(currentUploadingDataUrl, weightVal, noteVal, dateVal, journeyDayVal);
       currentUploadingDataUrl = null;
       closeUploadModal();
       confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
