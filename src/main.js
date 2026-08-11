@@ -115,18 +115,10 @@ async function handleTabChange(tab) {
     document.body.classList.add('ai-tab-active');
   } else {
     document.body.classList.remove('ai-tab-active');
-    // Restore nav when leaving AI tab
-    if (window.toggleNavState) window.toggleNavState(false);
   }
 
-  // Fast DOM active state update for navigation links
-  document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
-    if (el.getAttribute('data-tab') === tab) {
-      el.classList.add('active');
-    } else {
-      el.classList.remove('active');
-    }
-  });
+  // Re-render navigation to switch between horizontal and right-vertical mode
+  await renderNavigation(tab, handleTabChange, handleOpenAiCoach, handleOpenSettingsModal);
 
   await updateNavigationXp();
   await renderActiveView();
