@@ -38,23 +38,23 @@ export async function renderSettingsPage(onSaveComplete) {
       </div>
 
       <!-- ==================== 1. PROFILE & BODY STATS CARD ==================== -->
-      <div class="card p-6 fade-up" style="animation-delay: 0.1s; border: 1px solid rgba(124, 58, 237, 0.18);">
-        <!-- Top Profile Info (No PRO crown badge as requested) -->
-        <div class="flex flex-col md:flex-row md:items-center gap-6 pb-6 mb-6 border-b border-[rgba(124,58,237,0.12)]">
+      <div class="card p-6 fade-up" style="animation-delay: 0.1s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
+        <!-- Top Profile Info (No PRO crown badge) -->
+        <div class="flex flex-col md:flex-row md:items-center gap-6 pb-6 mb-6" style="border-bottom: 1px solid rgba(124, 58, 237, 0.14);">
           <div class="relative flex-shrink-0">
-            <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-md border-2 border-[var(--primary-light)]">
+            <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-md" style="border: 2.5px solid var(--primary-light, #8B5CF6);">
           </div>
           <div class="flex-1">
             <h2 class="display text-2xl font-semibold" id="disp-profile-name" style="color: var(--fg);">${profile.name || 'Chiến Binh Fitness'}</h2>
             <p class="text-sm text-[var(--muted)]" id="disp-profile-email">${profile.email || 'fitness_warrior@ai.app'}</p>
-            <button class="btn-ghost mt-3 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 w-fit" id="btn-toggle-edit-box">
+            <button class="btn-ghost mt-3 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 w-fit" id="btn-toggle-edit-box" style="border: 1px solid rgba(124, 58, 237, 0.2);">
               <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> <span id="btn-edit-label">Chỉnh sửa hồ sơ</span>
             </button>
           </div>
         </div>
 
         <!-- INLINE EDITING EXPANDABLE BOX (Toggles when clicking Chỉnh sửa hồ sơ) -->
-        <div id="profile-edit-box" class="hidden p-5 rounded-2xl mb-6 border border-dashed border-[var(--primary-light)]" style="background: var(--primary-soft);">
+        <div id="profile-edit-box" class="hidden p-5 rounded-2xl mb-6" style="background: var(--primary-soft); border: 1px dashed rgba(124, 58, 237, 0.35);">
           <div class="flex justify-between items-center mb-4">
             <h3 class="font-bold text-sm flex items-center gap-1.5 text-[var(--primary)]">
               <i data-lucide="user-check" class="w-4 h-4"></i> Cập Nhật Thông Tin Hồ Sơ
@@ -65,27 +65,27 @@ export async function renderSettingsPage(onSaveComplete) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Họ & Tên</label>
-              <input type="text" id="edit-input-name" value="${profile.name || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
+              <input type="text" id="edit-input-name" value="${profile.name || ''}" class="w-full px-3 py-2 rounded-xl text-xs bg-white font-semibold" style="border: 1px solid rgba(124, 58, 237, 0.25); color: #1E1B2E;">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Email Liên Hệ</label>
-              <input type="email" id="edit-input-email" value="${profile.email || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
+              <input type="email" id="edit-input-email" value="${profile.email || ''}" class="w-full px-3 py-2 rounded-xl text-xs bg-white font-semibold" style="border: 1px solid rgba(124, 58, 237, 0.25); color: #1E1B2E;">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Tuổi (năm)</label>
-              <input type="number" id="edit-input-age" value="${profile.age || 19}" min="12" max="100" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
+              <input type="number" id="edit-input-age" value="${profile.age || 19}" min="12" max="100" class="w-full px-3 py-2 rounded-xl text-xs bg-white font-semibold" style="border: 1px solid rgba(124, 58, 237, 0.25); color: #1E1B2E;">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Chiều cao (cm)</label>
-              <input type="number" id="edit-input-height" value="${profile.height || 171}" min="100" max="230" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
+              <input type="number" id="edit-input-height" value="${profile.height || 171}" min="100" max="230" class="w-full px-3 py-2 rounded-xl text-xs bg-white font-semibold" style="border: 1px solid rgba(124, 58, 237, 0.25); color: #1E1B2E;">
             </div>
 
             <div>
               <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Cân nặng (kg)</label>
-              <input type="number" id="edit-input-weight" value="${profile.currentWeight || 77}" step="0.1" class="w-full px-3 py-2 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] bg-white font-semibold">
+              <input type="number" id="edit-input-weight" value="${profile.currentWeight || 77}" step="0.1" class="w-full px-3 py-2 rounded-xl text-xs bg-white font-semibold" style="border: 1px solid rgba(124, 58, 237, 0.25); color: #1E1B2E;">
             </div>
 
             <div>
@@ -101,15 +101,15 @@ export async function renderSettingsPage(onSaveComplete) {
 
         <!-- Body Stats (3 Boxes) -->
         <div class="grid grid-cols-3 gap-3 mb-6">
-          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.14);">
+          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.16);">
             <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Tuổi</div>
             <div class="display text-xl md:text-2xl font-semibold mt-1" id="stat-disp-age" style="color: var(--fg);">${profile.age || 19}</div>
           </div>
-          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.14);">
+          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.16);">
             <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Chiều cao</div>
             <div class="display text-xl md:text-2xl font-semibold mt-1" style="color: var(--fg);"><span id="stat-disp-height">${profile.height || 171}</span> <span class="text-xs font-normal text-[var(--muted)]">cm</span></div>
           </div>
-          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.14);">
+          <div class="p-3 md:p-4 rounded-2xl text-center shadow-sm" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.16);">
             <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Cân nặng</div>
             <div class="display text-xl md:text-2xl font-semibold mt-1" style="color: var(--fg);"><span id="stat-disp-weight">${profile.currentWeight || 77}</span> <span class="text-xs font-normal text-[var(--muted)]">kg</span></div>
           </div>
@@ -117,7 +117,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
         <!-- Metabolism Stats (2 Boxes) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="border border-[rgba(124,58,237,0.16)] p-4 rounded-2xl flex items-center gap-3">
+          <div class="p-4 rounded-2xl flex items-center gap-3" style="border: 1px solid rgba(124, 58, 237, 0.16);">
             <div class="w-10 h-10 rounded-xl bg-[#DBEAFE] flex items-center justify-center flex-shrink-0">
               <i data-lucide="flame" class="w-5 h-5 text-[var(--blue)]"></i>
             </div>
@@ -126,7 +126,7 @@ export async function renderSettingsPage(onSaveComplete) {
               <div class="font-bold text-lg" id="stat-disp-bmr" style="color: var(--fg);">~${bmrVal.toLocaleString('vi-VN')} kcal</div>
             </div>
           </div>
-          <div class="border border-[rgba(124,58,237,0.16)] p-4 rounded-2xl flex items-center gap-3">
+          <div class="p-4 rounded-2xl flex items-center gap-3" style="border: 1px solid rgba(124, 58, 237, 0.16);">
             <div class="w-10 h-10 rounded-xl bg-[#FCE7F3] flex items-center justify-center flex-shrink-0">
               <i data-lucide="zap" class="w-5 h-5 text-[var(--pink)]"></i>
             </div>
@@ -139,11 +139,11 @@ export async function renderSettingsPage(onSaveComplete) {
       </div>
 
       <!-- ==================== 2. AI CONFIGURATION & THEME CARD ==================== -->
-      <div class="card p-6 fade-up" style="animation-delay: 0.15s; border: 1px solid rgba(124, 58, 237, 0.18);">
+      <div class="card p-6 fade-up" style="animation-delay: 0.15s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
         <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Cấu Hình AI Coach & Giao Diện</h3>
         
         <!-- Model Selector Button (Click opens Popup Modal) -->
-        <div class="flex items-center justify-between p-4 bg-[var(--primary-soft)] rounded-2xl mb-4 cursor-pointer hover:bg-[#E5DEFF] transition border border-transparent hover:border-[var(--primary-light)]" id="btn-open-model-modal">
+        <div class="flex items-center justify-between p-4 bg-[var(--primary-soft)] rounded-2xl mb-4 cursor-pointer transition hover:shadow-md" id="btn-open-model-modal" style="border: 1px solid rgba(124, 58, 237, 0.16);">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--primary)] shadow-sm">
               <i data-lucide="brain-circuit" class="w-5 h-5"></i>
@@ -176,7 +176,7 @@ export async function renderSettingsPage(onSaveComplete) {
             </div>
           </div>
 
-          <div class="border-t border-[rgba(124,58,237,0.12)]"></div>
+          <div style="border-top: 1px solid rgba(124, 58, 237, 0.14);"></div>
 
           <div class="flex items-center justify-between py-3">
             <div class="flex items-center gap-3">
@@ -189,9 +189,9 @@ export async function renderSettingsPage(onSaveComplete) {
             <div class="text-xs font-bold text-[var(--accent)] bg-fuchsia-50 px-2.5 py-1 rounded-lg">Truyền cảm hứng</div>
           </div>
 
-          <div class="border-t border-[rgba(124,58,237,0.12)]"></div>
+          <div style="border-top: 1px solid rgba(124, 58, 237, 0.14);"></div>
 
-          <!-- DARK MODE / LIGHT MODE TOGGLE -->
+          <!-- DARK MODE / LIGHT MODE TOGGLE WITH SWITCH -->
           <div class="flex items-center justify-between py-3">
             <div class="flex items-center gap-3">
               <i data-lucide="${isDarkMode ? 'sun' : 'moon'}" class="w-5 h-5 text-[var(--muted)]" id="theme-icon-indicator"></i>
@@ -208,13 +208,13 @@ export async function renderSettingsPage(onSaveComplete) {
       </div>
 
       <!-- ==================== 3. DIET & NUTRITION CARD ==================== -->
-      <div class="card p-6 fade-up" style="animation-delay: 0.2s; border: 1px solid rgba(124, 58, 237, 0.18);">
+      <div class="card p-6 fade-up" style="animation-delay: 0.2s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
         <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Dinh Dưỡng & Ngân Sách</h3>
         
         <!-- Budget -->
         <div class="mb-5">
           <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">Ngân sách bữa ăn / ngày</label>
-          <div class="mt-2 flex items-center gap-2 p-3 bg-[var(--primary-soft)] rounded-xl border border-transparent focus-within:bg-white focus-within:border-[var(--primary)] transition">
+          <div class="mt-2 flex items-center gap-2 p-3 bg-[var(--primary-soft)] rounded-xl transition" style="border: 1px solid rgba(124, 58, 237, 0.16);">
             <i data-lucide="wallet" class="w-5 h-5 text-[var(--amber)] flex-shrink-0"></i>
             <input type="number" id="input-daily-budget" value="${plan.dailyBudgetVnd || 100000}" step="10000" class="flex-1 bg-transparent border-none focus:outline-none font-bold text-base" style="color: var(--fg);">
             <span class="text-sm font-bold text-[var(--muted)]">VND</span>
@@ -230,29 +230,29 @@ export async function renderSettingsPage(onSaveComplete) {
                 ${tag} <i data-lucide="x" class="w-3.5 h-3.5 cursor-pointer hover:text-red-500 remove-allergy-tag" data-tag="${tag}"></i>
               </span>
             `).join('')}
-            <button type="button" id="btn-add-allergy-tag" class="flex items-center gap-1 px-3 py-1.5 border border-dashed border-[var(--border)] text-[var(--muted)] text-xs font-bold rounded-full hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+            <button type="button" id="btn-add-allergy-tag" class="flex items-center gap-1 px-3 py-1.5 text-[var(--muted)] text-xs font-bold rounded-full hover:text-[var(--primary)] transition" style="border: 1px dashed rgba(124, 58, 237, 0.35);">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm mục
             </button>
           </div>
         </div>
       </div>
 
-      <!-- ==================== 4. BOTTOM DUAL ACTION BUTTONS (Requirement #5: No red box wrapping) ==================== -->
+      <!-- ==================== 4. BOTTOM DUAL ACTION BUTTONS (No Red Box) ==================== -->
       <div class="flex flex-col sm:flex-row gap-3 pt-2 fade-up" style="animation-delay: 0.25s">
         <button class="btn-primary flex-1 py-3.5 rounded-2xl text-sm font-bold shadow-md flex items-center justify-center gap-2" id="btn-main-save-settings">
           <i data-lucide="save" class="w-4 h-4"></i> Lưu Cài Đặt
         </button>
-        <button class="flex-1 py-3.5 border-2 border-red-500 text-red-500 font-bold text-sm rounded-2xl hover:bg-red-500 hover:text-white transition flex items-center justify-center gap-2" id="btn-main-reset-data">
+        <button class="flex-1 py-3.5 text-red-500 font-bold text-sm rounded-2xl hover:bg-red-500 hover:text-white transition flex items-center justify-center gap-2" id="btn-main-reset-data" style="border: 2px solid #EF4444;">
           <i data-lucide="trash-2" class="w-4 h-4"></i> Xóa Toàn Bộ Dữ Liệu
         </button>
       </div>
 
     </div>
 
-    <!-- ==================== MODEL SELECTION POPUP MODAL (Requirement #3: Teleported to body for 100% fullscreen blur) ==================== -->
+    <!-- ==================== MODEL SELECTION POPUP MODAL (Teleported to body for 100% fullscreen blur) ==================== -->
     <div class="modal-overlay" id="model-selection-modal">
-      <div class="modal-card card p-6 w-full max-w-lg max-h-[85vh] flex flex-col" style="background: var(--bg-card); border-radius: 28px; border: 1px solid rgba(124, 58, 237, 0.2); position: relative; z-index: 1;">
-        <div class="flex justify-between items-center mb-4 pb-3 border-b border-[rgba(124,58,237,0.12)] flex-shrink-0">
+      <div class="modal-card card p-6 w-full max-w-lg max-h-[85vh] flex flex-col" style="background: var(--bg-card); border-radius: 28px; border: 1px solid rgba(124, 58, 237, 0.25) !important; position: relative; z-index: 1;">
+        <div class="flex justify-between items-center mb-4 pb-3 flex-shrink-0" style="border-bottom: 1px solid rgba(124, 58, 237, 0.14);">
           <div class="flex items-center gap-2">
             <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
               <i data-lucide="brain-circuit" class="w-4 h-4"></i>
@@ -265,12 +265,12 @@ export async function renderSettingsPage(onSaveComplete) {
         </div>
 
         <div class="mb-3 flex-shrink-0">
-          <input type="text" id="model-search-input" placeholder="🔍 Tìm kiếm AI Model (Gemini, DeepSeek, Nemotron...)" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[rgba(124,58,237,0.2)] font-semibold" style="background: var(--bg-input); color: var(--text-main);">
+          <input type="text" id="model-search-input" placeholder="🔍 Tìm kiếm AI Model (Gemini, DeepSeek, Nemotron...)" class="w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold" style="background: var(--bg-input); color: var(--text-main); border: 1px solid rgba(124, 58, 237, 0.25);">
         </div>
 
         <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="model-list-container">
           ${CONFIG.SUPPORTED_MODELS.map(m => `
-            <div class="model-select-item flex items-center justify-between p-3 rounded-2xl border ${m.id === currentModelId ? 'border-[var(--primary)] bg-[var(--primary-soft)] font-bold' : 'border-[rgba(124,58,237,0.12)] hover:bg-slate-50'} cursor-pointer transition" data-model-id="${m.id}">
+            <div class="model-select-item flex items-center justify-between p-3 rounded-2xl ${m.id === currentModelId ? 'bg-[var(--primary-soft)] font-bold' : 'hover:bg-slate-50'} cursor-pointer transition" style="border: 1px solid ${m.id === currentModelId ? 'var(--primary)' : 'rgba(124, 58, 237, 0.14)'};" data-model-id="${m.id}">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(124, 58, 237, 0.1);">
                   ${renderProviderIcon(m.id)}
@@ -280,14 +280,14 @@ export async function renderSettingsPage(onSaveComplete) {
                   <div class="text-[10px] text-[var(--muted)] font-mono truncate">${m.id}</div>
                 </div>
               </div>
-              <div class="w-5 h-5 rounded-full border-2 ${m.id === currentModelId ? 'border-[var(--primary)] bg-[var(--primary)]' : 'border-slate-300'} flex items-center justify-center flex-shrink-0">
+              <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="border: 2px solid ${m.id === currentModelId ? 'var(--primary)' : '#CBD5E1'}; background: ${m.id === currentModelId ? 'var(--primary)' : 'transparent'};">
                 ${m.id === currentModelId ? '<div class="w-2 h-2 rounded-full bg-white"></div>' : ''}
               </div>
             </div>
           `).join('')}
         </div>
 
-        <div class="mt-4 pt-3 border-t border-[rgba(124,58,237,0.12)] flex justify-end flex-shrink-0">
+        <div class="mt-4 pt-3 flex justify-end flex-shrink-0" style="border-top: 1px solid rgba(124, 58, 237, 0.14);">
           <button type="button" class="btn-ghost px-5 py-2 rounded-xl text-xs font-bold" id="btn-close-model-modal-bottom">Đóng</button>
         </div>
       </div>
@@ -411,16 +411,18 @@ export async function renderSettingsPage(onSaveComplete) {
 
           // Update active border styles in popup list
           document.querySelectorAll('#model-list-container .model-select-item').forEach(el => {
-            el.className = 'model-select-item flex items-center justify-between p-3 rounded-2xl border border-[rgba(124,58,237,0.12)] hover:bg-slate-50 cursor-pointer transition';
+            el.style.borderColor = 'rgba(124, 58, 237, 0.14)';
+            el.classList.remove('bg-[var(--primary-soft)]', 'font-bold');
           });
-          item.className = 'model-select-item flex items-center justify-between p-3 rounded-2xl border border-[var(--primary)] bg-[var(--primary-soft)] font-bold cursor-pointer transition';
+          item.style.borderColor = 'var(--primary)';
+          item.classList.add('bg-[var(--primary-soft)]', 'font-bold');
 
           closeModelModal();
         }
       });
     });
 
-    // 3. DARK MODE / LIGHT MODE TOGGLE (Requirement #6)
+    // 3. DARK MODE / LIGHT MODE TOGGLE
     const themeSwitch = document.getElementById('toggle-theme-switch');
     themeSwitch?.addEventListener('click', () => {
       document.body.classList.toggle('dark');
@@ -431,6 +433,12 @@ export async function renderSettingsPage(onSaveComplete) {
       if (statusText) {
         statusText.textContent = isDarkNow ? 'Giao diện Tối (Dark Mode)' : 'Giao diện Sáng (Light Mode)';
       }
+
+      const themeIcon = document.getElementById('theme-icon-indicator');
+      if (themeIcon) {
+        themeIcon.setAttribute('data-lucide', isDarkNow ? 'sun' : 'moon');
+        if (window.lucide) window.lucide.createIcons();
+      }
     });
 
     // Image analysis toggle
@@ -438,7 +446,7 @@ export async function renderSettingsPage(onSaveComplete) {
       this.classList.toggle('active');
     });
 
-    // 4. ALLERGY TAGS INTERACTIVE LOGIC (Requirement #4: Uses Modal.prompt instead of browser prompt)
+    // 4. ALLERGY TAGS INTERACTIVE LOGIC
     const renderAllergyTags = () => {
       const container = document.getElementById('allergy-pills-container');
       if (!container) return;
@@ -449,7 +457,7 @@ export async function renderSettingsPage(onSaveComplete) {
             ${tag} <i data-lucide="x" class="w-3.5 h-3.5 cursor-pointer hover:text-red-500 remove-allergy-tag" data-tag="${tag}"></i>
           </span>
         `).join('')}
-        <button type="button" id="btn-add-allergy-tag" class="flex items-center gap-1 px-3 py-1.5 border border-dashed border-[var(--border)] text-[var(--muted)] text-xs font-bold rounded-full hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+        <button type="button" id="btn-add-allergy-tag" class="flex items-center gap-1 px-3 py-1.5 text-[var(--muted)] text-xs font-bold rounded-full hover:text-[var(--primary)] transition" style="border: 1px dashed rgba(124, 58, 237, 0.35);">
           <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm mục
         </button>
       `;
