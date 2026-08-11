@@ -26,6 +26,10 @@ export async function renderSettingsPage(onSaveComplete) {
   const currentModelObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId) || CONFIG.SUPPORTED_MODELS[0];
   const isDarkMode = document.body.classList.contains('dark');
 
+  const goal = await DataService.getUserGoal();
+  const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 100;
+  const currentJourneyDay = DataService.calculateCurrentJourneyDay ? DataService.calculateCurrentJourneyDay(goal.startDate) : 2;
+
   const pageHtml = `
     <div class="max-w-3xl mx-auto px-4 py-6 md:px-8 md:py-8 space-y-6 fade-up">
       
@@ -39,17 +43,30 @@ export async function renderSettingsPage(onSaveComplete) {
 
       <!-- ==================== 1. PROFILE & BODY STATS CARD ==================== -->
       <div class="card p-6 fade-up" style="animation-delay: 0.1s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
-        <!-- Top Profile Info (No PRO crown badge) -->
-        <div class="flex flex-col md:flex-row md:items-center gap-6 pb-6 mb-6" style="border-bottom: 1px solid rgba(124, 58, 237, 0.14);">
-          <div class="relative flex-shrink-0">
-            <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-md" style="border: 2.5px solid var(--primary-light, #8B5CF6);">
+        <!-- Top Profile Info with Right Side Journey Day Box -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 mb-6" style="border-bottom: 1px solid rgba(124, 58, 237, 0.14);">
+          <div class="flex items-center gap-5">
+            <div class="relative flex-shrink-0">
+              <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-md" style="border: 2.5px solid var(--primary-light, #8B5CF6);">
+            </div>
+            <div>
+              <h2 class="display text-2xl font-semibold" id="disp-profile-name" style="color: var(--fg);">${profile.name || 'Chiến Binh Fitness'}</h2>
+              <p class="text-sm text-[var(--muted)]" id="disp-profile-email">${profile.email || 'fitness_warrior@ai.app'}</p>
+              <button class="btn-ghost mt-3 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 w-fit" id="btn-toggle-edit-box" style="border: 1px solid rgba(124, 58, 237, 0.2);">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> <span id="btn-edit-label">Chỉnh sửa hồ sơ</span>
+              </button>
+            </div>
           </div>
-          <div class="flex-1">
-            <h2 class="display text-2xl font-semibold" id="disp-profile-name" style="color: var(--fg);">${profile.name || 'Chiến Binh Fitness'}</h2>
-            <p class="text-sm text-[var(--muted)]" id="disp-profile-email">${profile.email || 'fitness_warrior@ai.app'}</p>
-            <button class="btn-ghost mt-3 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 w-fit" id="btn-toggle-edit-box" style="border: 1px solid rgba(124, 58, 237, 0.2);">
-              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> <span id="btn-edit-label">Chỉnh sửa hồ sơ</span>
-            </button>
+
+          <!-- Journey Day Badge Box (Fills right side empty space) -->
+          <div class="flex items-center gap-3.5 p-4 rounded-2xl shadow-sm self-start md:self-center" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.16);">
+            <div class="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[var(--primary)] shadow-sm flex-shrink-0">
+              <i data-lucide="calendar" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-extrabold">Hành Trình AI</div>
+              <div class="display text-xl md:text-2xl font-bold text-[var(--primary)]">Ngày ${currentJourneyDay}/${totalJourneyDays}</div>
+            </div>
           </div>
         </div>
 
