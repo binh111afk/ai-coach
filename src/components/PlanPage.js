@@ -426,83 +426,89 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       </div>
     </div>
 
-    <!-- POPUP 2: Modal Chi Tiết Thực Đơn & Công Thức Chế Biến (Recipe Details Modal) -->
-    <div class="modal-overlay" id="recipe-details-modal">
-      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
-        <div class="flex justify-between items-start mb-4">
-          <div>
-            <span class="text-xs font-bold px-3 py-1 rounded-full inline-block mb-1" style="background: #FEF3C7; color: #F59E0B;" id="rd-modal-type-badge">Bữa Sáng</span>
-            <h3 id="rd-modal-title" class="display text-2xl font-semibold" style="color: var(--accent-purple);">1 bát phở gà nạc kho gừng</h3>
-          </div>
-          <button class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-rd-modal">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
+    <!-- POPUP 2: Modal Chi Tiết Thực Đơn & Công Thức Chế Biến (Recipe Details Popup Sheet) -->
+    <div class="recipe-popup-overlay" id="recipe-details-modal">
+      <div class="recipe-popup-sheet" onclick="event.stopPropagation()">
+        <div class="drag-handle"></div>
+        
+        <!-- Hero Image Header -->
+        <div class="relative">
+          <img id="rd-modal-hero-img" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80" alt="Recipe Hero" class="hero-img">
+          <div class="hero-overlay"></div>
         </div>
 
-        <!-- Khối 1: Nguyên liệu cần mua & Giá ước tính -->
-        <div class="p-4 rounded-2xl mb-4" style="background: rgba(124, 58, 237, 0.04); border: 1px solid var(--border-color);">
-          <div class="flex justify-between items-center mb-3">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
-                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+        <div class="p-6 pt-4 -mt-16 relative z-10">
+          <!-- Header Title & Close Button -->
+          <div class="flex justify-between items-start mb-5">
+            <div>
+              <span id="rd-modal-type-badge" class="text-[10px] font-bold text-[var(--accent-purple)] bg-[var(--primary-soft)] px-2.5 py-1 rounded-md uppercase tracking-wider">Bữa Snack · 5 Phút</span>
+              <h2 id="rd-modal-title" class="display text-2xl font-semibold mt-2 leading-tight" style="color: var(--text-main);">Sinh Tố Dâu Tây <br>Ít Đường (1 Phần)</h2>
+            </div>
+            <button id="btn-close-rd-modal" class="w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-gray-600 hover:bg-white transition cursor-pointer flex-shrink-0 shadow-sm">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Media Link Inputs (Image & Video Realtime Updates with Both-Required Validation) -->
+          <div class="mb-6 p-3.5 rounded-2xl border border-dashed border-[var(--accent-purple)]" style="background: var(--primary-soft);">
+            <div class="flex justify-between items-center mb-2 flex-wrap gap-1">
+              <label class="text-xs font-bold text-[var(--accent-purple)] flex items-center gap-1">
+                <i data-lucide="image-plus" class="w-3.5 h-3.5"></i> Cập Nhật Link Ảnh & Link Video Thực Đơn:
+              </label>
+              <div class="flex gap-2 text-xs">
+                <a id="rd-tiktok-search-btn" href="#" target="_blank" rel="noopener" class="font-semibold text-[var(--accent-purple)] hover:underline">🎵 TikTok</a>
+                <a id="rd-youtube-search-btn" href="#" target="_blank" rel="noopener" class="font-semibold text-[var(--accent-purple)] hover:underline">▶ YouTube</a>
               </div>
-              <h4 class="font-bold text-sm" style="color: var(--text-main);">Nguyên Liệu Cần Mua & Giá Ước Tính</h4>
             </div>
-            <div class="text-xs font-bold px-3 py-1 rounded-full" style="background: var(--primary-soft); color: var(--accent-purple);" id="rd-modal-total-cost">30.000 VNĐ</div>
-          </div>
-          <div class="space-y-2" id="rd-modal-ingredients-container"></div>
-        </div>
-
-        <!-- Khối 2: Hướng dẫn cách làm / Chế biến (Numbered Steps) -->
-        <div class="p-4 rounded-2xl mb-4" style="background: rgba(124, 58, 237, 0.04); border: 1px solid var(--border-color);">
-          <div class="flex items-center gap-2 mb-3">
-            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
-              <i data-lucide="utensils" class="w-4 h-4"></i>
+            <div class="space-y-2 mb-2">
+              <div class="flex items-center gap-2 bg-[var(--bg-card)] rounded-xl px-3 py-1.5 border border-gray-200">
+                <i data-lucide="image" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+                <input type="text" id="rd-custom-image-input" placeholder="Dán link Ảnh minh họa (URL image / Unsplash)..." class="text-xs flex-1 bg-transparent border-none focus:outline-none font-medium py-1" style="color: var(--text-main);" />
+              </div>
+              <div class="flex items-center gap-2 bg-[var(--bg-card)] rounded-xl px-3 py-1.5 border border-gray-200">
+                <i data-lucide="video" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+                <input type="text" id="rd-custom-video-input" placeholder="Dán link Video TikTok / YouTube..." class="text-xs flex-1 bg-transparent border-none focus:outline-none font-medium py-1" style="color: var(--text-main);" />
+              </div>
             </div>
-            <h4 class="font-bold text-sm" style="color: var(--text-main);">Hướng Dẫn Cách Làm / Chế Biến</h4>
-          </div>
-          <div class="space-y-2 relative pl-2" id="rd-modal-instructions-container"></div>
-        </div>
-
-        <!-- Khối 3: Video Hướng Dẫn Chế Biến -->
-        <div id="rd-modal-video-section" class="mb-4">
-          <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-            <h4 class="font-bold text-sm flex items-center gap-2" style="color: var(--text-main);">
-              <i data-lucide="video" class="w-4 h-4 text-red-500"></i> Video Hướng Dẫn Chế Biến:
-            </h4>
-            <div class="flex gap-2">
-              <a id="rd-tiktok-search-btn" href="#" target="_blank" rel="noopener" class="btn-ghost px-3 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-1">
-                🎵 TikTok ↗
-              </a>
-              <a id="rd-youtube-search-btn" href="#" target="_blank" rel="noopener" class="btn-ghost px-3 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-1">
-                ▶ YouTube ↗
-              </a>
-            </div>
+            <button type="button" id="btn-rd-apply-media" class="btn-primary w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+              <i data-lucide="check" class="w-4 h-4"></i> Xác Nhận Cập Nhật Ảnh & Video Realtime
+            </button>
           </div>
 
-          <div class="p-3.5 rounded-2xl border border-dashed border-[var(--accent-purple)] mb-3" style="background: var(--primary-soft);">
-            <label class="text-xs font-bold block mb-2" style="color: var(--accent-purple);">
-              <i data-lucide="link" class="w-3.5 h-3.5 inline mr-1"></i> Dán Link Video TikTok / YouTube Đổi Video Chế Biến:
-            </label>
-            <div class="flex gap-2 items-center flex-wrap">
-              <input type="text" class="form-input text-xs flex-1 rounded-xl px-3 py-2" id="rd-custom-video-input" onfocus="this.select()" placeholder="Dán link TikTok hoặc YouTube..." style="background: var(--bg-input); color: var(--text-main);" />
-              <button type="button" class="btn-primary btn-sm text-xs font-bold px-4 py-2 rounded-xl" id="btn-rd-apply-video">
-                ✓ Xác Nhận Đổi Video
-              </button>
+          <!-- Video Frame Display -->
+          <div class="video-thumb mb-6 relative">
+            <iframe id="rd-modal-iframe" class="w-full h-full border-0 absolute inset-0 z-10" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          </div>
+
+          <!-- Ingredients & Estimated Cost Breakdown -->
+          <div class="mb-6">
+            <h3 class="text-xs font-bold text-muted uppercase tracking-wider mb-3 flex items-center gap-2" style="color: var(--text-muted);">
+              <i data-lucide="shopping-basket" class="w-4 h-4 text-[var(--accent-purple)]"></i> Nguyên Liệu & Chi Phí
+            </h3>
+            <div class="space-y-2" id="rd-modal-ingredients-container">
+              <!-- Ingredients rendered dynamically -->
+            </div>
+            <div class="flex justify-between items-center mt-3 pt-3 border-t border-dashed border-gray-200">
+              <span class="text-xs font-bold uppercase" style="color: var(--text-muted);">Tổng chi phí ước tính</span>
+              <span class="display text-xl font-bold" style="color: var(--accent-purple);" id="rd-modal-total-cost">35.000 VNĐ</span>
             </div>
           </div>
 
-          <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-2xl bg-black shadow-sm">
-            <iframe id="rd-modal-iframe" class="absolute top-0 left-0 w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          <!-- Step-by-Step Timeline Instructions -->
+          <div class="mb-6">
+            <h3 class="text-xs font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2" style="color: var(--text-muted);">
+              <i data-lucide="list-checks" class="w-4 h-4 text-[var(--accent-purple)]"></i> Các Bước Thực Hiện
+            </h3>
+            <div id="rd-modal-instructions-container">
+              <!-- Timeline items rendered dynamically -->
+            </div>
           </div>
-        </div>
 
-        <!-- Actions -->
-        <div class="flex gap-3">
-          <button class="btn-ghost flex-1 py-3 rounded-2xl text-xs font-semibold" id="btn-close-rd-modal-bottom">Đóng</button>
-          <button class="btn-primary flex-1 py-3 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5" id="btn-apply-single-meal-to-today">
-            <i data-lucide="plus-circle" class="w-4 h-4"></i> Ghi Nhận Món Này Vào Nhật Ký
+          <!-- Actions -->
+          <button class="btn-primary w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer" id="btn-apply-single-meal-to-today">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i> Ghi Nhận Món Này Vào Nhật Ký
           </button>
+
         </div>
       </div>
     </div>
@@ -821,6 +827,11 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       if (!mealObj || !rdModal) return;
       activeRecipeMeal = mealObj;
 
+      const heroImg = document.getElementById('rd-modal-hero-img');
+      if (heroImg) {
+        heroImg.src = mealObj.imageUrl || mealObj.photoUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80';
+      }
+
       document.getElementById('rd-modal-type-badge').innerText = typeLabel || 'Bữa Ăn';
       document.getElementById('rd-modal-title').innerText = mealObj.name || 'Thực đơn AI';
       document.getElementById('rd-modal-total-cost').innerText = `${(mealObj.costVnd || 30000).toLocaleString('vi-VN')} VNĐ`;
@@ -839,9 +850,11 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           { name: 'Rau củ / Gia vị đi kèm', amount: 'Vừa đủ', estPriceVnd: Math.round((mealObj.costVnd || 30000) * 0.3) }
         ];
         ingContainer.innerHTML = ingList.map(ing => `
-          <div class="flex justify-between items-center p-3 rounded-2xl" style="background: rgba(124, 58, 237, 0.06);">
-            <span class="text-xs font-semibold" style="color: var(--text-main);">${ing.name} <span class="text-muted font-normal">(${ing.amount})</span></span>
-            <span class="text-xs font-bold" style="color: var(--accent-purple);">${((ing.estPriceVnd || ing.estCostVnd || 0)).toLocaleString('vi-VN')} VNĐ</span>
+          <div class="price-tag">
+            <span class="text-sm font-medium flex items-center gap-2" style="color: var(--text-main);">
+              <span class="w-2 h-2 rounded-full bg-[var(--accent-purple)]"></span> ${ing.name} <span class="text-xs text-muted font-normal">(${ing.amount})</span>
+            </span>
+            <span class="text-sm font-bold text-[var(--accent-purple)]">${((ing.estPriceVnd || ing.estCostVnd || 0)).toLocaleString('vi-VN')} VNĐ</span>
           </div>
         `).join('');
       }
@@ -855,13 +868,16 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         ];
         instContainer.innerHTML = stepList.map((st, i) => {
           const stepText = typeof st === 'string' ? st.replace(/^\d+\.\s*/, '') : st;
+          const parts = stepText.split(/[:·\-\|]/);
+          const stepTitle = parts.length > 1 ? parts[0].trim() : `Bước ${i + 1}`;
+          const stepBody = parts.length > 1 ? parts.slice(1).join(' · ').trim() : stepText;
+
           return `
-            <div class="flex items-start gap-3 p-3 rounded-2xl" style="background: rgba(124, 58, 237, 0.06);">
-              <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background: var(--accent-purple);">
-                ${i + 1}
-              </div>
-              <div class="text-xs leading-relaxed pt-0.5" style="color: var(--text-main); font-weight: 500;">
-                ${stepText}
+            <div class="timeline-item">
+              <div class="timeline-icon">${i + 1}</div>
+              <div class="bg-[var(--primary-soft)] rounded-xl p-3 border border-[var(--border)]">
+                <div class="font-bold text-sm text-[var(--accent-purple)]">${stepTitle}</div>
+                <p class="text-xs text-gray-600 mt-1">${stepBody}</p>
               </div>
             </div>
           `;
@@ -877,33 +893,67 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       const ytBtn = document.getElementById('rd-youtube-search-btn');
       if (ytBtn) ytBtn.href = ytSearchUrl;
 
-      let embedUrl = parseEmbedVideoUrl(details.youtubeEmbedUrl);
+      let embedUrl = parseEmbedVideoUrl(details.youtubeEmbedUrl || mealObj.videoUrl);
       if (!embedUrl) embedUrl = 'https://www.youtube.com/embed/a7GXmE-D4uE';
 
       const iframeEl = document.getElementById('rd-modal-iframe');
       if (iframeEl) iframeEl.src = embedUrl;
 
-      const customInput = document.getElementById('rd-custom-video-input');
-      if (customInput) customInput.value = details.youtubeEmbedUrl || '';
+      const customImgInput = document.getElementById('rd-custom-image-input');
+      if (customImgInput) customImgInput.value = mealObj.imageUrl || mealObj.photoUrl || '';
+
+      const customVidInput = document.getElementById('rd-custom-video-input');
+      if (customVidInput) customVidInput.value = details.youtubeEmbedUrl || mealObj.videoUrl || '';
 
       rdModal.classList.add('active');
     };
 
-    document.getElementById('btn-rd-apply-video')?.addEventListener('click', () => {
-      const customInput = document.getElementById('rd-custom-video-input');
-      const val = customInput ? customInput.value.trim() : '';
-      const iframeEl = document.getElementById('rd-modal-iframe');
+    // Realtime Media Links (Image & Video) Submit Handler with Both-Required Validation
+    const btnApplyMedia = document.getElementById('btn-rd-apply-media');
+    if (btnApplyMedia) {
+      btnApplyMedia.onclick = () => {
+        const imgInput = document.getElementById('rd-custom-image-input');
+        const vidInput = document.getElementById('rd-custom-video-input');
+        const imgVal = imgInput ? imgInput.value.trim() : '';
+        const vidVal = vidInput ? vidInput.value.trim() : '';
 
-      if (val && iframeEl) {
-        const parsed = parseEmbedVideoUrl(val);
-        if (parsed) {
-          iframeEl.src = parsed;
-          confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
-        } else {
-          Modal.alert({ title: 'Link không hợp lệ', message: 'Vui lòng dán đường dẫn link YouTube hoặc TikTok hợp lệ!' });
+        // Validation: BOTH image URL AND video URL are required (thiếu 1 trong 2 thì hiện cảnh báo)
+        if (!imgVal || !vidVal) {
+          return Modal.warning({
+            title: 'Thiếu Thông Tin Link',
+            message: 'Vui lòng dán ĐẦY ĐỦ cả Link Ảnh minh họa và Link Video trước khi bấm xác nhận!'
+          });
         }
-      }
-    });
+
+        const parsedVid = parseEmbedVideoUrl(vidVal);
+        if (!parsedVid) {
+          return Modal.warning({
+            title: 'Link Video Không Hợp Lệ',
+            message: 'Vui lòng dán đường dẫn link YouTube hoặc TikTok hợp lệ!'
+          });
+        }
+
+        // Realtime Updates
+        const heroImg = document.getElementById('rd-modal-hero-img');
+        if (heroImg) heroImg.src = imgVal;
+
+        const iframeEl = document.getElementById('rd-modal-iframe');
+        if (iframeEl) iframeEl.src = parsedVid;
+
+        if (activeRecipeMeal) {
+          activeRecipeMeal.imageUrl = imgVal;
+          activeRecipeMeal.photoUrl = imgVal;
+          activeRecipeMeal.youtubeEmbedUrl = vidVal;
+          activeRecipeMeal.videoUrl = vidVal;
+        }
+
+        confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+        Modal.success({
+          title: 'Cập Nhật Thành Công!',
+          message: 'Đã cập nhật cả Ảnh minh họa và Video hướng dẫn Realtime thành công!'
+        });
+      };
+    }
 
     const closeRdModal = () => {
       if (rdModal) {
@@ -914,8 +964,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
     };
 
     document.getElementById('btn-close-rd-modal')?.addEventListener('click', closeRdModal);
-    document.getElementById('btn-close-rd-modal-bottom')?.addEventListener('click', closeRdModal);
-    rdModal?.addEventListener('click', (e) => { if (!e.target.closest('.modal-card')) closeRdModal(); });
+    rdModal?.addEventListener('click', (e) => { if (e.target === rdModal) closeRdModal(); });
 
     document.getElementById('btn-apply-single-meal-to-today')?.addEventListener('click', async () => {
       if (activeRecipeMeal) {
