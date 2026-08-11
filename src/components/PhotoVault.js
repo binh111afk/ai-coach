@@ -303,7 +303,25 @@ export async function renderPhotoVault() {
 
     // UPLOAD MODAL CONTROL HANDLERS
     const uploadModal = document.getElementById('uploadModal');
-    const openUploadModal = () => {
+    const openUploadModal = (resetData = true) => {
+      if (resetData) {
+        currentUploadingDataUrl = null;
+        const modalInput = document.getElementById('photo-file-modal-input');
+        const hiddenInput = document.getElementById('photo-file-hidden-input');
+        if (modalInput) modalInput.value = '';
+        if (hiddenInput) hiddenInput.value = '';
+
+        const previewContainer = document.getElementById('modal-upload-preview-container');
+        const previewImg = document.getElementById('modal-upload-preview-img');
+        const statusText = document.getElementById('upload-file-status-text');
+        const noteInput = document.getElementById('input-modal-upload-note');
+
+        if (previewContainer) previewContainer.classList.add('hidden');
+        if (previewImg) previewImg.src = '';
+        if (statusText) statusText.innerText = 'Kéo thả hoặc bấm để chọn ảnh';
+        if (noteInput) noteInput.value = '';
+      }
+
       uploadModal.classList.remove('hidden');
       uploadModal.classList.add('flex');
     };
@@ -312,10 +330,10 @@ export async function renderPhotoVault() {
       uploadModal.classList.remove('flex');
     };
 
-    document.getElementById('btn-placeholder-upload')?.addEventListener('click', openUploadModal);
+    document.getElementById('btn-placeholder-upload')?.addEventListener('click', () => openUploadModal(true));
     document.getElementById('btn-trigger-upload')?.addEventListener('click', (e) => {
       e.preventDefault();
-      openUploadModal();
+      openUploadModal(true);
     });
     document.getElementById('btn-close-upload-modal')?.addEventListener('click', closeUploadModal);
     uploadModal?.addEventListener('click', (e) => {
@@ -344,8 +362,8 @@ export async function renderPhotoVault() {
     });
 
     document.getElementById('photo-file-hidden-input')?.addEventListener('change', (e) => {
+      openUploadModal(false);
       handleFileSelect(e.target.files[0]);
-      openUploadModal();
     });
 
     // SUBMIT UPLOAD PHOTO WITH OVERWRITE WARNING MODAL
