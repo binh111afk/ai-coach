@@ -4706,3 +4706,192 @@ body.dark .lrm-item.current .lrm-card {
 .lrm-item.current .lrm-dot {
   box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2), 0 4px 12px rgba(124, 58, 237, 0.4);
 }
+
+/* =========================================================
+   MEAL TRACKER V2 & MODERN NAV DESIGN SYSTEM
+   ========================================================= */
+
+.display {
+  font-family: 'Fraunces', 'Sora', serif;
+  font-feature-settings: 'ss01';
+}
+
+/* Multi-layer soft gradient background */
+.bg-grain {
+  background-image:
+    radial-gradient(at 15% 0%, rgba(139, 92, 246, 0.06) 0px, transparent 50%),
+    radial-gradient(at 85% 5%, rgba(217, 70, 239, 0.04) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(124, 58, 237, 0.03) 0px, transparent 55%);
+}
+
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 36px -18px rgba(124, 58, 237, 0.18);
+}
+
+body.dark .card-hover:hover {
+  box-shadow: 0 20px 36px -18px rgba(168, 145, 255, 0.25);
+}
+
+/* Calorie Ring SVG */
+.ring-bg {
+  stroke: rgba(124, 58, 237, 0.08);
+}
+body.dark .ring-bg {
+  stroke: rgba(168, 145, 255, 0.12);
+}
+
+.ring-fg {
+  stroke: url(#calGrad);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Macro progress bar */
+.macro-bar {
+  height: 7px;
+  background: rgba(124, 58, 237, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+body.dark .macro-bar {
+  background: rgba(168, 145, 255, 0.14);
+}
+
+.macro-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+  width: 0;
+}
+
+/* Meal card hover accent line */
+.meal-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.meal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-purple), #D946EF);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+
+.meal-card:hover::before {
+  transform: scaleX(1);
+}
+
+/* Date Pill Selector */
+.date-pill {
+  width: 48px;
+  height: 62px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+}
+
+.date-pill:hover {
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--text-main);
+}
+
+.date-pill.active {
+  background: var(--accent-purple);
+  color: #FFFFFF !important;
+  box-shadow: 0 10px 22px -6px rgba(124, 58, 237, 0.45);
+}
+
+.date-pill.active span {
+  color: #FFFFFF !important;
+}
+
+/* Food row */
+.food-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px dashed rgba(124, 58, 237, 0.12);
+}
+.food-row:last-child {
+  border-bottom: none;
+}
+
+/* Empty bowl container */
+.empty-bowl {
+  background: radial-gradient(circle at 50% 40%, rgba(139, 92, 246, 0.12), transparent 70%);
+}
+
+/* Segmented button control */
+.seg {
+  background: rgba(124, 58, 237, 0.06);
+  border-radius: 999px;
+  padding: 4px;
+}
+body.dark .seg {
+  background: rgba(168, 145, 255, 0.12);
+}
+
+.seg-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.seg-btn.active {
+  background: var(--bg-card);
+  color: var(--accent-purple);
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+}
+
+/* Food suggestion chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent-purple);
+  background: var(--accent-purple-light);
+  transform: translateY(-1px);
+}
+
+/* Animated dots */
+@keyframes dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.dot {
+  animation: dot 1.4s ease-in-out infinite;
+}

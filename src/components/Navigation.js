@@ -55,23 +55,6 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <!-- Sleek Vibrant Level & XP Badge -->
-          <div style="display: flex; align-items: center; gap: 0.6rem; background: linear-gradient(135deg, rgba(117, 86, 217, 0.12), rgba(168, 145, 255, 0.08)); padding: 0.35rem 0.85rem; border-radius: var(--radius-full); border: 1.5px solid rgba(117, 86, 217, 0.3); box-shadow: 0 4px 12px rgba(117, 86, 217, 0.1); cursor: pointer; transition: all 0.2s ease;" id="btn-level-widget" title="Xem Lộ Trình Cấp Độ & XP">
-            <div id="nav-level-badge-text" style="display: flex; align-items: center; gap: 0.35rem; background: linear-gradient(135deg, #7556D9, #6042C0); color: #FFFFFF; padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.775rem; box-shadow: 0 2px 8px rgba(117, 86, 217, 0.3);">
-              Lvl ${levelInfo.currentLevel.level}/${levelInfo.maxLevel}
-            </div>
-            <div style="width: 60px; height: 7px; background: rgba(117, 86, 217, 0.18); border-radius: 10px; overflow: hidden; position: relative;">
-              <div id="nav-level-bar-fill" style="width: ${levelInfo.progressPercent}%; height: 100%; background: linear-gradient(90deg, #7556D9, #A891FF); border-radius: 10px; box-shadow: 0 0 8px rgba(117, 86, 217, 0.6);"></div>
-            </div>
-            <span id="nav-level-xp-text" style="font-weight: 800; font-size: 0.8rem; color: #7556D9;">${progress.totalXp} <span style="font-size: 0.7rem; color: var(--text-muted);">XP</span></span>
-          </div>
-
-          <!-- Interactive Journey Day Progress Badge (Thay thế nút AI Coach cũ) -->
-          <div style="display: flex; align-items: center; gap: 0.45rem; background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.08)); border: 1.5px solid rgba(245, 158, 11, 0.35); padding: 0.4rem 0.85rem; border-radius: var(--radius-full); font-weight: 800; font-size: 0.825rem; color: #D97706; cursor: pointer; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.12); transition: all 0.2s ease;" id="btn-journey-day-widget" title="Bấm để chỉnh sửa Ngày trong hành trình">
-            <i data-lucide="flag" style="width: 14px; height: 14px; color: #D97706;"></i>
-            <span>Ngày ${currentDay}/${totalDays}</span>
-          </div>
-
           <!-- Light/Dark Mode Switcher -->
           <button class="btn btn-secondary btn-icon" id="btn-toggle-theme" title="Chuyển chế độ Sáng / Tối">
             <i data-lucide="${isDark ? 'sun' : 'moon'}"></i>
