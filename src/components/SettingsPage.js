@@ -2,230 +2,294 @@ import { DataService, generate7DayMealPlan } from '../services/dataService.js';
 import { dbManager } from '../services/db.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges } from '../services/gamificationService.js';
 import { CONFIG } from '../config.js';
-import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
+import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 
 export async function renderSettingsPage(onSaveComplete) {
   const profile = await DataService.getUserProfile();
-  const selectedModel = await DataService.getSelectedModel();
+  const selectedModelId = await DataService.getSelectedModel();
   const plan = await DataService.getUserPlan();
 
-  let currentSelectedModel = selectedModel;
+  let currentModelId = selectedModelId;
   let newAvatarBase64 = null;
 
-  const modelOptions = CONFIG.SUPPORTED_MODELS.map(m => ({
-    value: m.id,
-    label: m.name
-  }));
+  // Process food allergies into an array of string tags
+  let allergyList = profile.foodAllergies
+    ? profile.foodAllergies.split(',').map(s => s.trim()).filter(Boolean)
+    : ['Hải sản', 'Muối biển'];
+
+  // Helper to format currency display
+  const formatCurrency = (val) => Number(val || 0).toLocaleString('vi-VN');
+
+  // Compute BMR & TDEE
+  const bmrVal = Math.round(calculateBMR(profile.gender || 'male', profile.currentWeight || 77, profile.height || 171, profile.age || 19));
+  const tdeeVal = Math.round(calculateTDEE(bmrVal, profile.activityLevel || 1.2));
+
+  // Find active model object
+  const currentModelObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId) || CONFIG.SUPPORTED_MODELS[0];
 
   const pageHtml = `
-    <div class="settings-page-container p-4 md:p-6 max-w-6xl mx-auto space-y-6 fade-up">
-      <!-- HEADER HERO CARD -->
-      <div class="card p-6 md:p-8 rounded-3xl relative overflow-hidden" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(217, 70, 239, 0.04) 100%); border: 1px solid rgba(124, 58, 237, 0.18);">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <div class="flex items-center gap-2 mb-2">
-              <span class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider" style="background: var(--primary-soft); color: var(--accent-purple);">
-                ⚙️ System & Profile
-              </span>
-              <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: rgba(16, 185, 129, 0.1); color: #10B981;">
-                ✓ Đã đồng bộ Cloud
-              </span>
+    <div class="max-w-3xl mx-auto px-4 py-6 md:px-8 md:py-8 space-y-6 fade-up">
+      
+      <!-- ==================== HEADER ==================== -->
+      <div class="fade-up">
+        <h1 class="display text-3xl md:text-4xl font-medium leading-[1.1]" style="color: var(--fg);">
+          Cài Đặt <span class="italic text-[var(--primary)]">Hồ Sơ & AI</span>
+        </h1>
+        <p class="text-sm md:text-base mt-1.5" style="color: var(--muted);">Quản lý thông tin cá nhân, mục tiêu và cấu hình hệ thống AI.</p>
+      </div>
+
+      <!-- ==================== 1. PROFILE & BODY STATS CARD ==================== -->
+      <div class="card p-6 fade-up" style="animation-delay: 0.1s">
+        <!-- Top Profile Info -->
+        <div class="flex flex-col md:flex-row md:items-center gap-6 pb-6 mb-6 border-b border-[var(--border)]">
+          <div class="relative flex-shrink-0">
+            <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-lg border-2 border-[var(--primary-light)]">
+            <div class="absolute -bottom-1 -right-1 bg-[var(--amber)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 border-2 border-white">
+              <i data-lucide="crown" class="w-3 h-3"></i> PRO
             </div>
-            <h1 class="display text-2xl md:text-3xl font-bold" style="color: var(--text-main);">Cài Đặt Hệ Thống & Hồ Sơ AI</h1>
-            <p class="text-xs md:text-sm text-muted mt-1 max-w-xl" style="color: var(--text-muted);">
-              Tùy chỉnh thông tin thể trạng, chọn AI Model (9router), cài đặt ngân sách ăn uống và danh sách món dị ứng để AI Coach lập kế hoạch tối ưu nhất.
-            </p>
           </div>
-          <div class="flex items-center gap-3 flex-wrap">
-            <button class="btn-primary px-5 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-md" id="btn-save-settings">
-              <i data-lucide="check-circle-2" class="w-4 h-4"></i> Lưu Tất Cả Thay Đổi
+          <div class="flex-1">
+            <h2 class="display text-2xl font-semibold" id="disp-profile-name" style="color: var(--fg);">${profile.name || 'Chiến Binh Fitness'}</h2>
+            <p class="text-sm text-[var(--muted)]" id="disp-profile-email">${profile.email || 'fitness_warrior@ai.app'}</p>
+            <button class="btn-ghost mt-3 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 w-fit" id="btn-toggle-edit-box">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> <span id="btn-edit-label">Chỉnh sửa hồ sơ</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- INLINE EDITING EXPANDABLE BOX (Toggles when clicking Chỉnh sửa hồ sơ) -->
+        <div id="profile-edit-box" class="hidden p-5 rounded-2xl mb-6 border border-dashed border-[var(--primary-light)]" style="background: var(--primary-soft);">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-sm flex items-center gap-1.5 text-[var(--primary)]">
+              <i data-lucide="user-check" class="w-4 h-4"></i> Cập Nhật Thông Tin Hồ Sơ
+            </h3>
+            <button type="button" id="btn-cancel-edit-box" class="text-xs font-semibold text-[var(--muted)] hover:text-red-500">✕ Đóng</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Họ & Tên</label>
+              <input type="text" id="edit-input-name" value="${profile.name || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+            </div>
+
+            <div>
+              <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Email Liên Hệ</label>
+              <input type="email" id="edit-input-email" value="${profile.email || ''}" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+            </div>
+
+            <div>
+              <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Tuổi (năm)</label>
+              <input type="number" id="edit-input-age" value="${profile.age || 19}" min="12" max="100" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+            </div>
+
+            <div>
+              <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Chiều cao (cm)</label>
+              <input type="number" id="edit-input-height" value="${profile.height || 171}" min="100" max="230" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+            </div>
+
+            <div>
+              <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Cân nặng (kg)</label>
+              <input type="number" id="edit-input-weight" value="${profile.currentWeight || 77}" step="0.1" class="w-full px-3 py-2 rounded-xl text-xs border border-[var(--border)] bg-white font-semibold">
+            </div>
+
+            <div>
+              <label class="text-xs font-bold block mb-1" style="color: var(--fg);">Ảnh đại diện mới</label>
+              <input type="file" id="edit-input-avatar-file" accept="image/*" class="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[var(--primary)] file:text-white cursor-pointer">
+            </div>
+          </div>
+
+          <button class="btn-primary w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5" id="btn-save-inline-profile">
+            <i data-lucide="check" class="w-4 h-4"></i> Cập Nhật Hồ Sơ
+          </button>
+        </div>
+
+        <!-- Body Stats (3 Boxes) -->
+        <div class="grid grid-cols-3 gap-3 mb-6">
+          <div class="bg-[var(--primary-soft)] p-3 md:p-4 rounded-2xl text-center">
+            <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Tuổi</div>
+            <div class="display text-xl md:text-2xl font-semibold mt-1" id="stat-disp-age">${profile.age || 19}</div>
+          </div>
+          <div class="bg-[var(--primary-soft)] p-3 md:p-4 rounded-2xl text-center">
+            <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Chiều cao</div>
+            <div class="display text-xl md:text-2xl font-semibold mt-1"><span id="stat-disp-height">${profile.height || 171}</span> <span class="text-xs font-normal text-[var(--muted)]">cm</span></div>
+          </div>
+          <div class="bg-[var(--primary-soft)] p-3 md:p-4 rounded-2xl text-center">
+            <div class="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Cân nặng</div>
+            <div class="display text-xl md:text-2xl font-semibold mt-1"><span id="stat-disp-weight">${profile.currentWeight || 77}</span> <span class="text-xs font-normal text-[var(--muted)]">kg</span></div>
+          </div>
+        </div>
+
+        <!-- Metabolism Stats (2 Boxes) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="border border-[var(--border)] p-4 rounded-2xl flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-[#DBEAFE] flex items-center justify-center flex-shrink-0">
+              <i data-lucide="flame" class="w-5 h-5 text-[var(--blue)]"></i>
+            </div>
+            <div>
+              <div class="text-xs text-[var(--muted)] font-semibold">BMR (Năng lượng nghỉ)</div>
+              <div class="font-bold text-lg" id="stat-disp-bmr">~${bmrVal.toLocaleString('vi-VN')} kcal</div>
+            </div>
+          </div>
+          <div class="border border-[var(--border)] p-4 rounded-2xl flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-[#FCE7F3] flex items-center justify-center flex-shrink-0">
+              <i data-lucide="zap" class="w-5 h-5 text-[var(--pink)]"></i>
+            </div>
+            <div>
+              <div class="text-xs text-[var(--muted)] font-semibold">TDEE (Tiêu hao/ngày)</div>
+              <div class="font-bold text-lg" id="stat-disp-tdee">~${tdeeVal.toLocaleString('vi-VN')} kcal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 2. AI CONFIGURATION CARD ==================== -->
+      <div class="card p-6 fade-up" style="animation-delay: 0.15s">
+        <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Cấu Hình AI Coach</h3>
+        
+        <!-- Model Selector Button (Click opens Popup Modal) -->
+        <div class="flex items-center justify-between p-4 bg-[var(--primary-soft)] rounded-2xl mb-4 cursor-pointer hover:bg-[#E5DEFF] transition border border-transparent hover:border-[var(--primary-light)]" id="btn-open-model-modal">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--primary)] shadow-sm">
+              <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-sm font-semibold" style="color: var(--fg);">Mô hình AI</div>
+              <div class="text-xs text-[var(--primary)] font-bold flex items-center gap-1.5" id="disp-active-model-name">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> ${currentModelObj.name}
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 text-xs font-bold text-[var(--primary)]">
+            <span>Bấm đổi</span>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--muted)]"></i>
+          </div>
+        </div>
+
+        <!-- AI Toggles -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between py-3">
+            <div class="flex items-center gap-3">
+              <i data-lucide="scan-line" class="w-5 h-5 text-[var(--muted)]"></i>
+              <div>
+                <div class="text-sm font-semibold" style="color: var(--fg);">Phân tích hình ảnh</div>
+                <div class="text-xs text-[var(--muted)]">Nhận diện calo từ ảnh chụp thức ăn</div>
+              </div>
+            </div>
+            <div class="toggle-switch active" id="toggle-image-analysis">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <div class="border-t border-[var(--border)]"></div>
+          <div class="flex items-center justify-between py-3">
+            <div class="flex items-center gap-3">
+              <i data-lucide="message-square-heart" class="w-5 h-5 text-[var(--muted)]"></i>
+              <div>
+                <div class="text-sm font-semibold" style="color: var(--fg);">Giọng điệu AI</div>
+                <div class="text-xs text-[var(--muted)]">Thiết lập phong cách giao tiếp</div>
+              </div>
+            </div>
+            <div class="text-xs font-bold text-[var(--accent)] bg-fuchsia-50 px-2.5 py-1 rounded-lg">Truyền cảm hứng</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 3. DIET & NUTRITION CARD ==================== -->
+      <div class="card p-6 fade-up" style="animation-delay: 0.2s">
+        <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Dinh Dưỡng & Ngân Sách</h3>
+        
+        <!-- Budget -->
+        <div class="mb-5">
+          <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">Ngân sách bữa ăn / ngày</label>
+          <div class="mt-2 flex items-center gap-2 p-3 bg-[var(--primary-soft)] rounded-xl border border-transparent focus-within:bg-white focus-within:border-[var(--primary)] transition">
+            <i data-lucide="wallet" class="w-5 h-5 text-[var(--amber)] flex-shrink-0"></i>
+            <input type="number" id="input-daily-budget" value="${plan.dailyBudgetVnd || 100000}" step="10000" class="flex-1 bg-transparent border-none focus:outline-none font-bold text-base" style="color: var(--fg);">
+            <span class="text-sm font-bold text-[var(--muted)]">VND</span>
+          </div>
+        </div>
+
+        <!-- Allergies -->
+        <div>
+          <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">Dị ứng & Thực phẩm kiêng</label>
+          <div class="mt-2 flex flex-wrap gap-2 items-center" id="allergy-pills-container">
+            ${allergyList.map(tag => `
+              <span class="flex items-center gap-1.5 px-3 py-1.5 bg-fuchsia-50 text-[var(--accent)] text-xs font-bold rounded-full shadow-sm">
+                ${tag} <i data-lucide="x" class="w-3.5 h-3.5 cursor-pointer hover:text-red-500 remove-allergy-tag" data-tag="${tag}"></i>
+              </span>
+            `).join('')}
+            <button type="button" id="btn-add-allergy-tag" class="flex items-center gap-1 px-3 py-1.5 border border-dashed border-[var(--border)] text-[var(--muted)] text-xs font-bold rounded-full hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm mục
             </button>
           </div>
         </div>
       </div>
 
-      <!-- MAIN CONTENT GRID -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- LEFT COLUMN: Profile Avatar & AI Model Config -->
-        <div class="space-y-6">
-          
-          <!-- CARD 1: User Profile & Avatar -->
-          <div class="card p-6 rounded-3xl" style="background: var(--bg-card); border: 1px solid var(--border-color);">
-            <h3 class="font-bold text-base mb-4 flex items-center gap-2" style="color: var(--text-main);">
-              <i data-lucide="user" class="w-5 h-5 text-[var(--accent-purple)]"></i> Ảnh Đại Diện & Tài Khoản
-            </h3>
-
-            <div class="flex flex-col items-center text-center p-4 rounded-2xl mb-4" style="background: rgba(124, 58, 237, 0.04); border: 1px solid rgba(124, 58, 237, 0.1);">
-              <div class="relative mb-3 group">
-                <img id="settings-avatar-preview" src="${profile.avatar}" class="w-24 h-24 rounded-full object-cover shadow-lg transition-transform duration-200 group-hover:scale-105" style="border: 3px solid var(--accent-purple);">
-                <label for="avatar-file-input" class="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center text-white cursor-pointer shadow-md transition-transform duration-200 hover:scale-110" style="background: var(--accent-purple);" title="Tải ảnh mới từ máy tính">
-                  <i data-lucide="camera" class="w-4 h-4"></i>
-                </label>
-                <input type="file" id="avatar-file-input" accept="image/*" class="hidden">
-              </div>
-
-              <h4 class="font-extrabold text-base mb-0.5" id="settings-avatar-name" style="color: var(--text-main);">${profile.name}</h4>
-              <p class="text-xs text-muted mb-3" id="settings-avatar-filename" style="color: var(--text-muted);">${profile.email || 'user@fitnesscoach.ai'}</p>
-
-              <div class="flex gap-2 w-full">
-                <label for="avatar-file-input" class="btn-ghost flex-1 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer">
-                  <i data-lucide="upload" class="w-3.5 h-3.5 text-[var(--accent-purple)]"></i> Tải Ảnh Mới
-                </label>
-                <button class="btn-ghost py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-1" id="btn-mock-google-login" title="Google OAuth">
-                  <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i> OAuth
-                </button>
-              </div>
-            </div>
-
-            <div class="text-xs space-y-2 p-3 rounded-xl" style="background: var(--primary-soft); color: var(--text-main);">
-              <div class="flex justify-between">
-                <span class="text-muted">Trạng thái:</span>
-                <span class="font-bold text-emerald-600">Active Pro</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-muted">Bộ nhớ đệm:</span>
-                <span class="font-bold">IndexedDB Ready</span>
-              </div>
+      <!-- ==================== 4. DANGER ZONE & ACTION BUTTONS ==================== -->
+      <div class="card p-6 fade-up border-red-200" style="animation-delay: 0.25s; background: #FEF2F2;">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>
+          </div>
+          <div class="flex-1">
+            <h3 class="display text-lg font-semibold text-red-600">Khu Vực Nguy Hiểm</h3>
+            <p class="text-xs text-[var(--muted)] mt-1 mb-4">Xóa toàn bộ dữ liệu bao gồm lịch sử tập luyện, bữa ăn, và cấu hình AI. Hành động này không thể hoàn tác.</p>
+            
+            <!-- Bottom Action Buttons: Lưu dữ liệu kế bên Xóa toàn bộ dữ liệu -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button class="btn-primary py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md" id="btn-main-save-settings">
+                <i data-lucide="save" class="w-4 h-4"></i> Lưu Cài Đặt
+              </button>
+              <button class="py-3 border-2 border-red-500 text-red-500 font-bold text-sm rounded-xl hover:bg-red-500 hover:text-white transition flex items-center justify-center gap-1.5" id="btn-main-reset-data">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Xóa Toàn Bộ Dữ Liệu
+              </button>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- CARD 2: 9router AI Model Config -->
-          <div class="card p-6 rounded-3xl" style="background: var(--bg-card); border: 1px solid var(--border-color);">
-            <h3 class="font-bold text-base mb-2 flex items-center gap-2" style="color: var(--accent-purple);">
-              <i data-lucide="cpu" class="w-5 h-5"></i> Cấu Hình Model AI (9router)
-            </h3>
-            <p class="text-xs text-muted mb-4" style="color: var(--text-muted);">
-              Chọn model trí tuệ nhân tạo dùng để tư vấn dinh dưỡng, sinh thực đơn & bài tập.
-            </p>
+    </div>
 
-            <div class="form-group mb-3">
-              <label class="form-label text-xs font-bold block mb-1.5" style="color: var(--text-main);">AI Model Hiện Tại</label>
-              <div id="settings-model-dropdown-container">
-                ${renderDropdown({
-                  id: 'settings-model-dropdown',
-                  options: modelOptions,
-                  value: currentSelectedModel,
-                  placeholder: 'Chọn Model AI...'
-                })}
-              </div>
+    <!-- ==================== MODEL SELECTION POPUP MODAL ==================== -->
+    <div class="modal-overlay" id="model-selection-modal">
+      <div class="modal-card card p-6 w-full max-w-lg max-h-[85vh] flex flex-col" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
+        <div class="flex justify-between items-center mb-4 pb-3 border-b border-[var(--border)] flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
+              <i data-lucide="brain-circuit" class="w-4 h-4"></i>
             </div>
-
-            <div class="p-3 rounded-xl text-xs leading-relaxed" style="background: rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.12); color: var(--text-muted);">
-              💡 <b>Mẹo:</b> <code>Gemini 3.6 Flash</code> hỗ trợ phân tích đa phương tiện (ảnh + văn bản) với tốc độ phản hồi tối ưu nhất.
-            </div>
+            <h3 class="display text-xl font-bold" style="color: var(--fg);">Chọn AI Model</h3>
           </div>
-
+          <button type="button" class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-model-modal">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
         </div>
 
-        <!-- RIGHT COLUMN: Physical Body Parameters & Budget / Allergy Settings -->
-        <div class="lg:col-span-2 space-y-6">
-          
-          <!-- CARD 3: Physical Parameters -->
-          <div class="card p-6 rounded-3xl" style="background: var(--bg-card); border: 1px solid var(--border-color);">
-            <h3 class="font-bold text-base mb-4 flex items-center gap-2" style="color: var(--text-main);">
-              <i data-lucide="activity" class="w-5 h-5 text-[var(--accent-purple)]"></i> Thông Tin Thể Trạng & Chỉ Số Cơ Thể
-            </h3>
+        <div class="mb-3 flex-shrink-0">
+          <input type="text" id="model-search-input" placeholder="🔍 Tìm kiếm AI Model (Gemini, DeepSeek, Nemotron...)" class="w-full px-3.5 py-2.5 rounded-xl text-xs border border-[var(--border)] font-semibold" style="background: var(--bg-input); color: var(--text-main);">
+        </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div class="form-group">
-                <label class="form-label text-xs font-bold block mb-1">Họ & Tên Nguồn Dùng</label>
-                <input type="text" class="form-input text-xs w-full rounded-xl p-3" id="settings-user-name" value="${profile.name || ''}" placeholder="Nhập họ và tên..." style="background: var(--bg-input); color: var(--text-main);">
-              </div>
-
-              <div class="form-group">
-                <label class="form-label text-xs font-bold block mb-1">Tuổi (Năm)</label>
-                <input type="number" class="form-input text-xs w-full rounded-xl p-3" id="settings-user-age" value="${profile.age || 25}" min="12" max="100" style="background: var(--bg-input); color: var(--text-main);">
-              </div>
-
-              <div class="form-group">
-                <label class="form-label text-xs font-bold block mb-1">Chiều Cao (cm)</label>
-                <input type="number" class="form-input text-xs w-full rounded-xl p-3" id="settings-user-height" value="${profile.height || 170}" min="100" max="230" style="background: var(--bg-input); color: var(--text-main);">
-              </div>
-
-              <div class="form-group">
-                <label class="form-label text-xs font-bold block mb-1">Cân Nặng Hiện Tại (kg)</label>
-                <input type="number" class="form-input text-xs w-full rounded-xl p-3" id="settings-user-weight" value="${profile.currentWeight || 70}" step="0.1" style="background: var(--bg-input); color: var(--text-main);">
-              </div>
-            </div>
-
-            <!-- Health Math Overview Mini Banner -->
-            <div class="p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3" style="background: var(--primary-soft);">
-              <div>
-                <div class="text-xs font-bold" style="color: var(--accent-purple);">Chỉ Số BMR & TDEE Ước Tính:</div>
-                <div class="text-xs text-muted mt-0.5" style="color: var(--text-muted);">
-                  Hệ thống tự động tính toán lại mục tiêu Calories & Macros khi bạn cập nhật chỉ số.
+        <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="model-list-container">
+          ${CONFIG.SUPPORTED_MODELS.map(m => `
+            <div class="model-select-item flex items-center justify-between p-3 rounded-2xl border ${m.id === currentModelId ? 'border-[var(--primary)] bg-[var(--primary-soft)] font-bold' : 'border-[var(--border)] hover:bg-slate-50'} cursor-pointer transition" data-model-id="${m.id}">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(124, 58, 237, 0.1);">
+                  ${renderProviderIcon(m.id)}
+                </div>
+                <div class="truncate">
+                  <div class="text-xs font-semibold" style="color: var(--fg);">${m.name}</div>
+                  <div class="text-[10px] text-[var(--muted)] font-mono truncate">${m.id}</div>
                 </div>
               </div>
-              <div class="flex gap-2">
-                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-purple-700 shadow-sm">
-                  BMR ~ ${Math.round(calculateBMR(profile.gender || 'male', profile.currentWeight || 70, profile.height || 170, profile.age || 25))} kcal
-                </span>
-                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-purple-700 shadow-sm">
-                  TDEE ~ ${Math.round(calculateTDEE(calculateBMR(profile.gender || 'male', profile.currentWeight || 70, profile.height || 170, profile.age || 25), profile.activityLevel || 1.2))} kcal
-                </span>
+              <div class="w-5 h-5 rounded-full border-2 ${m.id === currentModelId ? 'border-[var(--primary)] bg-[var(--primary)]' : 'border-slate-300'} flex items-center justify-center flex-shrink-0">
+                ${m.id === currentModelId ? '<div class="w-2 h-2 rounded-full bg-white"></div>' : ''}
               </div>
             </div>
-          </div>
-
-          <!-- CARD 4: Budget & Food Allergies -->
-          <div class="card p-6 rounded-3xl" style="background: var(--bg-card); border: 1px solid var(--border-color);">
-            <h3 class="font-bold text-base mb-4 flex items-center gap-2" style="color: var(--text-main);">
-              <i data-lucide="utensils" class="w-5 h-5 text-[var(--accent-purple)]"></i> Ngân Sách Ăn Uống & Khẩu Vị Kiêng Khem
-            </h3>
-
-            <div class="form-group mb-5">
-              <label class="form-label text-xs font-bold block mb-1" style="color: var(--accent-purple);">
-                💰 Ngân Sách Ăn Uống Hàng Ngày (VNĐ / Ngày)
-              </label>
-              <input type="number" class="form-input text-xs w-full rounded-xl p-3 font-bold" id="settings-daily-budget" value="${plan.dailyBudgetVnd || 100000}" step="10000" style="background: var(--bg-input); color: var(--text-main);">
-              <span class="text-xs text-muted block mt-1" style="color: var(--text-muted);">
-                * Mức ngân sách tiêu chuẩn khuyến nghị: 60.000 - 150.000 VNĐ / Ngày cho 3-4 bữa ăn dinh dưỡng.
-              </span>
-            </div>
-
-            <div class="form-group mb-4">
-              <label class="form-label text-xs font-bold block mb-1" style="color: #F59E0B;">
-                ⚠️ Món Ăn / Thực Phẩm Dị Ứng Hoặc Kiêng Khem
-              </label>
-              <input type="text" class="form-input text-xs w-full rounded-xl p-3" id="settings-food-allergies" value="${profile.foodAllergies || ''}" placeholder="Ví dụ: Hải sản tôm mực, Đậu nành, Sữa tươi lactose, Trứng..." style="background: var(--bg-input); color: var(--text-main);">
-            </div>
-
-            <!-- Quick Allergy Pill Suggestions -->
-            <div class="mb-2">
-              <span class="text-xs font-semibold block mb-2" style="color: var(--text-muted);">Gợi ý nhanh (bấm để thêm vào danh sách kiêng):</span>
-              <div class="flex flex-wrap gap-2" id="allergy-quick-pills">
-                <button type="button" class="btn-ghost px-3 py-1 rounded-full text-xs font-semibold" data-allergy="Hải sản tôm mực">🦐 Hải sản tôm mực</button>
-                <button type="button" class="btn-ghost px-3 py-1 rounded-full text-xs font-semibold" data-allergy="Sữa tươi lactose">🥛 Sữa tươi lactose</button>
-                <button type="button" class="btn-ghost px-3 py-1 rounded-full text-xs font-semibold" data-allergy="Đậu nành">🫘 Đậu nành</button>
-                <button type="button" class="btn-ghost px-3 py-1 rounded-full text-xs font-semibold" data-allergy="Trứng">🥚 Trứng</button>
-                <button type="button" class="btn-ghost px-3 py-1 rounded-full text-xs font-semibold" data-allergy="Thịt heo">🐖 Thịt heo</button>
-              </div>
-            </div>
-
-            <p class="text-xs text-muted italic mt-3" style="color: var(--text-muted);">
-              <i data-lucide="sparkles" class="w-3.5 h-3.5 inline mr-1 text-[var(--accent-purple)]"></i> Khi lưu cài đặt, AI Coach sẽ tự động làm mới thực đơn 7 ngày khớp với ngân sách và lọc sạch món dị ứng.
-            </p>
-          </div>
-
-          <!-- CARD 5: System Actions -->
-          <div class="card p-6 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4" style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15);">
-            <div>
-              <h4 class="font-bold text-sm text-red-600 mb-1 flex items-center gap-1.5">
-                <i data-lucide="alert-triangle" class="w-4 h-4"></i> Xóa Dữ Liệu & Khôi Phục Hệ Thống
-              </h4>
-              <p class="text-xs text-muted" style="color: var(--text-muted);">
-                Xóa toàn bộ bộ nhớ đệm trình duyệt (IndexedDB, LocalStorage) để cài lại từ đầu.
-              </p>
-            </div>
-            <button class="btn-ghost px-4 py-2.5 rounded-xl text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 flex-shrink-0" id="btn-reset-app-data">
-              Xóa Dữ Liệu Demo
-            </button>
-          </div>
-
+          `).join('')}
         </div>
 
+        <div class="mt-4 pt-3 border-t border-[var(--border)] flex justify-end flex-shrink-0">
+          <button type="button" class="btn-ghost px-5 py-2 rounded-xl text-xs font-bold" id="btn-close-model-modal-bottom">Đóng</button>
+        </div>
       </div>
     </div>
   `;
@@ -235,28 +299,26 @@ export async function renderSettingsPage(onSaveComplete) {
     mountNode.innerHTML = pageHtml;
     if (window.lucide) window.lucide.createIcons();
 
-    // Initialize Dropdown Component Listeners
-    initDropdownListeners(mountNode, (val) => {
-      currentSelectedModel = val;
-    });
+    // 1. INLINE PROFILE EDIT BOX TOGGLE
+    const editBox = document.getElementById('profile-edit-box');
+    const toggleBtn = document.getElementById('btn-toggle-edit-box');
+    const editLabel = document.getElementById('btn-edit-label');
 
-    // Quick allergy pills suggestion click
-    document.querySelectorAll('#allergy-quick-pills button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tag = btn.getAttribute('data-allergy');
-        const input = document.getElementById('settings-food-allergies');
-        if (input && tag) {
-          const current = input.value.trim();
-          if (!current.toLowerCase().includes(tag.toLowerCase())) {
-            input.value = current ? `${current}, ${tag}` : tag;
-          }
-        }
-      });
-    });
+    const toggleEditBox = () => {
+      if (editBox.classList.contains('hidden')) {
+        editBox.classList.remove('hidden');
+        if (editLabel) editLabel.textContent = 'Đóng chỉnh sửa';
+      } else {
+        editBox.classList.add('hidden');
+        if (editLabel) editLabel.textContent = 'Chỉnh sửa hồ sơ';
+      }
+    };
 
-    // Avatar File Upload Handler
-    const avatarFileInput = document.getElementById('avatar-file-input');
-    avatarFileInput?.addEventListener('change', (e) => {
+    toggleBtn?.addEventListener('click', toggleEditBox);
+    document.getElementById('btn-cancel-edit-box')?.addEventListener('click', toggleEditBox);
+
+    // Avatar File Upload inside Edit Box
+    document.getElementById('edit-input-avatar-file')?.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
@@ -265,51 +327,146 @@ export async function renderSettingsPage(onSaveComplete) {
         return;
       }
 
-      const filenameLabel = document.getElementById('settings-avatar-filename');
-      if (filenameLabel) {
-        filenameLabel.textContent = `📷 ${file.name}`;
-        filenameLabel.style.color = 'var(--accent-purple)';
-        filenameLabel.style.fontWeight = '700';
-      }
-
       const reader = new FileReader();
       reader.onload = (evt) => {
         newAvatarBase64 = evt.target.result;
-        const preview = document.getElementById('settings-avatar-preview');
-        if (preview) preview.src = newAvatarBase64;
+        const avatarImg = document.getElementById('profile-avatar-img');
+        if (avatarImg) avatarImg.src = newAvatarBase64;
       };
       reader.readAsDataURL(file);
     });
 
-    // Google OAuth Mock click
-    document.getElementById('btn-mock-google-login')?.addEventListener('click', async () => {
-      await Modal.success({
-        title: 'Đăng Nhập Google OAuth',
-        message: 'Xác thực Google OAuth thành công!\nPhiên làm việc đã được mã hóa và bảo mật.'
+    // Save Inline Profile Button
+    document.getElementById('btn-save-inline-profile')?.addEventListener('click', async () => {
+      const name = document.getElementById('edit-input-name').value.trim();
+      const email = document.getElementById('edit-input-email').value.trim();
+      const age = parseInt(document.getElementById('edit-input-age').value) || profile.age;
+      const height = parseFloat(document.getElementById('edit-input-height').value) || profile.height;
+      const weight = parseFloat(document.getElementById('edit-input-weight').value) || profile.currentWeight;
+
+      if (name) profile.name = name;
+      if (email) profile.email = email;
+      if (!isNaN(age)) profile.age = age;
+      if (!isNaN(height)) profile.height = height;
+      if (!isNaN(weight)) profile.currentWeight = weight;
+      if (newAvatarBase64) profile.avatar = newAvatarBase64;
+
+      await DataService.saveUserProfile(profile);
+
+      // Update UI displays
+      document.getElementById('disp-profile-name').textContent = profile.name;
+      document.getElementById('disp-profile-email').textContent = profile.email;
+      document.getElementById('stat-disp-age').textContent = profile.age;
+      document.getElementById('stat-disp-height').textContent = profile.height;
+      document.getElementById('stat-disp-weight').textContent = profile.currentWeight;
+
+      const newBmr = Math.round(calculateBMR(profile.gender || 'male', profile.currentWeight, profile.height, profile.age));
+      const newTdee = Math.round(calculateTDEE(newBmr, profile.activityLevel || 1.2));
+      document.getElementById('stat-disp-bmr').textContent = `~${newBmr.toLocaleString('vi-VN')} kcal`;
+      document.getElementById('stat-disp-tdee').textContent = `~${newTdee.toLocaleString('vi-VN')} kcal`;
+
+      toggleEditBox();
+      confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+    });
+
+    // 2. MODEL SELECTION POPUP MODAL
+    const modelModal = document.getElementById('model-selection-modal');
+    const openModelModal = () => modelModal?.classList.add('active');
+    const closeModelModal = () => modelModal?.classList.remove('active');
+
+    document.getElementById('btn-open-model-modal')?.addEventListener('click', openModelModal);
+    document.getElementById('btn-close-model-modal')?.addEventListener('click', closeModelModal);
+    document.getElementById('btn-close-model-modal-bottom')?.addEventListener('click', closeModelModal);
+    modelModal?.addEventListener('click', (e) => {
+      if (!e.target.closest('.modal-card')) closeModelModal();
+    });
+
+    // Model Search Filtering inside Popup
+    document.getElementById('model-search-input')?.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('#model-list-container .model-select-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(q) ? 'flex' : 'none';
       });
     });
 
-    // Save Settings Handler
-    document.getElementById('btn-save-settings')?.addEventListener('click', async () => {
-      const newName = document.getElementById('settings-user-name').value.trim();
-      const newAge = parseInt(document.getElementById('settings-user-age').value) || profile.age;
-      const newHeight = parseFloat(document.getElementById('settings-user-height').value) || profile.height;
-      const newWeight = parseFloat(document.getElementById('settings-user-weight').value);
-      const newAllergies = document.getElementById('settings-food-allergies').value.trim();
-      const newBudget = parseInt(document.getElementById('settings-daily-budget').value) || 100000;
+    // Model item click handler inside Popup
+    document.querySelectorAll('#model-list-container .model-select-item').forEach(item => {
+      item.addEventListener('click', async () => {
+        const mId = item.getAttribute('data-model-id');
+        if (mId) {
+          currentModelId = mId;
+          await DataService.saveSetting('ninerouter_model', currentModelId);
 
-      await DataService.saveSetting('ninerouter_model', currentSelectedModel);
+          const mObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId);
+          const dispEl = document.getElementById('disp-active-model-name');
+          if (dispEl && mObj) {
+            dispEl.innerHTML = `<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> ${mObj.name}`;
+          }
 
-      if (newName) profile.name = newName;
-      if (!isNaN(newAge)) profile.age = newAge;
-      if (!isNaN(newHeight)) profile.height = newHeight;
-      if (!isNaN(newWeight)) profile.currentWeight = newWeight;
-      profile.foodAllergies = newAllergies;
+          // Update active border styles in popup list
+          document.querySelectorAll('#model-list-container .model-select-item').forEach(el => {
+            el.className = 'model-select-item flex items-center justify-between p-3 rounded-2xl border border-[var(--border)] hover:bg-slate-50 cursor-pointer transition';
+          });
+          item.className = 'model-select-item flex items-center justify-between p-3 rounded-2xl border border-[var(--primary)] bg-[var(--primary-soft)] font-bold cursor-pointer transition';
 
-      if (newAvatarBase64) {
-        profile.avatar = newAvatarBase64;
-      }
+          closeModelModal();
+        }
+      });
+    });
 
+    // Toggle switch handler
+    document.querySelectorAll('.toggle-switch').forEach(sw => {
+      sw.addEventListener('click', () => sw.classList.toggle('active'));
+    });
+
+    // 3. ALLERGY TAGS INTERACTIVE LOGIC
+    const renderAllergyTags = () => {
+      const container = document.getElementById('allergy-pills-container');
+      if (!container) return;
+
+      container.innerHTML = `
+        ${allergyList.map(tag => `
+          <span class="flex items-center gap-1.5 px-3 py-1.5 bg-fuchsia-50 text-[var(--accent)] text-xs font-bold rounded-full shadow-sm">
+            ${tag} <i data-lucide="x" class="w-3.5 h-3.5 cursor-pointer hover:text-red-500 remove-allergy-tag" data-tag="${tag}"></i>
+          </span>
+        `).join('')}
+        <button type="button" id="btn-add-allergy-tag" class="flex items-center gap-1 px-3 py-1.5 border border-dashed border-[var(--border)] text-[var(--muted)] text-xs font-bold rounded-full hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm mục
+        </button>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+
+      // Remove tag listeners
+      container.querySelectorAll('.remove-allergy-tag').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const t = btn.getAttribute('data-tag');
+          allergyList = allergyList.filter(item => item !== t);
+          renderAllergyTags();
+        });
+      });
+
+      // Add tag listener
+      document.getElementById('btn-add-allergy-tag')?.addEventListener('click', async () => {
+        const newTag = prompt('Nhập thực phẩm/món ăn bạn bị dị ứng hoặc kiêng (Ví dụ: Đậu nành, Trứng, Sữa...):');
+        if (newTag && newTag.trim()) {
+          const cleaned = newTag.trim();
+          if (!allergyList.includes(cleaned)) {
+            allergyList.push(cleaned);
+            renderAllergyTags();
+          }
+        }
+      });
+    };
+
+    renderAllergyTags();
+
+    // 4. MAIN SAVE SETTINGS BUTTON & RESET DATA BUTTON AT BOTTOM
+    document.getElementById('btn-main-save-settings')?.addEventListener('click', async () => {
+      const budgetInput = document.getElementById('input-daily-budget');
+      const newBudget = parseInt(budgetInput ? budgetInput.value : 100000) || 100000;
+
+      profile.foodAllergies = allergyList.join(', ');
       await DataService.saveUserProfile(profile);
 
       // Recalculate User Goal math based on updated physical parameters
@@ -335,21 +492,21 @@ export async function renderSettingsPage(onSaveComplete) {
       await DataService.saveUserGoal(goal);
 
       // Re-generate user's 7-day meal plan to respect new budget & food allergies
-      const plan = await DataService.getUserPlan();
-      plan.dailyBudgetVnd = newBudget;
-      plan.weeklyMealPlan = generate7DayMealPlan(newBudget, DataService.getTodayString(), newAllergies);
-      await DataService.saveUserPlan(plan);
+      const planData = await DataService.getUserPlan();
+      planData.dailyBudgetVnd = newBudget;
+      planData.weeklyMealPlan = generate7DayMealPlan(newBudget, DataService.getTodayString(), profile.foodAllergies);
+      await DataService.saveUserPlan(planData);
 
       await Modal.success({
         title: 'Đã Lưu Cài Đặt!',
-        message: 'Thông tin cá nhân, ảnh đại diện, ngân sách ăn uống và danh sách dị ứng đã được cập nhật thành công!'
+        message: 'Thông tin hồ sơ, cấu hình AI Model, ngân sách và danh sách dị ứng đã được lưu thành công!'
       });
 
       if (onSaveComplete) onSaveComplete();
     });
 
-    // Reset Data
-    document.getElementById('btn-reset-app-data')?.addEventListener('click', async () => {
+    // Reset Data Handler
+    document.getElementById('btn-main-reset-data')?.addEventListener('click', async () => {
       const confirmed = await Modal.confirm({
         title: 'Xóa Toàn Bộ Dữ Liệu Web',
         message: 'Cảnh báo: Bạn có chắc chắn muốn xóa sạch toàn bộ dữ liệu trong trình duyệt (IndexedDB, LocalStorage, Cache) để cài lại từ đầu không?',
