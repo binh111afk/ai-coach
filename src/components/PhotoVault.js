@@ -255,7 +255,7 @@ export async function renderPhotoVault() {
         </div>
 
         <div class="p-5 overflow-y-auto max-h-[65vh]">
-          <div id="galleryGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+          <div id="galleryGrid" class="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
             <!-- Gallery items rendered dynamically -->
           </div>
         </div>

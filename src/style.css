@@ -1,4 +1,4 @@
-﻿/* Signature VShape / FitCoach AI Design System */
+/* Signature VShape / FitCoach AI Design System */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
@@ -5500,6 +5500,7 @@ body.dark .btn-analyze:disabled {
   z-index: 10000;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -5512,13 +5513,15 @@ body.dark .btn-analyze:disabled {
 
 .gallery-sheet {
   width: 100%;
+  max-width: 580px;
+  margin: 0 auto;
   background: var(--bg-card, #ffffff);
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
-  box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.25);
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  max-height: 80vh;
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
 }
