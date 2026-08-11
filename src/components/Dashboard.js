@@ -238,62 +238,100 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
           <div class="flex justify-between items-center mb-4 pb-4 border-b border-color" style="border-bottom: 1px solid var(--border-color);">
             <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Gợi Ý Thực Đơn & Tập Luyện AI Hôm Nay (Ngày ${currentJourneyDay})</h2>
             <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5" id="dash-btn-view-full-plan">
-              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> Xem Kế Hoạch
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Thay đổi
             </button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            <!-- Left: Meals Summary -->
-            <div class="space-y-3 p-4 rounded-2xl border border-color" style="background: var(--bg-subtle);">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-bold" style="color: var(--accent-purple);">🥗 Thực Đơn AI Gợi Ý</span>
-                <span class="text-xs text-muted" style="color: var(--text-muted);">~${(todayRecommendedMeals?.breakfast?.calories || 0) + (todayRecommendedMeals?.lunch?.calories || 0) + (todayRecommendedMeals?.dinner?.calories || 0) + (todayRecommendedMeals?.snack?.calories || 0)} kcal</span>
+            <!-- Left: Meals List Cards -->
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 p-3 bg-[var(--primary-soft)] rounded-xl cursor-pointer hover:opacity-90 transition" id="dash-btn-quick-log-meals" title="Bấm để ghi nhận thực đơn hôm nay">
+                <div class="w-10 h-10 rounded-xl bg-white dark:bg-[var(--bg-card)] flex items-center justify-center text-[var(--accent-purple)] shadow-xs">
+                  <i data-lucide="coffee" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] uppercase font-bold text-muted tracking-wider" style="color: var(--text-muted);">Bữa Sáng</div>
+                  <div class="text-sm font-semibold truncate" style="color: var(--text-main);">${todayRecommendedMeals?.breakfast?.name || 'Yến mạch + Trứng luộc'}</div>
+                </div>
+                <div class="text-xs font-bold" style="color: var(--accent-purple);">${todayRecommendedMeals?.breakfast?.calories || 320} kcal</div>
               </div>
-              <div class="text-xs space-y-1.5" style="color: var(--text-main);">
-                <div>• <b>Sáng:</b> ${todayRecommendedMeals?.breakfast?.name || 'Chưa chọn'}</div>
-                <div>• <b>Trưa:</b> ${todayRecommendedMeals?.lunch?.name || 'Chưa chọn'}</div>
-                <div>• <b>Tối:</b> ${todayRecommendedMeals?.dinner?.name || 'Chưa chọn'}</div>
-                <div>• <b>Phụ:</b> ${todayRecommendedMeals?.snack?.name || 'Chưa chọn'}</div>
+
+              <div class="flex items-center gap-3 p-3 bg-[var(--primary-soft)] rounded-xl cursor-pointer hover:opacity-90 transition" id="dash-btn-quick-log-meals-2" title="Bấm để ghi nhận thực đơn hôm nay">
+                <div class="w-10 h-10 rounded-xl bg-white dark:bg-[var(--bg-card)] flex items-center justify-center text-[var(--accent-purple)] shadow-xs">
+                  <i data-lucide="utensils" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] uppercase font-bold text-muted tracking-wider" style="color: var(--text-muted);">Bữa Trưa</div>
+                  <div class="text-sm font-semibold truncate" style="color: var(--text-main);">${todayRecommendedMeals?.lunch?.name || 'Ức gà + Cơm gạo lứt'}</div>
+                </div>
+                <div class="text-xs font-bold" style="color: var(--accent-purple);">${todayRecommendedMeals?.lunch?.calories || 450} kcal</div>
               </div>
-              <button class="btn btn-primary btn-sm w-full mt-2 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5" id="dash-btn-quick-log-meals">
-                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Ghi Nhận Thực Đơn Hôm Nay
-              </button>
             </div>
 
-            <!-- Right: Workouts Summary -->
-            <div class="space-y-3 p-4 rounded-2xl border border-color flex flex-col justify-between" style="background: var(--bg-subtle);">
-              <div>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-bold" style="color: #F59E0B;">🏋️ Lịch Tập AI Gợi Ý</span>
-                  <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background: rgba(245, 158, 11, 0.12); color: #F59E0B;">${todayRecommendedWorkout?.duration || 0} phút</span>
+            <!-- Right: Workouts List Cards -->
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 p-3 border border-color rounded-xl hover:bg-[var(--primary-soft)] transition cursor-pointer" id="dash-btn-quick-log-workout">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #FCE7F3;">
+                  <i data-lucide="dumbbell" class="w-5 h-5 text-[#EC4899]"></i>
                 </div>
-                <div class="font-bold text-sm mb-1" style="color: var(--text-main);">
-                  ${todayRecommendedWorkout?.title || 'Ngày Nghỉ Phục Hồi'}
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] uppercase font-bold text-muted tracking-wider" style="color: var(--text-muted);">Tập Luyện AI</div>
+                  <div class="text-sm font-semibold truncate" style="color: var(--text-main);">${todayRecommendedWorkout?.title || 'Full Body HIIT'}</div>
                 </div>
-                <div class="text-xs text-muted" style="color: var(--text-muted);">
-                  Đốt ~<b>${todayRecommendedWorkout?.estBurn || 0} kcal</b> Out · Cường độ Moderate
-                </div>
+                <div class="text-xs font-bold text-[#EC4899]">${todayRecommendedWorkout?.duration || 45} phút</div>
               </div>
 
-              <button class="btn btn-secondary btn-sm w-full mt-2 text-xs py-2 rounded-xl flex items-center justify-center gap-1.5" id="dash-btn-quick-log-workout">
-                <i data-lucide="check-circle" class="w-3.5 h-3.5" style="color: #10B981;"></i> Ghi Nhận Hoàn Thành Tập
-              </button>
+              <div class="flex items-center gap-3 p-3 border border-color rounded-xl hover:bg-[var(--primary-soft)] transition cursor-pointer" id="dash-btn-quick-log-workout-2">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #DBEAFE;">
+                  <i data-lucide="footprints" class="w-5 h-5 text-[#3B82F6]"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] uppercase font-bold text-muted tracking-wider" style="color: var(--text-muted);">Cardio Tiêu Hao</div>
+                  <div class="text-sm font-semibold truncate" style="color: var(--text-main);">Đi bộ nhẹ nhàng</div>
+                </div>
+                <div class="text-xs font-bold text-[#3B82F6]">30 phút</div>
+              </div>
             </div>
 
           </div>
         </div>
 
-        <!-- Macros ApexChart Donut Widget -->
+        <!-- Macros Card matching template -->
         <div class="card p-6 fade-up" style="animation-delay: 0.45s">
           <div class="flex justify-between items-center mb-4">
             <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Phân Bổ Macro</h2>
             <span class="text-xs text-muted font-bold" style="color: var(--text-muted);">Tổng: ${currentProtein + currentCarb + currentFat}g</span>
           </div>
-          <div id="chart-macro-doughnut" style="min-height: 200px;"></div>
-          <div class="grid grid-cols-3 text-center mt-3 text-xs">
-            <div><span style="color: #EC4899; font-weight: 700;">Protein:</span><br><b>${currentProtein}/${pTarget}g</b></div>
-            <div><span style="color: #F59E0B; font-weight: 700;">Carb:</span><br><b>${currentCarb}/${cTarget}g</b></div>
-            <div><span style="color: #3B82F6; font-weight: 700;">Fat:</span><br><b>${currentFat}/${fTarget}g</b></div>
+          <div class="flex flex-col items-center justify-center py-4">
+            <div class="relative w-32 h-32 mb-4">
+              <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(124, 58, 237, 0.08)" stroke-width="12"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#EC4899" stroke-width="12" 
+                        stroke-dasharray="251.2" stroke-dashoffset="${(251.2 * (1 - Math.min(1, currentProtein / pTarget))).toFixed(1)}" stroke-linecap="round"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#F59E0B" stroke-width="12" 
+                        stroke-dasharray="251.2" stroke-dashoffset="${(251.2 * (1 - Math.min(1, currentCarb / cTarget))).toFixed(1)}" stroke-linecap="round" style="opacity: 0.85;"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#3B82F6" stroke-width="12" 
+                        stroke-dasharray="251.2" stroke-dashoffset="${(251.2 * (1 - Math.min(1, currentFat / fTarget))).toFixed(1)}" stroke-linecap="round" style="opacity: 0.7;"/>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="display text-xl font-semibold" style="color: var(--text-main);">${Math.min(100, Math.round(((currentProtein + currentCarb + currentFat) / (pTarget + cTarget + fTarget)) * 100))}%</span>
+                <span class="text-[10px] text-muted uppercase font-bold" style="color: var(--text-muted);">Hoàn thành</span>
+              </div>
+            </div>
+            <div class="w-full space-y-2">
+              <div class="flex items-center justify-between text-sm">
+                <span class="flex items-center gap-2 font-medium" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full bg-[#EC4899]"></div> Protein</span>
+                <span class="text-muted font-semibold" style="color: var(--text-muted);">${currentProtein} / ${pTarget}g</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="flex items-center gap-2 font-medium" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></div> Carbs</span>
+                <span class="text-muted font-semibold" style="color: var(--text-muted);">${currentCarb} / ${cTarget}g</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="flex items-center gap-2 font-medium" style="color: var(--text-main);"><div class="w-2.5 h-2.5 rounded-full bg-[#3B82F6]"></div> Fat</span>
+                <span class="text-muted font-semibold" style="color: var(--text-muted);">${currentFat} / ${fTarget}g</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -324,7 +362,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     document.getElementById('dash-btn-view-full-plan')?.addEventListener('click', () => onNavigateTab('plan'));
 
     // Quick Log Meals Handler
-    document.getElementById('dash-btn-quick-log-meals')?.addEventListener('click', async () => {
+    const handleQuickLogMeals = async () => {
       const today = DataService.getTodayString();
       if (todayRecommendedMeals?.breakfast) await DataService.addMealLog(today, { type: 'Breakfast', ...todayRecommendedMeals.breakfast });
       if (todayRecommendedMeals?.lunch) await DataService.addMealLog(today, { type: 'Lunch', ...todayRecommendedMeals.lunch });
@@ -338,7 +376,10 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
         title: 'Đã Thêm Thực Đơn Hôm Nay!',
         message: 'Đã ghi nhận đủ 4 bữa ăn của thực đơn gợi ý AI hôm nay vào nhật ký!'
       });
-    });
+    };
+
+    document.getElementById('dash-btn-quick-log-meals')?.addEventListener('click', handleQuickLogMeals);
+    document.getElementById('dash-btn-quick-log-meals-2')?.addEventListener('click', handleQuickLogMeals);
 
     // Quick Log Workout Handler
     document.getElementById('dash-btn-quick-log-workout')?.addEventListener('click', async () => {
