@@ -166,13 +166,7 @@ body.ai-tab-active .main-container {
 }
 
 /* Make view-mount fill 100% of remaining viewport */
-body.ai-tab-active #view-mount {
-  width: 100% !important;
-  height: calc(100vh - 65px) !important;
-  overflow: hidden;
-  padding: 0 !important;
-  margin: 0 !important;
-}
+body.ai-tab-active #view-mount { width: 100% !important; height: calc(100vh - 65px) !important; overflow: hidden; padding: 0 !important; margin: 0 !important; }
 
 /* AI Coach Thinking Animation Keyframes */
 @keyframes pulseDot {
@@ -4947,4 +4941,70 @@ body.dark .modal-overlay {
 
 body.dark .timeline-line {
   background: linear-gradient(to bottom, #8B5CF6, #A891FF, #EC4899) !important;
+}
+
+/* ===== Nav hidden state (AI tab) ===== */
+.bottom-nav.nav-hidden {
+  transform: translateX(-50%) translateY(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* When nav is hidden, body doesn't need bottom padding */
+body.nav-hidden-state {
+  padding-bottom: 0 !important;
+}
+
+/* AI tab full-screen when nav is hidden */
+body.nav-hidden-state.ai-tab-active #view-mount {
+  height: 100vh !important;
+  max-height: 100vh !important;
+}
+
+body.nav-hidden-state.ai-tab-active #app-container,
+body.nav-hidden-state.ai-tab-active main {
+  height: 100vh !important;
+  max-height: 100vh !important;
+}
+
+/* Nav toggle button — small pill shown when nav is hidden */
+.nav-show-btn {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: rgba(124, 58, 237, 0.92);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 18px 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+  transition: all 0.2s;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-show-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nav-show-btn:hover {
+  background: rgba(124, 58, 237, 1);
+  transform: translateX(-50%) scale(1.04);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
+}
+
+.nav-show-btn svg {
+  width: 14px;
+  height: 14px;
 }

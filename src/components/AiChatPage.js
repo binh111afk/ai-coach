@@ -60,6 +60,14 @@ export async function renderAiChatPage(onStateUpdated) {
               </div>
             </div>
           </div>
+          <!-- Nav toggle button on the right of topbar -->
+          <div class="topbar-right">
+            <button class="btn-toggle" id="btnToggleNav" title="Ẩn/Hiện thanh điều hướng">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="18 15 12 9 6 15"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Chat area -->
@@ -97,6 +105,27 @@ export async function renderAiChatPage(onStateUpdated) {
     mountNode.innerHTML = chatPageHtml;
     if (window.lucide) window.lucide.createIcons();
 
+    // Auto-hide nav when AI tab is active
+    const autoHideNav = () => {
+      const navEl = document.querySelector('.bottom-nav');
+      const showNavBtn = document.getElementById('btn-show-nav');
+      if (navEl) navEl.classList.add('nav-hidden');
+      document.body.classList.add('nav-hidden-state');
+      if (showNavBtn) showNavBtn.classList.add('visible');
+    };
+
+    const restoreNav = () => {
+      const navEl = document.querySelector('.bottom-nav');
+      const showNavBtn = document.getElementById('btn-show-nav');
+      if (navEl) navEl.classList.remove('nav-hidden');
+      document.body.classList.remove('nav-hidden-state');
+      if (showNavBtn) showNavBtn.classList.remove('visible');
+    };
+
+    // Auto-hide on mount (slight delay so nav renders first)
+    setTimeout(autoHideNav, 80);
+
+    // Sidebar toggle
     const container = document.getElementById('page-chat-messages-container');
     const sendBtn = document.getElementById('page-chat-btn-send');
     const inputText = document.getElementById('page-chat-input-text');
@@ -107,6 +136,17 @@ export async function renderAiChatPage(onStateUpdated) {
 
     btnToggleSidebar?.addEventListener('click', () => {
       sidebar?.classList.toggle('collapsed');
+    });
+
+    // Nav toggle button in topbar
+    document.getElementById('btnToggleNav')?.addEventListener('click', () => {
+      const navEl = document.querySelector('.bottom-nav');
+      const showNavBtn = document.getElementById('btn-show-nav');
+      if (navEl?.classList.contains('nav-hidden')) {
+        restoreNav();
+      } else {
+        autoHideNav();
+      }
     });
 
     const buildModelDropdown = async () => {

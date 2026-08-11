@@ -115,6 +115,12 @@ async function handleTabChange(tab) {
     document.body.classList.add('ai-tab-active');
   } else {
     document.body.classList.remove('ai-tab-active');
+    // Restore nav when leaving AI tab
+    const navEl = document.querySelector('.bottom-nav');
+    const showNavBtn = document.getElementById('btn-show-nav');
+    if (navEl) navEl.classList.remove('nav-hidden');
+    document.body.classList.remove('nav-hidden-state');
+    if (showNavBtn) showNavBtn.classList.remove('visible');
   }
 
   // Fast DOM active state update for navigation links

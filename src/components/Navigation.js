@@ -44,6 +44,13 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
         <span>Cài đặt</span>
       </button>
     </nav>
+    <!-- Arrow button to re-show nav when hidden -->
+    <button class="nav-show-btn" id="btn-show-nav" title="Hiện thanh điều hướng">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="18 15 12 9 6 15"/>
+      </svg>
+      Điều hướng
+    </button>
   `;
 
   const container = document.getElementById('navbar-mount');
@@ -67,6 +74,15 @@ export async function renderNavigation(activeTab = 'dashboard', onTabChange, onO
 
     // Settings Listener
     document.getElementById('btn-open-settings')?.addEventListener('click', onOpenSettings);
+
+    // Nav show button — visible when nav is hidden, click to restore nav
+    const navEl = container.querySelector('.bottom-nav');
+    const showNavBtn = document.getElementById('btn-show-nav');
+    showNavBtn?.addEventListener('click', () => {
+      navEl?.classList.remove('nav-hidden');
+      document.body.classList.remove('nav-hidden-state');
+      showNavBtn.classList.remove('visible');
+    });
   }
 }
 
