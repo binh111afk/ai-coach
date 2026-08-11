@@ -123,9 +123,10 @@ export async function renderPhotoVault() {
           <i data-lucide="x" class="w-6 h-6"></i>
         </button>
         <img id="enlarged-img" src="" class="w-full h-auto rounded-2xl shadow-2xl object-contain max-h-[80vh]" alt="Progress Enlarged">
-        <div class="absolute bottom-4 left-4 text-white drop-shadow-md">
+        <div class="absolute bottom-4 left-4 right-4 text-white drop-shadow-md pointer-events-none">
           <div class="display text-2xl font-semibold" id="enlarged-date">11/08/2026</div>
-          <div class="text-sm opacity-90 flex items-center gap-2" id="enlarged-weight"><i data-lucide="scale" class="w-4 h-4"></i> 77.0 kg</div>
+          <div class="text-sm opacity-90 flex items-center gap-2 mt-0.5" id="enlarged-weight"><i data-lucide="scale" class="w-4 h-4"></i> 77.0 kg</div>
+          <div class="text-xs opacity-95 mt-1 font-medium text-white leading-relaxed" id="enlarged-note"></div>
         </div>
       </div>
     </div>
@@ -471,13 +472,24 @@ function openPhotoModal(photo, photos) {
   const img = document.getElementById('enlarged-img');
   const dateEl = document.getElementById('enlarged-date');
   const weightEl = document.getElementById('enlarged-weight');
+  const noteEl = document.getElementById('enlarged-note');
 
   if (!modal || !img) return;
 
   const dayNum = photo.journeyDay || 1;
   img.src = photo.photoDataUrl || photo.url || photo.photoUrl;
   if (dateEl) dateEl.innerText = `Ngày ${dayNum} (${formatDisplayDate(photo.date)})`;
-  if (weightEl) weightEl.innerHTML = `<i data-lucide="scale" class="w-4 h-4"></i> ${photo.weight ? photo.weight + ' kg' : 'Chưa nhập'}`;
+  if (weightEl) weightEl.innerHTML = `<i data-lucide="scale" class="w-4 h-4 inline"></i> ${photo.weight ? photo.weight + ' kg' : 'Chưa nhập'}`;
+  
+  if (noteEl) {
+    if (photo.note && photo.note.trim()) {
+      noteEl.innerText = `📝 Ghi chú: ${photo.note.trim()}`;
+      noteEl.style.display = 'block';
+    } else {
+      noteEl.innerText = '';
+      noteEl.style.display = 'none';
+    }
+  }
 
   modal.classList.remove('hidden');
   modal.classList.add('flex');
