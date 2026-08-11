@@ -52,7 +52,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   let currentWorkoutType = activeWorkoutTypeSelection || plan.workoutType || 'home';
   let currentHomeEquipment = plan.homeEquipment || 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg';
 
-  // Ensure weeklyMealPlan has entries (backward compat)
+  // Ensure weeklyMealPlan has entries
   if (!plan.weeklyMealPlan || Object.keys(plan.weeklyMealPlan).length === 0) {
     plan.weeklyMealPlan = generate7DayMealPlan(plan.dailyBudgetVnd || 100000, DataService.getTodayString());
     plan.weeklyWorkoutRoutine = generate7DayWorkoutRoutine(currentWorkoutType, currentHomeEquipment);
@@ -196,7 +196,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         </div>
       </div>
 
-      <!-- Daily Schedule Timeline (Scrollable) -->
+      <!-- Daily Schedule Timeline (Scrollable with Segment Vertical Lines) -->
       <div class="card p-6 mb-6 fade-up" style="animation-delay: 0.25s">
         <div class="flex justify-between items-center mb-6 pb-4 border-b border-color" style="border-bottom: 1px solid var(--border-color);">
           <div>
@@ -218,23 +218,29 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           </div>
         </div>
 
-        <!-- Scrollable Timeline -->
-        <div class="relative pl-12 pr-2 overflow-y-auto max-h-[480px]">
-          <div class="timeline-line"></div>
-
+        <!-- Scrollable Timeline with Per-Item Segment Connecting Lines -->
+        <div class="relative pl-14 pr-2 overflow-y-auto max-h-[480px]">
           ${(activeDailySchedule || []).map((item, idx) => {
             const isWorkout = item.category === 'workout';
             const isMeal = item.category === 'meal';
             const iconName = isWorkout ? 'flame' : isMeal ? 'coffee' : 'droplet';
             const iconBg = isWorkout ? '#FCE7F3' : isMeal ? 'var(--primary-soft)' : '#DBEAFE';
             const iconColor = isWorkout ? '#EC4899' : isMeal ? 'var(--accent-purple)' : '#3B82F6';
+            const isLastItem = idx === ((activeDailySchedule || []).length - 1);
 
             return `
               <div class="relative mb-8 cursor-pointer group" data-open-schedule-item="${idx}">
-                <div class="absolute -left-12 top-0 w-10 h-10 rounded-full flex items-center justify-center border-4 border-white dark:border-[var(--bg-card)] shadow-md z-10" style="background: ${iconBg}; color: ${iconColor};">
+                <!-- Icon Badge Circle -->
+                <div class="absolute left-[-44px] top-0 w-10 h-10 rounded-full flex items-center justify-center border-4 border-white dark:border-[var(--bg-card)] shadow-md z-10" style="background: ${iconBg}; color: ${iconColor};">
                   <i data-lucide="${iconName}" class="w-4 h-4"></i>
                 </div>
-                
+
+                <!-- Per-Item Segment Connecting Line (No overlap, 100% continuous) -->
+                ${!isLastItem ? `
+                  <div class="absolute left-[-25px] top-10 bottom-[-32px] w-[2px] z-0" 
+                       style="background: linear-gradient(to bottom, #7C3AED, #8B5CF6, #D946EF);"></div>
+                ` : ''}
+
                 ${isWorkout ? `
                   <div class="p-4 rounded-2xl border border-color hover:border-[var(--accent-purple)] transition" style="background: var(--primary-soft);">
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
@@ -334,10 +340,10 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
                     <div class="w-1.5 h-1.5 rounded-full" style="background: ${isCurrentPhase ? '#FFFFFF' : '#6B7280'};"></div>
                   </div>
 
-                  <!-- Phase Vertical Connecting Line -->
+                  <!-- Phase Vertical Connecting Line Segment -->
                   ${!isLast ? `
                     <div class="absolute left-[11px] top-6 bottom-[-24px] w-[2px] z-0" 
-                         style="background: ${isCurrentPhase ? 'linear-gradient(to bottom, #7C3AED, #8B5CF6)' : 'rgba(124, 58, 237, 0.2)'};"></div>
+                         style="background: ${isCurrentPhase ? 'linear-gradient(to bottom, #7C3AED, #8B5CF6)' : 'rgba(124, 58, 237, 0.25)'};"></div>
                   ` : ''}
 
                   <div>
@@ -359,145 +365,168 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     </div>
 
-    <!-- Modal Hướng Dẫn Bài Tập Cụ Thể (Text Guide + Video YouTube/TikTok) -->
+    <!-- POPUP 1: Modal Hướng Dẫn Bài Tập Cụ Thể (Workout Guide Modal - Image 2) -->
     <div class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" id="workout-guide-modal">
-      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card);">
-        <div class="flex justify-between items-center mb-4 pb-3 border-b border-color">
-          <h3 id="wg-modal-title" class="display text-xl font-semibold" style="color: var(--text-main);">Hướng Dẫn Bài Tập</h3>
-          <button class="btn btn-secondary btn-icon w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-wg-modal">
+      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px;">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 id="wg-modal-title" class="display text-xl font-bold" style="color: var(--text-main);">Hướng Dẫn Bài Tập</h3>
+          </div>
+          <button class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-wg-modal">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
 
-        <!-- Embedded YouTube Video Container -->
         <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
           <span class="font-bold text-sm flex items-center gap-2" style="color: var(--text-main);">
             <i data-lucide="play-circle" class="w-4 h-4 text-[var(--accent-purple)]"></i> Video Hướng Dẫn Động Tác:
           </span>
-          <a id="wg-youtube-search-btn" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm text-xs rounded-xl flex items-center gap-1">
-            Mở Xem Trên YouTube ↗
+          <a id="wg-youtube-search-btn" href="#" target="_blank" rel="noopener" class="btn-ghost px-3 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-1">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Mở Xem Trên YouTube ↗
           </a>
         </div>
 
-        <!-- Custom Video Link Input Box (YouTube / TikTok) -->
-        <div class="mb-4 p-3 rounded-2xl border border-dashed border-[var(--accent-purple)]" style="background: var(--bg-subtle);">
+        <div class="mb-4 p-3.5 rounded-2xl border border-dashed border-[var(--accent-purple)]" style="background: var(--primary-soft);">
           <label class="text-xs font-bold block mb-2" style="color: var(--accent-purple);">
-            Dán Link Video TikTok / YouTube Đổi Video Hướng Dẫn:
+            <i data-lucide="link" class="w-3.5 h-3.5 inline mr-1"></i> Dán Link Video TikTok / YouTube Đổi Video Hướng Dẫn:
           </label>
           <div class="flex gap-2 items-center flex-wrap">
             <input type="text" class="form-input text-xs flex-1 rounded-xl px-3 py-2" id="wg-custom-video-input" onfocus="this.select()" placeholder="Dán link TikTok hoặc YouTube..." style="background: var(--bg-input); color: var(--text-main);" />
-            <button type="button" class="btn btn-primary btn-sm text-xs font-bold px-3 py-2 rounded-xl" id="btn-wg-apply-video">
-              Xác Nhận Đổi Video
+            <button type="button" class="btn-primary btn-sm text-xs font-bold px-4 py-2 rounded-xl" id="btn-wg-apply-video">
+              ✓ Xác Nhận Đổi Video
             </button>
           </div>
         </div>
 
-        <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-2xl bg-black mb-2">
+        <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-2xl bg-black mb-2 shadow-sm">
           <iframe id="wg-modal-iframe" class="absolute top-0 left-0 w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
         <div class="text-xs text-muted mb-4 italic" style="color: var(--text-muted);">
-          Bạn có thể dán link video YouTube/TikTok bất kỳ và bấm <b>"Xác Nhận Đổi Video"</b> để phát trực tiếp!
+          <i data-lucide="info" class="w-3.5 h-3.5 inline mr-1"></i> Bạn có thể dán link video YouTube/TikTok bất kỳ và bấm <b>"Xác Nhận Đổi Video"</b> để phát trực tiếp!
         </div>
 
-        <!-- Text Instructions -->
-        <div class="p-4 rounded-2xl border border-color mb-4" style="background: var(--bg-subtle);">
-          <h4 class="font-bold text-sm mb-2" style="color: var(--accent-purple);">Nội Dung Hướng Dẫn Thực Hiện:</h4>
-          <div id="wg-modal-instructions" class="text-xs leading-relaxed white-space-pre-line" style="color: var(--text-main);"></div>
+        <div class="p-4 rounded-2xl mb-5" style="background: rgba(217, 70, 239, 0.06); border: 1px solid rgba(217, 70, 239, 0.15);">
+          <h4 class="font-bold text-sm mb-2 flex items-center gap-2" style="color: var(--accent-purple);">
+            <i data-lucide="file-text" class="w-4 h-4"></i> Nội Dung Hướng Dẫn Thực Hiện:
+          </h4>
+          <div id="wg-modal-instructions" class="text-xs leading-relaxed space-y-1" style="color: var(--text-main);"></div>
         </div>
 
-        <button class="btn btn-primary w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2" id="btn-start-confirm-workout">
-          <i data-lucide="check-circle" class="w-4 h-4"></i> Bắt Đầu Tập & Ghi Nhận Vào Nhật Ký
+        <button class="btn-primary w-full py-3.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2" id="btn-start-confirm-workout">
+          <i data-lucide="check-circle" class="w-4 h-4"></i> Bắt Đầu Tập & Ghi Nhận Đã Tập Vào Nhật Ký
         </button>
       </div>
     </div>
 
-    <!-- Modal Chi Tiết Thực Đơn & Công Thức Chế Biến -->
+    <!-- POPUP 2: Modal Chi Tiết Thực Đơn & Công Thức Chế Biến (Recipe Details Modal - Images 3 & 4) -->
     <div class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" id="recipe-details-modal">
-      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card);">
-        <div class="flex justify-between items-center mb-4 pb-3 border-b border-color">
+      <div class="modal-card card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="background: var(--bg-card); border-radius: 28px;">
+        <div class="flex justify-between items-start mb-4">
           <div>
-            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full" style="background: var(--primary-soft); color: var(--accent-purple);" id="rd-modal-type-badge">Bữa Ăn</span>
-            <h3 id="rd-modal-title" class="display text-xl font-semibold mt-1" style="color: var(--accent-purple);">Tên Món Ăn</h3>
+            <span class="text-xs font-bold px-3 py-1 rounded-full inline-block mb-1" style="background: #FEF3C7; color: #F59E0B;" id="rd-modal-type-badge">Bữa Sáng</span>
+            <h3 id="rd-modal-title" class="display text-2xl font-semibold" style="color: var(--accent-purple);">1 bát phở gà nạc kho gừng</h3>
           </div>
-          <button class="btn btn-secondary btn-icon w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-rd-modal">
+          <button class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-rd-modal">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
 
         <!-- Khối 1: Nguyên liệu cần mua & Giá ước tính -->
-        <div class="p-4 rounded-2xl border border-color mb-4" style="background: var(--bg-subtle);">
+        <div class="p-4 rounded-2xl mb-4" style="background: rgba(124, 58, 237, 0.04); border: 1px solid var(--border-color);">
           <div class="flex justify-between items-center mb-3">
-            <h4 class="font-bold text-sm" style="color: var(--text-main);">Nguyên Liệu Cần Mua & Giá Ước Tính</h4>
-            <div class="text-xs font-bold text-[var(--accent-purple)]" id="rd-modal-total-cost">0 VNĐ</div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
+                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+              </div>
+              <h4 class="font-bold text-sm" style="color: var(--text-main);">Nguyên Liệu Cần Mua & Giá Ước Tính</h4>
+            </div>
+            <div class="text-xs font-bold px-3 py-1 rounded-full" style="background: var(--primary-soft); color: var(--accent-purple);" id="rd-modal-total-cost">30.000 VNĐ</div>
           </div>
-          <div id="rd-modal-ingredients-container"></div>
+          <div class="space-y-2" id="rd-modal-ingredients-container"></div>
         </div>
 
-        <!-- Khối 2: Hướng dẫn cách làm / Chế biến -->
-        <div class="p-4 rounded-2xl border border-color mb-4" style="background: var(--bg-subtle);">
-          <h4 class="font-bold text-sm mb-3" style="color: var(--text-main);">Hướng Dẫn Cách Làm / Chế Biến</h4>
-          <div id="rd-modal-instructions-container"></div>
+        <!-- Khối 2: Hướng dẫn cách làm / Chế biến (Numbered Steps) -->
+        <div class="p-4 rounded-2xl mb-4" style="background: rgba(124, 58, 237, 0.04); border: 1px solid var(--border-color);">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
+              <i data-lucide="utensils" class="w-4 h-4"></i>
+            </div>
+            <h4 class="font-bold text-sm" style="color: var(--text-main);">Hướng Dẫn Cách Làm / Chế Biến</h4>
+          </div>
+          <div class="space-y-2 relative pl-2" id="rd-modal-instructions-container"></div>
         </div>
 
         <!-- Khối 3: Video Hướng Dẫn Chế Biến -->
         <div id="rd-modal-video-section" class="mb-4">
-          <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
-            <h4 class="font-bold text-sm" style="color: var(--text-main);">Video Hướng Dẫn Chế Biến:</h4>
+          <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+            <h4 class="font-bold text-sm flex items-center gap-2" style="color: var(--text-main);">
+              <i data-lucide="video" class="w-4 h-4 text-red-500"></i> Video Hướng Dẫn Chế Biến:
+            </h4>
             <div class="flex gap-2">
-              <a id="rd-tiktok-search-btn" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm text-xs rounded-xl">TikTok ↗</a>
-              <a id="rd-youtube-search-btn" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm text-xs rounded-xl">YouTube ↗</a>
+              <a id="rd-tiktok-search-btn" href="#" target="_blank" rel="noopener" class="btn-ghost px-3 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-1">
+                🎵 TikTok ↗
+              </a>
+              <a id="rd-youtube-search-btn" href="#" target="_blank" rel="noopener" class="btn-ghost px-3 py-1.5 text-xs font-semibold rounded-xl flex items-center gap-1">
+                ▶ YouTube ↗
+              </a>
             </div>
           </div>
-          <div class="p-3 rounded-2xl border border-dashed border-[var(--accent-purple)] mb-3" style="background: var(--bg-subtle);">
-            <label class="text-xs font-bold block mb-2" style="color: var(--accent-purple);">Dán Link Video TikTok / YouTube Đổi Video Chế Biến:</label>
+
+          <div class="p-3.5 rounded-2xl border border-dashed border-[var(--accent-purple)] mb-3" style="background: var(--primary-soft);">
+            <label class="text-xs font-bold block mb-2" style="color: var(--accent-purple);">
+              <i data-lucide="link" class="w-3.5 h-3.5 inline mr-1"></i> Dán Link Video TikTok / YouTube Đổi Video Chế Biến:
+            </label>
             <div class="flex gap-2 items-center flex-wrap">
               <input type="text" class="form-input text-xs flex-1 rounded-xl px-3 py-2" id="rd-custom-video-input" onfocus="this.select()" placeholder="Dán link TikTok hoặc YouTube..." style="background: var(--bg-input); color: var(--text-main);" />
-              <button type="button" class="btn btn-primary btn-sm text-xs font-bold px-3 py-2 rounded-xl" id="btn-rd-apply-video">
-                Xác Nhận Đổi Video
+              <button type="button" class="btn-primary btn-sm text-xs font-bold px-4 py-2 rounded-xl" id="btn-rd-apply-video">
+                ✓ Xác Nhận Đổi Video
               </button>
             </div>
           </div>
 
-          <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-2xl bg-black">
+          <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-2xl bg-black shadow-sm">
             <iframe id="rd-modal-iframe" class="absolute top-0 left-0 w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
           </div>
         </div>
 
         <!-- Actions -->
         <div class="flex gap-3">
-          <button class="btn btn-secondary flex-1 py-2.5 rounded-xl text-xs font-semibold" id="btn-close-rd-modal-bottom">Đóng</button>
-          <button class="btn btn-primary flex-1 py-2.5 rounded-xl text-xs font-semibold" id="btn-apply-single-meal-to-today">Ghi Nhận Món Này Vào Nhật Ký</button>
+          <button class="btn-ghost flex-1 py-3 rounded-2xl text-xs font-semibold" id="btn-close-rd-modal-bottom">Đóng</button>
+          <button class="btn-primary flex-1 py-3 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5" id="btn-apply-single-meal-to-today">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> Ghi Nhận Món Này Vào Nhật Ký
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Modal Chi Tiết Mốc Lịch Trình Sinh Hoạt AI -->
+    <!-- POPUP 3: Modal Chi Tiết Mốc Lịch Trình Sinh Hoạt AI (Schedule Details Modal - Image 5) -->
     <div class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" id="schedule-details-modal">
-      <div class="modal-card card p-6 w-full max-w-lg" style="background: var(--bg-card);">
-        <div class="flex justify-between items-center mb-4 pb-3 border-b border-color">
+      <div class="modal-card card p-6 w-full max-w-lg" style="background: var(--bg-card); border-radius: 28px;">
+        <div class="flex justify-between items-start mb-4">
           <div>
-            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full" style="background: rgba(59, 130, 246, 0.12); color: #3B82F6;" id="sd-modal-badge">⏰ Sinh Hoạt</span>
-            <h3 id="sd-modal-title" class="display text-xl font-semibold mt-1" style="color: var(--accent-purple);">Tên Mốc Lịch Trình</h3>
+            <span class="text-xs font-bold px-3 py-1 rounded-full inline-block mb-1" style="background: #DBEAFE; color: #3B82F6;" id="sd-modal-badge">⏰ Sinh Hoạt</span>
+            <h3 id="sd-modal-title" class="display text-2xl font-semibold" style="color: var(--accent-purple);">Thức Dậy & Uống Nước Ấm Khởi Động</h3>
           </div>
-          <button class="btn btn-secondary btn-icon w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-sd-modal">
+          <button class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-sd-modal">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
 
-        <div class="p-4 rounded-2xl border border-color mb-4" style="background: var(--bg-subtle);">
-          <div class="flex items-center gap-2 mb-3 flex-wrap">
-            <span class="font-mono font-bold text-sm px-2.5 py-1 rounded-lg border border-[var(--accent-purple)]" style="background: var(--primary-soft); color: var(--accent-purple);" id="sd-modal-time">06:30</span>
-            <span class="text-xs text-muted font-bold" style="color: var(--text-muted);" id="sd-modal-day-label">Khung giờ sinh hoạt khuyến nghị</span>
+        <div class="p-4 rounded-2xl mb-4" style="background: rgba(124, 58, 237, 0.04); border: 1px solid var(--border-color);">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="font-mono font-bold text-sm px-3 py-1 rounded-xl" style="background: var(--primary-soft); color: var(--accent-purple);" id="sd-modal-time">05:30</span>
+            <span class="text-xs text-muted font-bold" style="color: var(--text-muted);" id="sd-modal-day-label">Lịch trình Ngày ${selectedJourneyDay}/${totalJourneyDays}</span>
           </div>
 
-          <h4 class="font-bold text-sm mb-2" style="color: var(--text-main);" id="sd-modal-activity">Thức Dậy & Uống Nước Ấm Khởi Động</h4>
-          <p class="text-xs leading-relaxed mb-3" style="color: var(--text-main);" id="sd-modal-desc"></p>
-          <div class="p-3 rounded-xl border-l-4 border-[var(--accent-purple)] text-xs leading-relaxed" style="background: rgba(124, 58, 237, 0.08); color: var(--text-main);" id="sd-modal-tip">
-            💡 <b>Lời khuyên từ AI Coach:</b> Thực hiện thói quen này đều đặn đúng khung giờ sẽ giúp cơ thể thiết lập nhịp sinh học lành mạnh.
+          <h4 class="font-bold text-base mb-2" style="color: var(--text-main);" id="sd-modal-activity">Thức Dậy & Uống Nước Ấm Khởi Động</h4>
+          <p class="text-xs leading-relaxed mb-4 text-muted" style="color: var(--text-muted);" id="sd-modal-desc"></p>
+          
+          <div class="p-3.5 rounded-2xl text-xs leading-relaxed border-l-4 border-[var(--accent-purple)]" style="background: var(--primary-soft); color: var(--text-main);" id="sd-modal-tip">
+            💧 <b>Bổ sung nước đầu ngày:</b> 300 - 500ml nước ấm ngay sau khi thức dậy giúp bù lại lượng nước đã mất qua đêm.
           </div>
         </div>
 
-        <button class="btn btn-primary w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2" id="btn-confirm-schedule-habit">
+        <button class="btn-primary w-full py-3.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2" id="btn-confirm-schedule-habit">
           <i data-lucide="check-circle" class="w-4 h-4"></i> Hoàn Thành & Đã Thực Hiện Thói Quen Này
         </button>
       </div>
@@ -508,7 +537,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
   if (mountNode) {
     mountNode.innerHTML = html;
 
-    // Teleport popup modals to document.body to ensure 100vw/100vh full screen dark glass backdrop
+    // Teleport popup modals to document.body
     ['recipe-details-modal', 'workout-guide-modal', 'schedule-details-modal'].forEach(id => {
       const existingInBody = document.body.querySelector(`#${id}`);
       const newInMount = mountNode.querySelector(`#${id}`);
@@ -596,37 +625,41 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
     document.getElementById('btn-recalculate-plan')?.addEventListener('click', onOpenAiCoach);
 
-    // Workout Video & Text Guide Modal Handler
+    // Workout Video & Text Guide Modal Handler (POPUP 1)
     const wgModal = document.getElementById('workout-guide-modal');
     let activeWorkoutItem = null;
+
+    const openWorkoutModal = (workoutObj) => {
+      activeWorkoutItem = workoutObj;
+      if (activeWorkoutItem && wgModal) {
+        document.getElementById('wg-modal-title').innerText = `Hướng Dẫn: ${activeWorkoutItem.title}`;
+        document.getElementById('wg-modal-instructions').innerText = activeWorkoutItem.description || '1. Jumping Jacks 3 phút.\n2. Burpees: 45s tập, 15s nghỉ x 4 vòng.\n3. Mountain Climbers: 45s x 4 vòng.\n4. High Knees nâng cao đùi: 45s x 4 vòng.';
+
+        const searchQuery = encodeURIComponent(`${activeWorkoutItem.title} hướng dẫn tập luyện`);
+        const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
+        const searchBtn = document.getElementById('wg-youtube-search-btn');
+        if (searchBtn) searchBtn.href = youtubeSearchUrl;
+
+        let embedUrl = parseEmbedVideoUrl(activeWorkoutItem.videoUrl);
+        if (!embedUrl) embedUrl = 'https://www.youtube.com/embed/ml6cT4AZdql';
+
+        const iframeEl = document.getElementById('wg-modal-iframe');
+        if (iframeEl) iframeEl.src = embedUrl;
+
+        const customInput = document.getElementById('wg-custom-video-input');
+        if (customInput) customInput.value = activeWorkoutItem.videoUrl || '';
+
+        wgModal.classList.remove('hidden');
+        wgModal.classList.add('flex');
+      }
+    };
 
     document.querySelectorAll('[data-open-workout-guide]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const idx = parseInt(btn.getAttribute('data-open-workout-guide'));
-        activeWorkoutItem = activeWorkoutRoutine[idx];
-
-        if (activeWorkoutItem && activeWorkoutItem.duration > 0 && wgModal) {
-          document.getElementById('wg-modal-title').innerText = activeWorkoutItem.title;
-          document.getElementById('wg-modal-instructions').innerText = activeWorkoutItem.description || 'Thực hiện động tác chuẩn form, hít thở đều và nghỉ 45-60s giữa các hiệp.';
-
-          const searchQuery = encodeURIComponent(`${activeWorkoutItem.title} hướng dẫn tập luyện`);
-          const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
-          const searchBtn = document.getElementById('wg-youtube-search-btn');
-          if (searchBtn) searchBtn.href = youtubeSearchUrl;
-
-          let embedUrl = parseEmbedVideoUrl(activeWorkoutItem.videoUrl);
-          if (!embedUrl) embedUrl = 'https://www.youtube.com/embed/inpok4MKVLM';
-
-          const iframeEl = document.getElementById('wg-modal-iframe');
-          if (iframeEl) iframeEl.src = embedUrl;
-
-          const customInput = document.getElementById('wg-custom-video-input');
-          if (customInput) customInput.value = activeWorkoutItem.videoUrl || '';
-
-          wgModal.classList.remove('hidden');
-          wgModal.classList.add('flex');
-        }
+        const targetW = activeWorkoutRoutine[idx] || currentDayWorkout;
+        if (targetW) openWorkoutModal(targetW);
       });
     });
 
@@ -664,9 +697,9 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         const today = DataService.getTodayString();
         await DataService.addWorkoutLog(today, {
           type: activeWorkoutItem.title,
-          duration: activeWorkoutItem.duration,
+          duration: activeWorkoutItem.duration || 30,
           intensity: 'Moderate',
-          caloriesBurned: activeWorkoutItem.estBurn
+          caloriesBurned: activeWorkoutItem.estBurn || 280
         });
         closeWgModal();
         confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
@@ -678,87 +711,55 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       }
     });
 
-    // Schedule Habit Guide Modal Handler
-    const sdModal = document.getElementById('schedule-details-modal');
-    let activeScheduleItem = null;
-
-    document.querySelectorAll('[data-open-schedule-item]').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('[data-open-workout-guide]')) return;
-
-        const idx = parseInt(card.getAttribute('data-open-schedule-item'));
-        activeScheduleItem = (activeDailySchedule || [])[idx];
-
-        if (activeScheduleItem && sdModal) {
-          document.getElementById('sd-modal-time').innerText = activeScheduleItem.time || '06:00';
-          document.getElementById('sd-modal-activity').innerText = activeScheduleItem.activity || 'Thói quen sinh hoạt';
-          document.getElementById('sd-modal-desc').innerText = activeScheduleItem.desc || 'Thực hiện đúng khung giờ để duy trì kỷ luật.';
-          document.getElementById('sd-modal-title').innerText = activeScheduleItem.activity;
-
-          sdModal.classList.remove('hidden');
-          sdModal.classList.add('flex');
-        }
-      });
-    });
-
-    const closeSdModal = () => {
-      if (sdModal) {
-        sdModal.classList.add('hidden');
-        sdModal.classList.remove('flex');
-      }
-    };
-
-    document.getElementById('btn-close-sd-modal')?.addEventListener('click', closeSdModal);
-    sdModal?.addEventListener('click', (e) => { if (e.target === sdModal) closeSdModal(); });
-
-    document.getElementById('btn-confirm-schedule-habit')?.addEventListener('click', async () => {
-      if (activeScheduleItem) {
-        const today = DataService.getTodayString();
-        await DataService.addChecklistItem(today, `Hoàn thành ${activeScheduleItem.activity} (${activeScheduleItem.time})`);
-        closeSdModal();
-        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-        await Modal.success({
-          title: 'Đã Ghi Nhận Thói Quen!',
-          message: `Đã thêm mốc "${activeScheduleItem.activity}" vào Checklist Kỷ Luật hôm nay!`
-        });
-      }
-    });
-
-    // Recipe details modal handler
+    // Recipe details modal handler (POPUP 2)
     const rdModal = document.getElementById('recipe-details-modal');
     let activeRecipeMeal = null;
 
     const openRecipeModalForMeal = async (mealObj, typeLabel) => {
-      if (!mealObj || !mealObj.name || !rdModal) return;
+      if (!mealObj || !rdModal) return;
       activeRecipeMeal = mealObj;
 
       document.getElementById('rd-modal-type-badge').innerText = typeLabel || 'Bữa Ăn';
-      document.getElementById('rd-modal-title').innerText = mealObj.name;
-      document.getElementById('rd-modal-total-cost').innerText = `${(mealObj.costVnd || 0).toLocaleString('vi-VN')} VNĐ`;
+      document.getElementById('rd-modal-title').innerText = mealObj.name || 'Thực đơn AI';
+      document.getElementById('rd-modal-total-cost').innerText = `${(mealObj.costVnd || 30000).toLocaleString('vi-VN')} VNĐ`;
 
-      const details = getMealRecipeDetails(mealObj.name);
+      const details = getMealRecipeDetails(mealObj.name || '');
 
       const ingContainer = document.getElementById('rd-modal-ingredients-container');
       if (ingContainer) {
-        ingContainer.innerHTML = (details.ingredients || []).map(ing => `
-          <div class="flex justify-between items-center text-xs py-1.5 border-b border-color" style="border-bottom: 1px solid var(--border-color);">
-            <span style="color: var(--text-main); font-weight: 600;">• ${ing.name} <span style="color: var(--text-muted);">(${ing.amount})</span></span>
-            <span class="font-bold" style="color: var(--accent-purple);">${(ing.estCostVnd || 0).toLocaleString('vi-VN')}₫</span>
+        ingContainer.innerHTML = (details.ingredients || [
+          { name: 'Thịt lườn gà xé', amount: '120g', estCostVnd: 15000 },
+          { name: 'Bánh phở tươi / phở khô', amount: '150g', estCostVnd: 9000 },
+          { name: 'Gừng, hành tây & nước dùng', amount: 'Vừa đủ', estCostVnd: 6000 }
+        ]).map(ing => `
+          <div class="flex justify-between items-center p-3 rounded-2xl" style="background: rgba(124, 58, 237, 0.06);">
+            <span class="text-xs font-semibold" style="color: var(--text-main);">${ing.name} <span class="text-muted font-normal">(${ing.amount})</span></span>
+            <span class="text-xs font-bold" style="color: var(--accent-purple);">${(ing.estCostVnd || 0).toLocaleString('vi-VN')} VNĐ</span>
           </div>
         `).join('');
       }
 
       const instContainer = document.getElementById('rd-modal-instructions-container');
       if (instContainer) {
-        instContainer.innerHTML = (details.steps || []).map((st, i) => `
-          <div class="text-xs py-1.5 style="color: var(--text-main); line-height: 1.5;">
-            <b>Bước ${i + 1}:</b> ${st}
+        instContainer.innerHTML = (details.steps || [
+          'Nấu nước dùng gà thanh ngọt với gừng và hành tây nướng.',
+          'Chần bánh phở qua nước sôi rồi cho ra bát.',
+          'Xếp thịt gà xé và rắc hành lá thái nhỏ lên trên.',
+          'Chan nước dùng nóng hổi và dùng nóng kèm chanh ớt.'
+        ]).map((st, i) => `
+          <div class="flex items-start gap-3 p-3 rounded-2xl" style="background: rgba(124, 58, 237, 0.06);">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background: var(--accent-purple);">
+              ${i + 1}
+            </div>
+            <div class="text-xs leading-relaxed pt-0.5" style="color: var(--text-main); font-weight: 500;">
+              ${st}
+            </div>
           </div>
         `).join('');
       }
 
-      const ttSearchUrl = `https://www.tiktok.com/search?q=${encodeURIComponent(details.searchQuery || mealObj.name)}`;
-      const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(details.searchQuery || mealObj.name)}`;
+      const ttSearchUrl = `https://www.tiktok.com/search?q=${encodeURIComponent(details.searchQuery || mealObj.name || 'phở gà')}`;
+      const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(details.searchQuery || mealObj.name || 'phở gà')}`;
 
       const ttBtn = document.getElementById('rd-tiktok-search-btn');
       if (ttBtn) ttBtn.href = ttSearchUrl;
@@ -766,7 +767,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       if (ytBtn) ytBtn.href = ytSearchUrl;
 
       let embedUrl = parseEmbedVideoUrl(details.videoUrl);
-      if (!embedUrl) embedUrl = 'https://www.youtube.com/embed/inpok4MKVLM';
+      if (!embedUrl) embedUrl = 'https://www.youtube.com/embed/a7GXmE-D4uE';
 
       const iframeEl = document.getElementById('rd-modal-iframe');
       if (iframeEl) iframeEl.src = embedUrl;
@@ -818,6 +819,79 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
           message: `Đã ghi nhận món "${activeRecipeMeal.name}" vào nhật ký ăn uống hôm nay!`
         });
         onNavigateTab('meals');
+      }
+    });
+
+    // POPUP 3: Schedule Habit Guide Modal Handler
+    const sdModal = document.getElementById('schedule-details-modal');
+    let activeScheduleItem = null;
+
+    // Smart Click Router for Daily Schedule Items
+    document.querySelectorAll('[data-open-schedule-item]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('[data-open-workout-guide]')) return;
+
+        const idx = parseInt(card.getAttribute('data-open-schedule-item'));
+        const item = (activeDailySchedule || [])[idx];
+        if (!item) return;
+
+        if (item.category === 'workout') {
+          openWorkoutModal(currentDayWorkout || { title: item.activity, duration: 30, estBurn: 280 });
+        } else if (item.category === 'meal') {
+          let mealObj = { name: item.activity, costVnd: 30000, calories: 400 };
+          let typeLabel = 'Bữa Ăn';
+
+          const actLower = item.activity.toLowerCase();
+          if (actLower.includes('sáng') || item.time.startsWith('06') || item.time.startsWith('07')) {
+            typeLabel = 'Bữa Sáng';
+            mealObj = activeDayMealPlan?.breakfast || mealObj;
+          } else if (actLower.includes('trưa') || item.time.startsWith('11') || item.time.startsWith('12')) {
+            typeLabel = 'Bữa Trưa';
+            mealObj = activeDayMealPlan?.lunch || mealObj;
+          } else if (actLower.includes('tối') || item.time.startsWith('18') || item.time.startsWith('19')) {
+            typeLabel = 'Bữa Tối';
+            mealObj = activeDayMealPlan?.dinner || mealObj;
+          } else if (actLower.includes('phụ') || item.time.startsWith('15') || item.time.startsWith('16')) {
+            typeLabel = 'Bữa Phụ';
+            mealObj = activeDayMealPlan?.snack || mealObj;
+          }
+          openRecipeModalForMeal(mealObj, typeLabel);
+        } else {
+          activeScheduleItem = item;
+          if (sdModal) {
+            document.getElementById('sd-modal-time').innerText = item.time || '05:30';
+            document.getElementById('sd-modal-activity').innerText = item.activity || 'Thói quen sinh hoạt';
+            document.getElementById('sd-modal-desc').innerText = item.desc || 'Uống 300 - 500ml nước ấm để kích hoạt hệ tiêu hóa, thực hiện 5 phút dẫn cơ nhẹ nhàng.';
+            document.getElementById('sd-modal-title').innerText = item.activity;
+            document.getElementById('sd-modal-day-label').innerText = `Lịch trình Ngày ${selectedJourneyDay}/${totalJourneyDays}`;
+
+            sdModal.classList.remove('hidden');
+            sdModal.classList.add('flex');
+          }
+        }
+      });
+    });
+
+    const closeSdModal = () => {
+      if (sdModal) {
+        sdModal.classList.add('hidden');
+        sdModal.classList.remove('flex');
+      }
+    };
+
+    document.getElementById('btn-close-sd-modal')?.addEventListener('click', closeSdModal);
+    sdModal?.addEventListener('click', (e) => { if (e.target === sdModal) closeSdModal(); });
+
+    document.getElementById('btn-confirm-schedule-habit')?.addEventListener('click', async () => {
+      if (activeScheduleItem) {
+        const today = DataService.getTodayString();
+        await DataService.addChecklistItem(today, `Hoàn thành ${activeScheduleItem.activity} (${activeScheduleItem.time})`);
+        closeSdModal();
+        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+        await Modal.success({
+          title: 'Đã Ghi Nhận Thói Quen!',
+          message: `Đã thêm mốc "${activeScheduleItem.activity}" vào Checklist Kỷ Luật hôm nay!`
+        });
       }
     });
   }
