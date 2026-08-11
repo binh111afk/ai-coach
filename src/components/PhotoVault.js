@@ -254,7 +254,7 @@ export async function renderPhotoVault() {
           </button>
         </div>
 
-        <div class="p-5 overflow-y-auto max-h-[65vh]">
+        <div id="galleryScrollContainer" class="p-5 overflow-y-auto max-h-[65vh]">
           <div id="galleryGrid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
             <!-- Gallery items rendered dynamically -->
           </div>
@@ -498,38 +498,67 @@ export async function renderPhotoVault() {
     document.getElementById('slot-before')?.addEventListener('click', () => openGallery('before'));
     document.getElementById('slot-after')?.addEventListener('click', () => openGallery('after'));
 
-    // GALLERY PICKER (BOTTOM SHEET)
+    // GALLERY PICKER (BOTTOM SHEET) - PROGRESSIVE SCROLL ROW REVEAL
+    let loadedPhotoIndex = 0;
+    const BATCH_SIZE = 8; // 8 photos = 1 row per batch!
+
+    const renderNextPhotoBatch = (target) => {
+      if (loadedPhotoIndex >= photos.length) return;
+      const grid = document.getElementById('galleryGrid');
+      if (!grid) return;
+
+      const nextBatch = photos.slice(loadedPhotoIndex, loadedPhotoIndex + BATCH_SIZE);
+      nextBatch.forEach((p, idx) => {
+        const actualIdx = loadedPhotoIndex + idx;
+        const dayNum = p.journeyDay || (actualIdx + 1);
+        const isSelected = (target === 'before' && selectedBefore?.id === p.id) ||
+                           (target === 'after' && selectedAfter?.id === p.id);
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `gallery-item ${isSelected ? 'selected' : ''} fade-up`;
+        itemDiv.style.animationDelay = `${(idx % 8) * 0.03}s`;
+        itemDiv.innerHTML = `
+          <img src="${p.photoDataUrl || p.url || p.photoUrl}" alt="Photo Day ${dayNum}">
+          <div class="gallery-check"><i data-lucide="check" class="w-3.5 h-3.5"></i></div>
+          <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] py-1 text-center font-bold">
+            Ngày ${dayNum} · ${p.weight ? p.weight + 'kg' : formatDisplayDate(p.date)}
+          </div>
+        `;
+        itemDiv.addEventListener('click', () => {
+          if (target === 'before') selectedBefore = p;
+          else selectedAfter = p;
+          updateSlotDisplay(target, p);
+          closeGallery();
+          checkAnalyzeButton();
+        });
+        grid.appendChild(itemDiv);
+      });
+
+      loadedPhotoIndex += nextBatch.length;
+      if (window.lucide) window.lucide.createIcons();
+    };
+
     const openGallery = (target) => {
       currentSelectTarget = target;
       const targetLabel = document.getElementById('galleryTargetLabel');
       if (targetLabel) targetLabel.textContent = target === 'before' ? 'Ảnh 1 (Before)' : 'Ảnh 2 (After)';
 
       const grid = document.getElementById('galleryGrid');
-      if (grid) {
-        grid.innerHTML = '';
-        photos.forEach((p, idx) => {
-          const dayNum = p.journeyDay || (idx + 1);
-          const isSelected = (target === 'before' && selectedBefore?.id === p.id) ||
-                             (target === 'after' && selectedAfter?.id === p.id);
-          const itemDiv = document.createElement('div');
-          itemDiv.className = `gallery-item ${isSelected ? 'selected' : ''}`;
-          itemDiv.innerHTML = `
-            <img src="${p.photoDataUrl || p.url || p.photoUrl}" alt="Photo Day ${dayNum}">
-            <div class="gallery-check"><i data-lucide="check" class="w-3.5 h-3.5"></i></div>
-            <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] py-1 text-center font-bold">
-              Ngày ${dayNum} · ${p.weight ? p.weight + 'kg' : formatDisplayDate(p.date)}
-            </div>
-          `;
-          itemDiv.addEventListener('click', () => {
-            if (target === 'before') selectedBefore = p;
-            else selectedAfter = p;
-            updateSlotDisplay(target, p);
-            closeGallery();
-            checkAnalyzeButton();
-          });
-          grid.appendChild(itemDiv);
-        });
-        if (window.lucide) window.lucide.createIcons();
+      if (grid) grid.innerHTML = '';
+
+      loadedPhotoIndex = 0;
+      // Load initial batches (16 items / 2 rows)
+      renderNextPhotoBatch(target);
+      renderNextPhotoBatch(target);
+
+      const scrollContainer = document.getElementById('galleryScrollContainer');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = 0;
+        scrollContainer.onscroll = () => {
+          if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 60) {
+            renderNextPhotoBatch(target);
+          }
+        };
       }
 
       const galleryOverlay = document.getElementById('galleryOverlay');
