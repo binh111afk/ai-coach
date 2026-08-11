@@ -77,14 +77,14 @@ export async function renderWorkoutTracker() {
 
       <!-- Action Buttons Row -->
       <div class="flex flex-wrap gap-3 mb-6 fade-up" style="animation-delay: 0.14s">
-        <button class="btn-ghost px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold ${todayLog.isRestDay ? 'bg-[var(--accent-purple-light)] text-[var(--accent-purple)] border-[var(--accent-purple)]' : ''}" id="btn-toggle-rest-day">
-          <i data-lucide="bed" class="w-4 h-4"></i> ${todayLog.isRestDay ? 'Bỏ Đánh Dấu Ngày Nghỉ' : 'Đánh Dấu Ngày Nghỉ'}
+        <button class="px-5 py-2.5 rounded-2xl flex items-center gap-2 text-sm font-bold shadow-sm transition hover:shadow-md cursor-pointer" id="btn-toggle-rest-day" style="background: ${todayLog.isRestDay ? 'var(--primary-soft)' : 'var(--bg-card)'}; border: 1.5px solid ${todayLog.isRestDay ? 'var(--accent-purple)' : 'rgba(124, 58, 237, 0.2)'}; color: ${todayLog.isRestDay ? 'var(--accent-purple)' : 'var(--text-main)'};">
+          <i data-lucide="bed" class="w-4 h-4 text-[var(--accent-purple)]"></i> ${todayLog.isRestDay ? 'Bỏ Đánh Dấu Ngày Nghỉ' : 'Đánh Dấu Ngày Nghỉ'}
         </button>
-        <button class="btn-primary px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold" id="btn-open-workout-modal-top">
+        <button class="btn-primary px-5 py-2.5 rounded-2xl flex items-center gap-2 text-sm font-bold shadow-sm transition hover:shadow-md cursor-pointer" id="btn-open-workout-modal-top">
           <i data-lucide="plus-circle" class="w-4 h-4"></i> Thêm Bài Tập Mới
         </button>
-        <button class="btn-accent ai-glow px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold" id="btn-trigger-ai-cal-out">
-          <i data-lucide="sparkles" class="w-4 h-4"></i> AI Tính Calo Out
+        <button class="px-5 py-2.5 rounded-2xl flex items-center gap-2 text-sm font-bold shadow-sm transition hover:shadow-md cursor-pointer" id="btn-trigger-ai-cal-out" style="background: var(--bg-card); border: 1.5px solid rgba(124, 58, 237, 0.2); color: var(--text-main);">
+          <i data-lucide="sparkles" class="w-4 h-4 text-[var(--accent-purple)]"></i> AI Tính Calo Out
         </button>
       </div>
 
