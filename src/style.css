@@ -5692,3 +5692,132 @@ body.dark .btn-analyze:disabled {
 }
 .btn-start:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(124, 58, 237, 0.5); }
 .btn-start:active { transform: translateY(0); }
+
+/* ==================== HABIT POPUP CSS ==================== */
+.habit-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 27, 46, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.habit-popup-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.habit-popup-card {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 32px;
+  box-shadow: 0 25px 50px -12px rgba(124, 58, 237, 0.25);
+  width: 100%;
+  max-width: 440px;
+  padding: 28px 24px;
+  position: relative;
+  overflow: hidden;
+  transform: scale(0.9) translateY(20px);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: var(--text-main, #1E1B2E);
+}
+.habit-popup-overlay.active .habit-popup-card {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+.bg-glow-orange {
+  position: absolute;
+  top: -60px; right: -40px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+.bg-glow-blue {
+  position: absolute;
+  bottom: -60px; left: -40px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.habit-icon-box {
+  width: 64px; height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #DBEAFE, #EDE9FE);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 8px 20px -5px rgba(59, 130, 246, 0.3);
+  flex-shrink: 0;
+}
+.habit-icon-box::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  border: 2px solid rgba(255,255,255,0.6);
+}
+
+.metric-box {
+  background: linear-gradient(135deg, #EFF6FF, #F5F3FF);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 20px;
+}
+
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+}
+.check-icon {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--primary-soft, #EDE9FE);
+  color: var(--primary, #7C3AED);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.btn-complete {
+  background: linear-gradient(135deg, var(--primary, #7C3AED), var(--accent, #D946EF));
+  box-shadow: 0 10px 20px -5px rgba(124, 58, 237, 0.4);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.btn-complete:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(124, 58, 237, 0.5); }
+.btn-complete:active { transform: translateY(0); }
+
+.btn-complete.loading {
+  pointer-events: none;
+  background: #E5E7EB !important;
+  color: #6B7280 !important;
+  box-shadow: none !important;
+}
+.btn-complete.success {
+  background: #10B981 !important;
+  box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4) !important;
+  pointer-events: none;
+}
+
+@keyframes habitSpinner { to { transform: rotate(360deg); } }
+.habit-spinner {
+  width: 20px; height: 20px;
+  border: 3px solid rgba(124, 58, 237, 0.2);
+  border-top-color: var(--primary, #7C3AED);
+  border-radius: 50%;
+  animation: habitSpinner 0.8s linear infinite;
+}

@@ -507,36 +507,74 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       </div>
     </div>
 
-    <!-- POPUP 3: Modal Chi Tiết Mốc Lịch Trình Sinh Hoạt AI (Schedule Details Modal) -->
-    <div class="modal-overlay" id="schedule-details-modal">
-      <div class="modal-card card p-6 w-full max-w-lg" style="background: var(--bg-card); border-radius: 28px; position: relative; z-index: 1;">
-        <div class="flex justify-between items-start mb-4">
-          <div>
-            <span class="text-xs font-bold px-3 py-1 rounded-full inline-block mb-1" style="background: #DBEAFE; color: #3B82F6;" id="sd-modal-badge">⏰ Sinh Hoạt</span>
-            <h3 id="sd-modal-title" class="display text-2xl font-semibold" style="color: var(--accent-purple);">Thức Dậy & Uống Nước Ấm Khởi Động</h3>
-          </div>
-          <button class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-sd-modal">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
+    <!-- POPUP 3: Modal Chi Tiết Mốc Lịch Trình Sinh Hoạt AI (Schedule Habit Popup) -->
+    <div class="habit-popup-overlay" id="schedule-details-modal">
+      <div class="habit-popup-card" onclick="event.stopPropagation()">
+        <div class="bg-glow-orange"></div>
+        <div class="bg-glow-blue"></div>
 
-        <div class="p-4 rounded-2xl mb-4" style="background: rgba(124, 58, 237, 0.04); border: 1px solid var(--border-color);">
-          <div class="flex items-center gap-3 mb-3">
-            <span class="font-mono font-bold text-sm px-3 py-1 rounded-xl" style="background: var(--primary-soft); color: var(--accent-purple);" id="sd-modal-time">05:30</span>
-            <span class="text-xs text-muted font-bold" style="color: var(--text-muted);" id="sd-modal-day-label">Lịch trình Ngày ${selectedJourneyDay}/${totalJourneyDays}</span>
-          </div>
-
-          <h4 class="font-bold text-base mb-2" style="color: var(--text-main);" id="sd-modal-activity">Thức Dậy & Uống Nước Ấm Khởi Động</h4>
-          <p class="text-xs leading-relaxed mb-4 text-muted" style="color: var(--text-muted);" id="sd-modal-desc"></p>
-          
-          <div class="p-3.5 rounded-2xl text-xs leading-relaxed border-l-4 border-[var(--accent-purple)]" style="background: var(--primary-soft); color: var(--text-main);" id="sd-modal-tip">
-            💧 <b>Bổ sung nước đầu ngày:</b> 300 - 500ml nước ấm ngay sau khi thức dậy giúp bù lại lượng nước đã mất qua đêm.
-          </div>
-        </div>
-
-        <button class="btn-primary w-full py-3.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2" id="btn-confirm-schedule-habit">
-          <i data-lucide="check-circle" class="w-4 h-4"></i> Hoàn Thành & Đã Thực Hiện Thói Quen Này
+        <!-- Close Button -->
+        <button id="btn-close-sd-modal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition z-20 cursor-pointer">
+          <i data-lucide="x" class="w-4 h-4"></i>
         </button>
+
+        <!-- Header -->
+        <div class="relative flex items-center gap-4 mb-6">
+          <div class="habit-icon-box" id="sd-modal-icon-box">
+            <i data-lucide="droplets" class="w-8 h-8 text-[#3B82F6]" id="sd-modal-icon"></i>
+          </div>
+          <div>
+            <span class="text-[10px] font-bold text-[#3B82F6] bg-blue-50 px-2 py-1 rounded-md uppercase tracking-wider" id="sd-modal-badge">Sinh Hoạt</span>
+            <h2 class="display text-xl font-semibold mt-1 leading-tight" id="sd-modal-title" style="color: var(--text-main);">Thức Dậy & <br>Uống Nước Ấm</h2>
+          </div>
+        </div>
+
+        <!-- Meta Info (Time & Day) -->
+        <div class="relative flex gap-3 mb-5">
+          <div class="flex-1 bg-gray-50 rounded-xl p-3 flex items-center gap-2 border border-gray-100">
+            <i data-lucide="alarm-clock" class="w-4 h-4 text-[#F59E0B]"></i>
+            <div>
+              <div class="text-[9px] text-gray-400 font-bold uppercase">Giờ Gợi Ý</div>
+              <div class="text-sm font-bold" id="sd-modal-time">05:30 Sáng</div>
+            </div>
+          </div>
+          <div class="flex-1 bg-gray-50 rounded-xl p-3 flex items-center gap-2 border border-gray-100">
+            <i data-lucide="calendar-check" class="w-4 h-4 text-[var(--accent-purple)]"></i>
+            <div>
+              <div class="text-[9px] text-gray-400 font-bold uppercase">Lịch Trình</div>
+              <div class="text-sm font-bold" id="sd-modal-day-label">Ngày 2/124</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Highlight -->
+        <div class="relative metric-box p-4 mb-5 flex items-center justify-between" id="sd-modal-metric-container">
+          <div>
+            <div class="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1" id="sd-modal-metric-label">Lượng Nước Gợi Ý</div>
+            <div class="display text-2xl font-bold text-[#3B82F6]" id="sd-modal-metric-val">300 - 500 ml</div>
+          </div>
+          <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm" id="sd-modal-metric-icon-box">
+            <i data-lucide="glass-water" class="w-6 h-6 text-[#3B82F6]" id="sd-modal-metric-icon"></i>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="relative mb-6">
+          <h3 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Hướng Dẫn Thực Hiện</h3>
+          <div class="border-t border-gray-100" id="sd-modal-checklist">
+            <div class="check-item border-b border-gray-100">
+              <div class="check-icon"><i data-lucide="check" class="w-3 h-3"></i></div>
+              <p class="text-sm text-gray-700">Uống 300 - 500ml nước ấm ngay sau khi thức dậy.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button id="btn-confirm-schedule-habit" class="btn-complete w-full text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-base relative z-10 cursor-pointer">
+          <i data-lucide="check-circle" class="w-5 h-5"></i>
+          <span id="sd-btn-text">Hoàn Thành & Ghi Nhận Thói Quen</span>
+        </button>
+
       </div>
     </div>
   `;
@@ -930,12 +968,66 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
         } else {
           activeScheduleItem = item;
           if (sdModal) {
-            document.getElementById('sd-modal-time').innerText = item.time || '05:30';
-            document.getElementById('sd-modal-activity').innerText = item.activity || 'Thói quen sinh hoạt';
-            document.getElementById('sd-modal-desc').innerText = item.desc || 'Uống 300 - 500ml nước ấm để kích hoạt hệ tiêu hóa, thực hiện 5 phút dẫn cơ nhẹ nhàng.';
-            document.getElementById('sd-modal-title').innerText = item.activity;
-            document.getElementById('sd-modal-day-label').innerText = `Lịch trình Ngày ${selectedJourneyDay}/${totalJourneyDays}`;
+            const timeEl = document.getElementById('sd-modal-time');
+            if (timeEl) timeEl.innerText = item.time ? `${item.time} Sáng` : '05:30 Sáng';
 
+            const titleEl = document.getElementById('sd-modal-title');
+            if (titleEl) titleEl.innerText = item.activity || 'Thức Dậy & Uống Nước Ấm';
+
+            const dayLabelEl = document.getElementById('sd-modal-day-label');
+            if (dayLabelEl) dayLabelEl.innerText = `Ngày ${selectedJourneyDay}/${totalJourneyDays}`;
+
+            const actLower = (item.activity || '').toLowerCase();
+            const desc = item.desc || item.instructions || 'Uống 300 - 500ml nước ấm ngay sau khi thức dậy để kích hoạt tiêu hóa và thanh lọc cơ thể.';
+
+            // Dynamic Icons & Metrics based on activity content
+            let iconName = 'droplets';
+            let metricLabel = 'Lượng Nước Gợi Ý';
+            let metricVal = '300 - 500 ml';
+            let metricIcon = 'glass-water';
+
+            if (actLower.includes('ngủ') || actLower.includes('nghỉ')) {
+              iconName = 'moon';
+              metricLabel = 'Thời Gian Giấc Ngủ';
+              metricVal = '7 - 8 Tiếng';
+              metricIcon = 'bed';
+            } else if (actLower.includes('dãn') || actLower.includes('khởi động')) {
+              iconName = 'sparkles';
+              metricLabel = 'Mục Tiêu Phục Hồi';
+              metricVal = '5 - 10 Phút';
+              metricIcon = 'zap';
+            } else if (actLower.includes('bước') || actLower.includes('tản bộ')) {
+              iconName = 'footprints';
+              metricLabel = 'Mục Tiêu Vận Động';
+              metricVal = '1.000 - 2.000 Bước';
+              metricIcon = 'activity';
+            }
+
+            const iconEl = document.getElementById('sd-modal-icon');
+            if (iconEl) {
+              iconEl.setAttribute('data-lucide', iconName);
+            }
+            const mLabelEl = document.getElementById('sd-modal-metric-label');
+            if (mLabelEl) mLabelEl.innerText = metricLabel;
+            const mValEl = document.getElementById('sd-modal-metric-val');
+            if (mValEl) mValEl.innerText = metricVal;
+            const mIconEl = document.getElementById('sd-modal-metric-icon');
+            if (mIconEl) mIconEl.setAttribute('data-lucide', metricIcon);
+
+            // Instructions checklist generator
+            const checklistContainer = document.getElementById('sd-modal-checklist');
+            if (checklistContainer) {
+              const lines = desc.split(/[\n\.]/).filter(s => s.trim().length > 3);
+              if (lines.length === 0) lines.push(desc);
+              checklistContainer.innerHTML = lines.map((line, idx) => `
+                <div class="check-item ${idx < lines.length - 1 ? 'border-b border-gray-100' : ''}">
+                  <div class="check-icon"><i data-lucide="check" class="w-3 h-3"></i></div>
+                  <p class="text-sm text-gray-700">${line.trim()}.</p>
+                </div>
+              `).join('');
+            }
+
+            if (window.lucide) window.lucide.createIcons();
             sdModal.classList.add('active');
           }
         }
@@ -949,19 +1041,39 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
     };
 
     document.getElementById('btn-close-sd-modal')?.addEventListener('click', closeSdModal);
-    sdModal?.addEventListener('click', (e) => { if (!e.target.closest('.modal-card')) closeSdModal(); });
+    sdModal?.addEventListener('click', (e) => { if (e.target === sdModal) closeSdModal(); });
 
-    document.getElementById('btn-confirm-schedule-habit')?.addEventListener('click', async () => {
-      if (activeScheduleItem) {
+    const habitBtn = document.getElementById('btn-confirm-schedule-habit');
+    if (habitBtn) {
+      habitBtn.onclick = async () => {
+        if (!activeScheduleItem) return;
+
+        // 1. Loading State
+        habitBtn.classList.add('loading');
+        habitBtn.innerHTML = `<div class="habit-spinner"></div> <span>Đang ghi nhận...</span>`;
+
         const today = DataService.getTodayString();
         await DataService.addChecklistItem(today, `Hoàn thành ${activeScheduleItem.activity} (${activeScheduleItem.time})`);
-        closeSdModal();
-        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-        await Modal.success({
-          title: 'Đã Ghi Nhận Thói Quen!',
-          message: `Đã thêm mốc "${activeScheduleItem.activity}" vào Checklist Kỷ Luật hôm nay!`
-        });
-      }
-    });
+
+        // 2. Success State after 800ms
+        setTimeout(() => {
+          habitBtn.classList.remove('loading');
+          habitBtn.classList.add('success');
+          habitBtn.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> <span>Đã hoàn thành thói quen!</span>`;
+          confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+          if (window.lucide) window.lucide.createIcons();
+
+          // 3. Close modal after 1s
+          setTimeout(() => {
+            closeSdModal();
+            setTimeout(() => {
+              habitBtn.classList.remove('success', 'loading');
+              habitBtn.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5"></i> <span id="sd-btn-text">Hoàn Thành & Ghi Nhận Thói Quen</span>`;
+              if (window.lucide) window.lucide.createIcons();
+            }, 500);
+          }, 1000);
+        }, 800);
+      };
+    }
   }
 }
