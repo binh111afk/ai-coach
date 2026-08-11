@@ -721,57 +721,66 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
       document.getElementById('rd-modal-title').innerText = mealObj.name || 'Thực đơn AI';
       document.getElementById('rd-modal-total-cost').innerText = `${(mealObj.costVnd || 30000).toLocaleString('vi-VN')} VNĐ`;
 
-      const details = getMealRecipeDetails(mealObj.name || '');
+      const details = getMealRecipeDetails(mealObj) || {
+        ingredients: [],
+        instructions: [],
+        youtubeSearchQuery: mealObj.name || '',
+        youtubeEmbedUrl: ''
+      };
 
       const ingContainer = document.getElementById('rd-modal-ingredients-container');
       if (ingContainer) {
-        ingContainer.innerHTML = (details.ingredients || [
-          { name: 'Thịt lườn gà xé', amount: '120g', estCostVnd: 15000 },
-          { name: 'Bánh phở tươi / phở khô', amount: '150g', estCostVnd: 9000 },
-          { name: 'Gừng, hành tây & nước dùng', amount: 'Vừa đủ', estCostVnd: 6000 }
-        ]).map(ing => `
+        const ingList = (details.ingredients && details.ingredients.length > 0) ? details.ingredients : [
+          { name: mealObj.name || 'Nguyên liệu chính', amount: '1 khẩu phần', estPriceVnd: Math.round((mealObj.costVnd || 30000) * 0.7) },
+          { name: 'Rau củ / Gia vị đi kèm', amount: 'Vừa đủ', estPriceVnd: Math.round((mealObj.costVnd || 30000) * 0.3) }
+        ];
+        ingContainer.innerHTML = ingList.map(ing => `
           <div class="flex justify-between items-center p-3 rounded-2xl" style="background: rgba(124, 58, 237, 0.06);">
             <span class="text-xs font-semibold" style="color: var(--text-main);">${ing.name} <span class="text-muted font-normal">(${ing.amount})</span></span>
-            <span class="text-xs font-bold" style="color: var(--accent-purple);">${(ing.estCostVnd || 0).toLocaleString('vi-VN')} VNĐ</span>
+            <span class="text-xs font-bold" style="color: var(--accent-purple);">${((ing.estPriceVnd || ing.estCostVnd || 0)).toLocaleString('vi-VN')} VNĐ</span>
           </div>
         `).join('');
       }
 
       const instContainer = document.getElementById('rd-modal-instructions-container');
       if (instContainer) {
-        instContainer.innerHTML = (details.steps || [
-          'Nấu nước dùng gà thanh ngọt với gừng và hành tây nướng.',
-          'Chần bánh phở qua nước sôi rồi cho ra bát.',
-          'Xếp thịt gà xé và rắc hành lá thái nhỏ lên trên.',
-          'Chan nước dùng nóng hổi và dùng nóng kèm chanh ớt.'
-        ]).map((st, i) => `
-          <div class="flex items-start gap-3 p-3 rounded-2xl" style="background: rgba(124, 58, 237, 0.06);">
-            <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background: var(--accent-purple);">
-              ${i + 1}
+        const stepList = (details.instructions && details.instructions.length > 0) ? details.instructions : [
+          'Sơ chế nguyên liệu sạch sẽ và nêm ướp gia vị vừa ăn.',
+          'Chế biến chín tới (luộc, hấp, nướng hoặc xào nhẹ ít dầu).',
+          'Bày ra đĩa và thưởng thức khi còn nóng.'
+        ];
+        instContainer.innerHTML = stepList.map((st, i) => {
+          const stepText = typeof st === 'string' ? st.replace(/^\d+\.\s*/, '') : st;
+          return `
+            <div class="flex items-start gap-3 p-3 rounded-2xl" style="background: rgba(124, 58, 237, 0.06);">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background: var(--accent-purple);">
+                ${i + 1}
+              </div>
+              <div class="text-xs leading-relaxed pt-0.5" style="color: var(--text-main); font-weight: 500;">
+                ${stepText}
+              </div>
             </div>
-            <div class="text-xs leading-relaxed pt-0.5" style="color: var(--text-main); font-weight: 500;">
-              ${st}
-            </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       }
 
-      const ttSearchUrl = `https://www.tiktok.com/search?q=${encodeURIComponent(details.searchQuery || mealObj.name || 'phở gà')}`;
-      const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(details.searchQuery || mealObj.name || 'phở gà')}`;
+      const searchQuery = details.youtubeSearchQuery || mealObj.name || 'thực đơn lành mạnh';
+      const ttSearchUrl = `https://www.tiktok.com/search?q=${encodeURIComponent(searchQuery)}`;
+      const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
 
       const ttBtn = document.getElementById('rd-tiktok-search-btn');
       if (ttBtn) ttBtn.href = ttSearchUrl;
       const ytBtn = document.getElementById('rd-youtube-search-btn');
       if (ytBtn) ytBtn.href = ytSearchUrl;
 
-      let embedUrl = parseEmbedVideoUrl(details.videoUrl);
+      let embedUrl = parseEmbedVideoUrl(details.youtubeEmbedUrl);
       if (!embedUrl) embedUrl = 'https://www.youtube.com/embed/a7GXmE-D4uE';
 
       const iframeEl = document.getElementById('rd-modal-iframe');
       if (iframeEl) iframeEl.src = embedUrl;
 
       const customInput = document.getElementById('rd-custom-video-input');
-      if (customInput) customInput.value = details.videoUrl || '';
+      if (customInput) customInput.value = details.youtubeEmbedUrl || '';
 
       rdModal.classList.add('active');
     };
