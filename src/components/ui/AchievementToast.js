@@ -7,6 +7,7 @@ import { BADGES } from '../../services/gamificationService.js';
 
 let toastQueue = [];
 let isShowingToast = false;
+const shownToastBadgeIds = new Set();
 
 /**
  * Show achievement toast for one or more newly unlocked badge IDs
@@ -16,8 +17,11 @@ export function showAchievementToast(newBadgeIds = []) {
   if (!newBadgeIds || newBadgeIds.length === 0) return;
 
   newBadgeIds.forEach(id => {
-    const badge = BADGES.find(b => b.id === id);
-    if (badge) toastQueue.push(badge);
+    if (!shownToastBadgeIds.has(id)) {
+      shownToastBadgeIds.add(id);
+      const badge = BADGES.find(b => b.id === id);
+      if (badge) toastQueue.push(badge);
+    }
   });
 
   if (!isShowingToast) processNextToast();

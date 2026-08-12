@@ -1,9 +1,10 @@
 import { DataService, generate7DayMealPlan } from '../services/dataService.js';
 import { dbManager } from '../services/db.js';
-import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges } from '../services/gamificationService.js';
+import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, getLevelInfo } from '../services/gamificationService.js';
 import { CONFIG } from '../config.js';
 import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
+import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 
 export async function renderSettingsPage(onSaveComplete) {
   const profile = await DataService.getUserProfile();
@@ -26,7 +27,35 @@ export async function renderSettingsPage(onSaveComplete) {
   const currentModelObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId) || CONFIG.SUPPORTED_MODELS[0];
   const isDarkMode = document.body.classList.contains('dark');
 
+  // AI Tone Dropdown Options
+  const activeTone = await DataService.getSetting('ai_coach_tone') || 'inspiring';
+  const toneOptions = [
+    { value: 'inspiring', label: 'Truyền cảm hứng' },
+    { value: 'strict', label: 'Nghiêm khắc' },
+    { value: 'gentle', label: 'Nhẹ nhàng' }
+  ];
+
+  const toneDropdownHtml = renderDropdown({
+    options: toneOptions,
+    value: activeTone,
+    id: 'select-ai-tone',
+    className: 'w-40 sm:w-44'
+  });
+
+  const getInitialLetter = (fullName = '') => {
+    const parts = (fullName || 'B').trim().split(/\s+/);
+    const lastWord = parts[parts.length - 1];
+    return (lastWord ? lastWord.charAt(0) : 'B').toUpperCase();
+  };
+
+  const initialLetter = getInitialLetter(profile.name);
+
   const goal = await DataService.getUserGoal();
+  const progress = await DataService.getUserProgress();
+  const levelInfo = getLevelInfo(progress.totalXp || 0, goal.journeyLevels);
+  const currentLevelNum = levelInfo.currentLevel ? levelInfo.currentLevel.level : (progress.level || 1);
+  const currentLevelTitle = levelInfo.currentLevel ? (levelInfo.currentLevel.title || levelInfo.currentLevel.name) : 'Cốt Lõi';
+
   const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 100;
   const currentJourneyDay = DataService.calculateCurrentJourneyDay(goal.startDate);
 
@@ -46,26 +75,38 @@ export async function renderSettingsPage(onSaveComplete) {
         <!-- Top Profile Info with Right Side Journey Day Box -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 mb-6" style="border-bottom: 1px solid rgba(124, 58, 237, 0.14);">
           <div class="flex items-center gap-5">
-            <div class="relative flex-shrink-0">
-              <img id="profile-avatar-img" src="${profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}" class="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover shadow-md" style="border: 2.5px solid var(--primary-light, #8B5CF6);">
+            <div class="avatar-box" id="avatar-container-box">
+              ${profile.avatar ? `
+                <img id="profile-avatar-img" src="${profile.avatar}" class="w-full h-full rounded-full object-cover shadow-md">
+              ` : `
+                <span class="avatar-letter display" id="profile-avatar-letter">${initialLetter}</span>
+              `}
             </div>
             <div>
               <h2 class="display text-2xl font-semibold" id="disp-profile-name" style="color: var(--fg);">${profile.name || 'Chiến Binh Fitness'}</h2>
-              <p class="text-sm text-[var(--muted)]" id="disp-profile-email">${profile.email || 'fitness_warrior@ai.app'}</p>
+              <p class="text-xs text-[var(--muted)] mt-1" id="disp-profile-email">${profile.email || 'fitness_warrior@ai.app'}</p>
               <button class="btn-ghost mt-3 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 w-fit" id="btn-toggle-edit-box" style="border: 1px solid rgba(124, 58, 237, 0.2);">
                 <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> <span id="btn-edit-label">Chỉnh sửa hồ sơ</span>
               </button>
             </div>
           </div>
 
-          <!-- Journey Day Badge Box (Fills right side empty space) -->
-          <div class="flex items-center gap-3.5 p-4 rounded-2xl shadow-sm self-start md:self-center" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.16);">
-            <div class="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[var(--primary)] shadow-sm flex-shrink-0">
-              <i data-lucide="calendar" class="w-6 h-6"></i>
+          <!-- Journey Day Badge Box & Level Badge Container (Right Side) -->
+          <div class="flex flex-col items-start md:items-end gap-2.5 self-start md:self-center">
+            <div class="flex items-center gap-3.5 p-4 rounded-2xl shadow-sm w-full md:w-auto" style="background: var(--primary-soft); border: 1px solid rgba(124, 58, 237, 0.16);">
+              <div class="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[var(--primary)] shadow-sm flex-shrink-0">
+                <i data-lucide="calendar" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <div class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-extrabold">Hành Trình AI</div>
+                <div class="display text-xl md:text-2xl font-bold text-[var(--primary)]">Ngày ${currentJourneyDay}/${totalJourneyDays}</div>
+              </div>
             </div>
-            <div>
-              <div class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-extrabold">Hành Trình AI</div>
-              <div class="display text-xl md:text-2xl font-bold text-[var(--primary)]">Ngày ${currentJourneyDay}/${totalJourneyDays}</div>
+
+            <!-- Level Badge directly under Journey Day Box -->
+            <div class="level-badge shadow-sm">
+              <span class="level-dot"></span>
+              Lv.${currentLevelNum} · ${currentLevelTitle}
             </div>
           </div>
         </div>
@@ -195,15 +236,15 @@ export async function renderSettingsPage(onSaveComplete) {
 
           <div style="border-top: 1px solid rgba(124, 58, 237, 0.14);"></div>
 
-          <div class="flex items-center justify-between py-3">
-            <div class="flex items-center gap-3">
-              <i data-lucide="message-square-heart" class="w-5 h-5 text-[var(--muted)]"></i>
+          <div class="flex items-center justify-between py-3 gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="message-square-heart" class="w-5 h-5 text-[var(--muted)] flex-shrink-0"></i>
               <div>
                 <div class="text-sm font-semibold" style="color: var(--fg);">Giọng điệu AI</div>
                 <div class="text-xs text-[var(--muted)]">Thiết lập phong cách giao tiếp</div>
               </div>
             </div>
-            <div class="text-xs font-bold text-[var(--accent)] bg-fuchsia-50 px-2.5 py-1 rounded-lg">Truyền cảm hứng</div>
+            ${toneDropdownHtml}
           </div>
 
           <div style="border-top: 1px solid rgba(124, 58, 237, 0.14);"></div>
@@ -353,8 +394,10 @@ export async function renderSettingsPage(onSaveComplete) {
       const reader = new FileReader();
       reader.onload = (evt) => {
         newAvatarBase64 = evt.target.result;
-        const avatarImg = document.getElementById('profile-avatar-img');
-        if (avatarImg) avatarImg.src = newAvatarBase64;
+        const avatarBox = document.getElementById('avatar-container-box');
+        if (avatarBox) {
+          avatarBox.innerHTML = `<img id="profile-avatar-img" src="${newAvatarBase64}" class="w-full h-full rounded-full object-cover shadow-md">`;
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -379,6 +422,11 @@ export async function renderSettingsPage(onSaveComplete) {
       // Update UI displays
       document.getElementById('disp-profile-name').textContent = profile.name;
       document.getElementById('disp-profile-email').textContent = profile.email;
+
+      if (!profile.avatar) {
+        const letterEl = document.getElementById('profile-avatar-letter');
+        if (letterEl) letterEl.textContent = getInitialLetter(profile.name);
+      }
       document.getElementById('stat-disp-age').textContent = profile.age;
       document.getElementById('stat-disp-height').textContent = profile.height;
       document.getElementById('stat-disp-weight').textContent = profile.currentWeight;
@@ -508,6 +556,13 @@ export async function renderSettingsPage(onSaveComplete) {
     };
 
     renderAllergyTags();
+
+    // Init custom dropdown listeners
+    initDropdownListeners(mountNode, async (val, id) => {
+      if (id === 'select-ai-tone') {
+        await DataService.saveSetting('ai_coach_tone', val);
+      }
+    });
 
     // 5. MAIN SAVE SETTINGS BUTTON & RESET DATA BUTTON AT BOTTOM
     document.getElementById('btn-main-save-settings')?.addEventListener('click', async () => {

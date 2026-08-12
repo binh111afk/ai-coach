@@ -84,6 +84,7 @@ export const DataService = {
       progress.currentStreak = 1;
       progress.longestStreak = Math.max(progress.longestStreak || 1, 1);
       await dbManager.put('user_progress', progress);
+      appState.setProgress(progress);
       return progress;
     }
 
@@ -145,6 +146,7 @@ export const DataService = {
 
     if (updated) {
       await dbManager.put('user_progress', progress);
+      appState.setProgress(progress);
     }
 
     return progress;
@@ -688,10 +690,11 @@ export const DataService = {
 
     const newBadges = checkAndUnlockBadges(progress, stats);
     if (newBadges.length > 0) {
-      progress.badges = [...(progress.badges || []), ...newBadges];
+      progress.badges = Array.from(new Set([...(progress.badges || []), ...newBadges]));
     }
 
     await dbManager.put('user_progress', progress);
+    appState.setProgress(progress);
     window.dispatchEvent(new CustomEvent('xp:updated', { detail: { totalXp: progress.totalXp } }));
     return newBadges;
   },
@@ -719,9 +722,12 @@ export const DataService = {
     };
 
     const newBadges = checkAndUnlockBadges(progress, stats);
-    if (newBadges.length > 0) progress.badges = [...(progress.badges || []), ...newBadges];
+    if (newBadges.length > 0) {
+      progress.badges = Array.from(new Set([...(progress.badges || []), ...newBadges]));
+    }
 
     await dbManager.put('user_progress', progress);
+    appState.setProgress(progress);
     window.dispatchEvent(new CustomEvent('xp:updated', { detail: { totalXp: progress.totalXp } }));
     if (newBadges.length > 0) {
       window.dispatchEvent(new CustomEvent('achievement:unlocked', { detail: { badgeIds: newBadges } }));
@@ -812,14 +818,14 @@ export const DataService = {
     };
     const newBadges = checkAndUnlockBadges(progress, stats);
     if (newBadges.length > 0) {
-      progress.badges = [...(progress.badges || []), ...newBadges];
-      await dbManager.put('user_progress', progress);
+      progress.badges = Array.from(new Set([...(progress.badges || []), ...newBadges]));
     }
     // Also award photo XP (+15)
     progress.totalXp = (progress.totalXp || 0) + 15;
     const levelInfo = getLevelInfo(progress.totalXp);
     progress.level = levelInfo.currentLevel.level;
     await dbManager.put('user_progress', progress);
+    appState.setProgress(progress);
 
     if (newBadges.length > 0) {
       window.dispatchEvent(new CustomEvent('achievement:unlocked', { detail: { badgeIds: newBadges } }));
@@ -1028,14 +1034,32 @@ export const DataService = {
           await this.saveUserGoal(goal);
           break;
         }
-        case 'LOG_MEAL': {
-          const { date, meal } = proposedChange.payload;
-          await this.addMealLog(date || this.getTodayString(), meal);
+        case 'LOG_MEAL':
+        case 'LOG_MULTIPLE_MEALS':
+        case 'LOG_MEALS': {
+          const { date, meal, meals } = proposedChange.payload || {};
+          const targetDate = date || this.getTodayString();
+          if (Array.isArray(meals) && meals.length > 0) {
+            for (const m of meals) {
+              await this.addMealLog(targetDate, m);
+            }
+          } else if (meal) {
+            await this.addMealLog(targetDate, meal);
+          }
           break;
         }
-        case 'LOG_WORKOUT': {
-          const { date, workout } = proposedChange.payload;
-          await this.addWorkoutLog(date || this.getTodayString(), workout);
+        case 'LOG_WORKOUT':
+        case 'LOG_MULTIPLE_WORKOUTS':
+        case 'LOG_WORKOUTS': {
+          const { date, workout, workouts } = proposedChange.payload || {};
+          const targetDate = date || this.getTodayString();
+          if (Array.isArray(workouts) && workouts.length > 0) {
+            for (const w of workouts) {
+              await this.addWorkoutLog(targetDate, w);
+            }
+          } else if (workout) {
+            await this.addWorkoutLog(targetDate, workout);
+          }
           break;
         }
         case 'UPDATE_WATER_GOAL': {

@@ -1,5 +1,5 @@
 import confetti from 'canvas-confetti';
-import { DataService } from '../services/dataService.js';
+import { DataService, getPlanForJourneyDay } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
@@ -28,6 +28,9 @@ export async function renderMealTracker(onOpenAiCoach) {
   const activeDateStr = DataService.getDateStrForJourneyDay(goal.startDate, selectedMealJourneyDay);
   const todayLog = await DataService.getDailyLog(activeDateStr);
   const dailyBudget = plan.dailyBudgetVnd || 100000;
+
+  // Fetch the planned menu for active journey day from PlanPage data
+  const { mealEntry } = getPlanForJourneyDay(plan, selectedMealJourneyDay);
 
   const caloriesIn = (todayLog.meals || []).reduce((sum, m) => sum + (m.calories || m.kcal || 0), 0);
   const caloriesOut = (todayLog.workouts || []).reduce((sum, w) => sum + (w.caloriesBurned || w.calories || w.caloBurned || 0), 0);
@@ -83,19 +86,78 @@ export async function renderMealTracker(onOpenAiCoach) {
   }
   const diffCal = Math.abs(caloriesIn - caloriesOut);
 
-  // Macro percentages
+  // Macro percentages & deficits
   const pPercent = Math.min(100, Math.round((totalProtein / pTarget) * 100));
   const cPercent = Math.min(100, Math.round((totalCarb / cTarget) * 100));
   const fPercent = Math.min(100, Math.round((totalFat / fTarget) * 100));
+  const calPercent = Math.min(100, Math.round((caloriesIn / calTarget) * 100));
 
-  // Dynamic AI Insight Text
-  let aiInsightMessage = '';
-  if (pPercent < 60) {
-    aiInsightMessage = `Bạn đang thiếu <strong>protein</strong> (${pPercent}%). Gợi ý thêm <strong>ức gà áp chảo (~150g, 240 kcal)</strong> hoặc <strong>trứng luộc (2 quả)</strong> cho bữa tiếp theo — vừa đủ đạm, vừa trong ngân sách còn lại.`;
-  } else if (caloriesIn < calTarget * 0.5) {
-    aiInsightMessage = `Lượng calo nạp vào hôm nay mới đạt ${Math.round((caloriesIn / calTarget) * 100)}%. Hãy bổ sung đầy đủ năng lượng cho các hoạt động thể chất nhé!`;
+  const pDeficit = Math.max(0, pTarget - totalProtein);
+  const calDeficit = Math.max(0, calTarget - caloriesIn);
+
+  // Determine next unlogged meal slot based on today's logged meals
+  const hasBreakfast = (todayLog.meals || []).some(m => m.type === 'Breakfast');
+  const hasLunch = (todayLog.meals || []).some(m => m.type === 'Lunch');
+  const hasDinner = (todayLog.meals || []).some(m => m.type === 'Dinner');
+  const hasSnack = (todayLog.meals || []).some(m => m.type === 'Snack');
+
+  let nextMealType = 'Breakfast';
+  let nextMealLabel = 'Bữa Sáng';
+  let plannedNextMeal = mealEntry?.breakfast || null;
+
+  if (!hasBreakfast) {
+    nextMealType = 'Breakfast';
+    nextMealLabel = 'Bữa Sáng';
+    plannedNextMeal = mealEntry?.breakfast || null;
+  } else if (!hasLunch) {
+    nextMealType = 'Lunch';
+    nextMealLabel = 'Bữa Trưa';
+    plannedNextMeal = mealEntry?.lunch || null;
+  } else if (!hasDinner) {
+    nextMealType = 'Dinner';
+    nextMealLabel = 'Bữa Tối';
+    plannedNextMeal = mealEntry?.dinner || null;
+  } else if (!hasSnack) {
+    nextMealType = 'Snack';
+    nextMealLabel = 'Bữa Phụ';
+    plannedNextMeal = mealEntry?.snack || null;
   } else {
-    aiInsightMessage = `Chế độ dinh dưỡng ngày hôm nay rất cân bằng (${caloriesIn}/${calTarget} kcal)! Duy trì kỷ luật để sớm hoàn thành mục tiêu vóc dáng!`;
+    nextMealType = 'Snack';
+    nextMealLabel = 'Bữa Tiếp Theo';
+    plannedNextMeal = mealEntry?.snack || null;
+  }
+
+  // Dynamic AI Insight Analysis linking PlanPage scheduled menu with logged meal progress
+  let aiInsightMessage = '';
+
+  if ((todayLog.meals || []).length === 0) {
+    if (plannedNextMeal && plannedNextMeal.name) {
+      aiInsightMessage = `Bạn chưa ghi nhận bữa ăn nào cho Ngày ${selectedMealJourneyDay}. Theo thực đơn kế hoạch (${nextMealLabel}), AI gợi ý: <strong>${plannedNextMeal.name}</strong> (~${plannedNextMeal.calories} kcal, ${plannedNextMeal.protein || 0}g đạm) — vừa chuẩn dinh dưỡng, vừa khớp ngân sách <strong>${budgetLeft.toLocaleString('vi-VN')}₫</strong>.`;
+    } else {
+      aiInsightMessage = `Hôm nay bạn chưa ghi nhận bữa ăn nào. Hãy bắt đầu với <strong>Bữa Sáng giàu đạm</strong> (~350 kcal) để có năng lượng dồi dào nhé!`;
+    }
+  } else if (pPercent < 70 && pDeficit >= 15) {
+    if (plannedNextMeal && plannedNextMeal.name) {
+      aiInsightMessage = `Bạn đang thiếu <strong>${pDeficit}g protein</strong> (mới đạt ${pPercent}% mục tiêu đạm). Theo kế hoạch cho <strong>${nextMealLabel}</strong>, bạn nên chọn món <strong>${plannedNextMeal.name}</strong> (~${plannedNextMeal.calories} kcal, ${plannedNextMeal.protein || 0}g protein) — bù đạm hoàn hảo và nằm trong ngân sách còn lại (<strong>${budgetLeft.toLocaleString('vi-VN')}₫</strong>).`;
+    } else {
+      aiInsightMessage = `Bạn đang thiếu <strong>${pDeficit}g protein</strong> (${pPercent}% mục tiêu). Gợi ý thêm <strong>ức gà áp chảo (~150g, 240 kcal)</strong> hoặc <strong>trứng luộc (2 quả)</strong> cho bữa tiếp theo — vừa đủ đạm, vừa trong ngân sách còn <strong>${budgetLeft.toLocaleString('vi-VN')}₫</strong>.`;
+    }
+  } else if (calPercent < 60 && calDeficit > 300) {
+    if (plannedNextMeal && plannedNextMeal.name) {
+      aiInsightMessage = `Calo nạp vào mới đạt <strong>${calPercent}%</strong> (còn thiếu ~${calDeficit} kcal). Theo thực đơn <strong>Plan Page (${nextMealLabel})</strong>, hãy nạp món <strong>${plannedNextMeal.name}</strong> (~${plannedNextMeal.calories} kcal) để duy trì thể lực tốt nhất!`;
+    } else {
+      aiInsightMessage = `Lượng calo nạp vào hôm nay mới đạt <strong>${calPercent}%</strong> (${caloriesIn}/${calTarget} kcal). Hãy bổ sung thêm bữa ăn để đạt chỉ tiêu năng lượng hôm nay!`;
+    }
+  } else if (calPercent >= 90 && calPercent <= 110) {
+    aiInsightMessage = `Chúc mừng! Dinh dưỡng Ngày ${selectedMealJourneyDay} rất cân bằng: đạt <strong>${calPercent}% calo</strong> (${caloriesIn}/${calTarget} kcal) và <strong>${pPercent}% protein</strong> (${totalProtein}/${pTarget}g đạm). Duy trì kỷ luật nhé!`;
+  } else if (calPercent > 110) {
+    aiInsightMessage = `Hôm nay bạn nạp <strong>${caloriesIn} kcal</strong> (vượt chỉ tiêu ${calTarget} kcal khoảng ${caloriesIn - calTarget} kcal). AI khuyên bạn nên đi bộ hoặc tập cardio 20-30 phút để cân bằng năng lượng!`;
+  } else {
+    if (plannedNextMeal && plannedNextMeal.name) {
+      aiInsightMessage = `Tiến độ dinh dưỡng đang rất tốt (${pPercent}% đạm, ${calPercent}% calo). Gợi ý món tiếp theo cho <strong>${nextMealLabel} (Plan Page)</strong>: <strong>${plannedNextMeal.name}</strong> (~${plannedNextMeal.calories} kcal).`;
+    } else {
+      aiInsightMessage = `Chế độ dinh dưỡng hôm nay rất cân bằng (${caloriesIn}/${calTarget} kcal, ${totalProtein}/${pTarget}g đạm). Tiếp tục phát huy nhé!`;
+    }
   }
 
   const mealsByCategory = {
@@ -435,7 +497,7 @@ export async function renderMealTracker(onOpenAiCoach) {
 
     // AI Insight Card Action Buttons
     document.getElementById('btn-ai-apply-recommendation')?.addEventListener('click', () => {
-      openAddMealModal(activeDateStr, 'Dinner', () => renderMealTracker(onOpenAiCoach));
+      openAddMealModal(activeDateStr, nextMealType, () => renderMealTracker(onOpenAiCoach), plannedNextMeal);
     });
 
     document.getElementById('btn-ai-ask-coach')?.addEventListener('click', () => {
@@ -545,7 +607,7 @@ function renderMealCategoryCard(typeKey, title, iconName, mealsList = [], iconBg
   `;
 }
 
-function openAddMealModal(dateStr, defaultType = 'Lunch', onSaveSuccess) {
+function openAddMealModal(dateStr, defaultType = 'Lunch', onSaveSuccess, plannedMealSuggestion = null) {
   const modalMount = document.getElementById('modal-mount');
   if (!modalMount) return;
 
@@ -600,8 +662,26 @@ function openAddMealModal(dateStr, defaultType = 'Lunch', onSaveSuccess) {
           </div>
         </div>
 
-        <!-- Popular Suggestions List -->
+        <!-- Popular Suggestions & Plan Page Highlight List -->
         <div class="p-6 overflow-y-auto flex-1">
+          ${plannedMealSuggestion && plannedMealSuggestion.name ? `
+            <div class="mb-5 p-4 rounded-2xl border-2 border-[var(--accent-purple)] bg-[var(--primary-soft)] flex items-center justify-between gap-3 shadow-sm">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-xl bg-[var(--accent-purple)] text-white flex items-center justify-center font-bold flex-shrink-0">
+                  <i data-lucide="sparkles" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-purple)]">Gợi Ý Kế Hoạch (Plan Page)</div>
+                  <div class="text-sm font-bold truncate" style="color: var(--text-main);">${plannedMealSuggestion.name}</div>
+                  <div class="text-xs text-muted mt-0.5" style="color: var(--text-muted);">${plannedMealSuggestion.calories || 0} kcal · P:${plannedMealSuggestion.protein || 0}g · C:${plannedMealSuggestion.carb || 0}g · F:${plannedMealSuggestion.fat || 0}g</div>
+                </div>
+              </div>
+              <button class="btn btn-primary px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1 shadow-md cursor-pointer flex-shrink-0" id="btn-quick-add-plan-suggested">
+                <i data-lucide="plus" class="w-4 h-4"></i> Thêm Món Kế Hoạch
+              </button>
+            </div>
+          ` : ''}
+
           <div class="text-[10px] uppercase tracking-[0.18em] text-muted font-bold mb-3" style="color: var(--text-muted);">Gợi ý phổ biến (Bấm để thêm nhanh)</div>
           <div class="space-y-2" id="foodSuggestionsList">
             ${popularFoods.map(f => `
@@ -688,6 +768,24 @@ function openAddMealModal(dateStr, defaultType = 'Lunch', onSaveSuccess) {
   modal.addEventListener('click', (e) => {
     if (e.target === modal) closeModal();
   });
+
+  // 1-Click Quick Add Planned Meal from PlanPage
+  if (plannedMealSuggestion && plannedMealSuggestion.name) {
+    document.getElementById('btn-quick-add-plan-suggested')?.addEventListener('click', async () => {
+      await DataService.addMealLog(dateStr, {
+        type: currentType,
+        name: plannedMealSuggestion.name,
+        calories: plannedMealSuggestion.calories || 0,
+        protein: plannedMealSuggestion.protein || 0,
+        carb: plannedMealSuggestion.carb || 0,
+        fat: plannedMealSuggestion.fat || 0,
+        costVnd: plannedMealSuggestion.costVnd || 0
+      });
+      confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      closeModal();
+      if (onSaveSuccess) onSaveSuccess();
+    });
+  }
 
   // Quick Add Popular Food Click Listeners
   modalMount.querySelectorAll('[data-quick-add-food]').forEach(btn => {

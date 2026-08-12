@@ -317,10 +317,10 @@ export async function renderAiChatPage(onStateUpdated) {
       });
 
       await refreshMessages(container, activeSessionId, onStateUpdated);
-      await showPageThinkingIndicator(container);
+      const promptText = msgText || `Hãy phân tích các file đính kèm: ${sentFilesPayload.map(f => f.name).join(', ')}`;
+      await showPageThinkingIndicator(container, promptText, sentFilesPayload);
 
       const historyList = await DataService.getChatHistory(activeSessionId);
-      const promptText = msgText || `Hãy phân tích các file đính kèm: ${sentFilesPayload.map(f => f.name).join(', ')}`;
       const currentModelId = await DataService.getSelectedModel();
       const aiResponse = await AiCoachService.sendMessage(promptText, historyList, sentFilesPayload);
 
@@ -337,7 +337,7 @@ export async function renderAiChatPage(onStateUpdated) {
       inputText.disabled = false;
       inputText.focus();
       DataService.awardAiCoachXp().catch(() => {});
-      await refreshMessages(container, activeSessionId, onStateUpdated);
+      await refreshMessages(container, activeSessionId, onStateUpdated, true);
 
       // Asynchronously generate AI title for this session if not set yet
       if (!DataService.getSessionTitle(activeSessionId)) {
@@ -432,12 +432,49 @@ function getFileIconSvg(type) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
 }
 
-async function showPageThinkingIndicator(container) {
+let thinkingInterval = null;
+
+async function showPageThinkingIndicator(container, promptText = '', attachments = []) {
   if (!container) return;
-  const existing = document.getElementById('page-ai-thinking');
-  if (existing) return;
+  hidePageThinkingIndicator();
 
   const currentModelId = await DataService.getSelectedModel();
+  const text = (promptText || '').toLowerCase();
+  const hasImage = (attachments || []).some(a => (a.type || '').includes('image') || (a.name || '').match(/\.(png|jpg|jpeg|gif|webp)$/i));
+
+  let steps = [
+    { icon: 'search', text: 'Đang kết nối bộ nhớ & chỉ số AI Coach...' },
+    { icon: 'brain', text: 'Đang phân tích ngữ cảnh & dữ liệu cá nhân...' },
+    { icon: 'sparkles', text: 'Đang soạn thảo câu trả lời chuyên sâu...' }
+  ];
+
+  if (hasImage || /ảnh|kho ảnh|photo|sefile|tiến trình|vóc dáng/i.test(text)) {
+    steps = [
+      { icon: 'camera', text: 'Đang quét & phân tích Kho Ảnh tiến trình...' },
+      { icon: 'scale', text: 'Đang so sánh vóc dáng & cân nặng...' },
+      { icon: 'sparkles', text: 'Đang tổng hợp nhận xét & đề xuất...' }
+    ];
+  } else if (/ăn|bữa|món|calo|thực đơn|protein|đạm|carb|fat/i.test(text)) {
+    steps = [
+      { icon: 'utensils', text: 'Đang truy cập dữ liệu dinh dưỡng...' },
+      { icon: 'flame', text: 'Đang tính toán Calo & tỷ lệ Macro...' },
+      { icon: 'sparkles', text: 'Đang xây dựng đề xuất thực đơn...' }
+    ];
+  } else if (/tập|gym|chạy|bơi|cardio|hiit|bài tập|thể thao/i.test(text)) {
+    steps = [
+      { icon: 'dumbbell', text: 'Đang đối chiếu lịch trình tập luyện...' },
+      { icon: 'flame', text: 'Đang ước tính lượng Calo tiêu hao...' },
+      { icon: 'check-circle', text: 'Đang hoàn thiện hướng dẫn bài tập...' }
+    ];
+  } else if (/nước|water|lít|ml/i.test(text)) {
+    steps = [
+      { icon: 'droplets', text: 'Đang kiểm tra mục tiêu nước uống...' },
+      { icon: 'zap', text: 'Đang tính toán mức bù nước...' },
+      { icon: 'sparkles', text: 'Đang soạn câu trả lời...' }
+    ];
+  }
+
+  let stepIdx = 0;
 
   const thinkingDiv = document.createElement('div');
   thinkingDiv.id = 'page-ai-thinking';
@@ -448,31 +485,69 @@ async function showPageThinkingIndicator(container) {
     </div>
     <div class="msg-bubble">
       <div class="thinking-content">
-        <svg class="thinking-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
-        </svg>
-        <span class="thinking-text">AI Coach đang suy nghĩ</span>
+        <span class="thinking-text" id="thinking-step-label">
+          <i data-lucide="${steps[0].icon}" class="w-3.5 h-3.5 inline-block mr-1" style="color: var(--accent-purple);"></i>
+          <span>${steps[0].text}</span>
+        </span>
         <div class="thinking-dots">
           <span></span><span></span><span></span>
         </div>
       </div>
+      <div class="scanline-beam"></div>
       <div class="thinking-shimmer"></div>
     </div>
   `;
 
   container.appendChild(thinkingDiv);
+  if (window.lucide) window.lucide.createIcons({ el: thinkingDiv });
   container.scrollTop = container.scrollHeight;
+
+  thinkingInterval = setInterval(() => {
+    stepIdx = (stepIdx + 1) % steps.length;
+    const labelEl = document.getElementById('thinking-step-label');
+    if (labelEl) {
+      labelEl.classList.add('fade-swap');
+      setTimeout(() => {
+        const cur = steps[stepIdx];
+        labelEl.innerHTML = `
+          <i data-lucide="${cur.icon}" class="w-3.5 h-3.5 inline-block mr-1" style="color: var(--accent-purple);"></i>
+          <span>${cur.text}</span>
+        `;
+        if (window.lucide) window.lucide.createIcons({ el: labelEl });
+        labelEl.classList.remove('fade-swap');
+      }, 180);
+    }
+  }, 1800);
 }
 
 function hidePageThinkingIndicator() {
+  if (thinkingInterval) {
+    clearInterval(thinkingInterval);
+    thinkingInterval = null;
+  }
   const el = document.getElementById('page-ai-thinking');
   if (el) el.remove();
 }
 
-async function refreshMessages(container, sessionId, onStateUpdated) {
+async function refreshMessages(container, sessionId, onStateUpdated, animateLast = false) {
   if (!container) return;
   const history = await DataService.getChatHistory(sessionId);
   const currentModelId = await DataService.getSelectedModel();
+  const profile = await DataService.getUserProfile();
+
+  const getInitialLetter = (fullName = '') => {
+    const parts = (fullName || 'B').trim().split(/\s+/);
+    const lastWord = parts[parts.length - 1];
+    return (lastWord ? lastWord.charAt(0) : 'B').toUpperCase();
+  };
+  const userInitialLetter = getInitialLetter(profile.name);
+
+  let userAvatarHtml = '';
+  if (profile.avatar) {
+    userAvatarHtml = `<img src="${profile.avatar}" class="w-full h-full rounded-full object-cover shadow-sm">`;
+  } else {
+    userAvatarHtml = `<div class="w-full h-full rounded-full bg-[#4C1D95] text-white flex items-center justify-center font-serif text-xs font-semibold shadow-sm">${userInitialLetter}</div>`;
+  }
 
   if (history.length === 0) {
     container.innerHTML = `
@@ -490,7 +565,8 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
     return;
   }
 
-  const html = history.map(m => {
+  const lastIdx = history.length - 1;
+  const html = history.map((m, idx) => {
     const attachments = m.attachments || (m.attachment ? [m.attachment] : []);
     let filesHTML = '';
     if (attachments.length > 0) {
@@ -511,9 +587,9 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
 
     if (m.role === 'user') {
       return `
-        <div class="msg user">
-          <div class="msg-avatar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <div class="msg user slide-up">
+          <div class="msg-avatar overflow-hidden" style="border-radius: 50%;">
+            ${userAvatarHtml}
           </div>
           <div class="msg-bubble">
             ${parseMarkdownPage(m.content)}
@@ -523,15 +599,16 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
       `;
     } else {
       const msgModel = m.model || currentModelId;
+      const isAnimatedTarget = animateLast && idx === lastIdx;
       return `
-        <div class="msg ai">
+        <div class="msg ai slide-up">
           <div class="msg-avatar" style="background: transparent; border: none; box-shadow: none; display: flex; align-items: center; justify-content: center;">
             ${renderProviderIcon(msgModel)}
           </div>
           <div style="flex: 1; max-width: 680px;">
-            <div class="msg-bubble">
-              ${parseMarkdownPage(m.content)}
-              ${filesHTML}
+            <div class="msg-bubble" id="${isAnimatedTarget ? 'page-typewrite-bubble' : ''}">
+              ${isAnimatedTarget ? '' : parseMarkdownPage(m.content)}
+              ${isAnimatedTarget ? '' : filesHTML}
             </div>
             ${m.proposedChange ? renderApprovalCardPage(m) : ''}
           </div>
@@ -551,10 +628,9 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
       if (msg && msg.proposedChange) {
         const success = await DataService.applyProposedChange(msg.proposedChange);
         if (success) {
-          await DataService.updateChatMessageStatus(msgId, 'approved');
           await DataService.addChatMessage({
             role: 'assistant',
-            content: `✅ **Đã áp dụng thay đổi thành công!** ${msg.proposedChange.title} đã được cập nhật vào dữ liệu web.`
+            content: `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 inline-block mr-1"></i> **Đã áp dụng thay đổi thành công!** ${msg.proposedChange.title} đã được cập nhật vào dữ liệu web.`
           });
           await refreshMessages(container, sessionId, onStateUpdated);
           if (onStateUpdated) onStateUpdated();
@@ -571,11 +647,63 @@ async function refreshMessages(container, sessionId, onStateUpdated) {
         await DataService.updateChatMessageStatus(msgId, 'rejected');
         await DataService.addChatMessage({
           role: 'assistant',
-          content: `❌ **Đã từ chối đề xuất.** Bạn có muốn điều chỉnh thêm gì khác không?`
+          content: `<i data-lucide="x-circle" class="w-4 h-4 text-rose-500 inline-block mr-1"></i> **Đã từ chối đề xuất.** Bạn có muốn điều chỉnh thêm gì khác không?`
         });
         await refreshMessages(container, sessionId, onStateUpdated);
       }
     });
+  });
+
+  // Fast 2-second Typewriter Effect for the newest AI response
+  if (animateLast && history.length > 0 && history[lastIdx].role === 'assistant') {
+    const bubbleEl = document.getElementById('page-typewrite-bubble');
+    if (bubbleEl) {
+      const lastMsg = history[lastIdx];
+      const parsedHtml = parseMarkdownPage(lastMsg.content);
+      const attachments = lastMsg.attachments || (lastMsg.attachment ? [lastMsg.attachment] : []);
+      let filesHTML = '';
+      if (attachments.length > 0) {
+        filesHTML = `
+          <div class="msg-files">
+            ${attachments.map(f => {
+              const t = getFileType(f.fileName || f.name);
+              return `<div class="msg-file ${t}"><div class="mf-icon">${getFileIconSvg(t)}</div><div class="mf-name">${f.fileName || f.name}</div></div>`;
+            }).join('')}
+          </div>
+        `;
+      }
+      await runFastTypewriter(container, bubbleEl, parsedHtml, filesHTML);
+    }
+  }
+}
+
+function runFastTypewriter(container, bubbleEl, fullHtml, filesHtml = '') {
+  return new Promise(resolve => {
+    const tokens = fullHtml.match(/(<[^>]+>|[^<>\s]+|\s+)/g) || [fullHtml];
+    const totalDuration = 1800; // Complete full message in ~1.8 seconds max
+    const stepDelay = Math.max(8, Math.floor(totalDuration / tokens.length));
+
+    let currentBuffer = '';
+    let i = 0;
+
+    const interval = setInterval(() => {
+      if (i < tokens.length) {
+        currentBuffer += tokens[i];
+        i++;
+        while (i < tokens.length && tokens[i].startsWith('<')) {
+          currentBuffer += tokens[i];
+          i++;
+        }
+        bubbleEl.innerHTML = currentBuffer + '<span class="ai-typewriter-cursor"></span>' + filesHtml;
+        container.scrollTop = container.scrollHeight;
+      } else {
+        clearInterval(interval);
+        bubbleEl.innerHTML = fullHtml + filesHtml;
+        if (window.lucide) window.lucide.createIcons({ el: bubbleEl });
+        container.scrollTop = container.scrollHeight;
+        resolve();
+      }
+    }, stepDelay);
   });
 }
 
@@ -699,7 +827,26 @@ function renderApprovalDetailsContent(msg) {
   }
 
   // Standard details list (Food, Workout, Goals, Water, etc.)
-  const detailsList = prop.details || [];
+  let detailsList = prop.details || [];
+  if ((!detailsList || detailsList.length === 0) && prop.payload?.meals && Array.isArray(prop.payload.meals)) {
+    const mealTypeNamesVi = {
+      Breakfast: 'Bữa Sáng',
+      Lunch: 'Bữa Trưa',
+      Dinner: 'Bữa Tối',
+      Snack: 'Bữa Phụ'
+    };
+    detailsList = prop.payload.meals.map(m => ({
+      field: mealTypeNamesVi[m.type] || m.type || 'Bữa ăn',
+      from: '-',
+      to: `${m.name} (${m.calories || 0} kcal)`
+    }));
+  } else if ((!detailsList || detailsList.length === 0) && prop.payload?.workouts && Array.isArray(prop.payload.workouts)) {
+    detailsList = prop.payload.workouts.map(w => ({
+      field: w.type || 'Bài tập',
+      from: '-',
+      to: `${w.duration || 0} phút (${w.caloriesBurned || 0} kcal)`
+    }));
+  }
   return `
     <div class="space-y-2">
       ${detailsList.map((d, idx) => `
@@ -728,7 +875,7 @@ function renderApprovalCardPage(msg) {
             <i data-lucide="check-circle" class="w-5 h-5 text-[#10B981]"></i>
           </div>
           <div>
-            <div class="text-[10px] uppercase tracking-wider text-[#10B981] font-extrabold">ĐÃ ÁP DỤNG THAY ĐỔI ✓</div>
+            <div class="text-[10px] uppercase tracking-wider text-[#10B981] font-extrabold">ĐÃ ÁP DỤNG THAY ĐỔI</div>
             <div class="text-sm font-semibold text-[var(--text-main)] mt-0.5">${prop.title || 'Đã cập nhật dữ liệu'}</div>
           </div>
         </div>
@@ -745,7 +892,7 @@ function renderApprovalCardPage(msg) {
             <i data-lucide="x-circle" class="w-5 h-5 text-[#EF4444]"></i>
           </div>
           <div>
-            <div class="text-[10px] uppercase tracking-wider text-[#EF4444] font-extrabold">ĐÃ TỪ CHỐI ✗</div>
+            <div class="text-[10px] uppercase tracking-wider text-[#EF4444] font-extrabold">ĐÃ TỪ CHỐI</div>
             <div class="text-sm font-semibold text-[var(--text-main)] mt-0.5">${prop.title || 'Đã hủy đề xuất'}</div>
           </div>
         </div>
@@ -867,6 +1014,11 @@ function parseMarkdownPage(text = '') {
   html = html.replace(/\n{3,}/g, '\n\n');
   html = html.replace(/\n/g, '<br/>');
   html = html.replace(/(?:<br\/>\s*){3,}/gi, '<br/><br/>');
+
+  // Strip excessive <br/> tags before & after block-level HTML elements
+  const blockTags = 'blockquote|ul|ol|pre|table|div|h3|h4|h5';
+  html = html.replace(new RegExp(`(?:<br\\s*\\/?>\\s*)+(?=<\\/?(?:${blockTags})\\b)`, 'gi'), '');
+  html = html.replace(new RegExp(`(<\\/(?:${blockTags})>\\s*)(?:<br\\s*\\/?>\\s*)+`, 'gi'), '$1');
 
   return html;
 }

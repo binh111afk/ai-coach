@@ -334,7 +334,7 @@ async function refreshChatMessages(onStateUpdated) {
           await DataService.updateChatMessageStatus(msgId, 'approved');
           await DataService.addChatMessage({
             role: 'assistant',
-            content: `✅ **Đã áp dụng thay đổi thành công!** ${msg.proposedChange.title} đã được cập nhật vào dữ liệu web.`
+            content: `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 inline-block mr-1"></i> **Đã áp dụng thay đổi thành công!** ${msg.proposedChange.title} đã được cập nhật vào dữ liệu web.`
           });
           await refreshChatMessages(onStateUpdated);
           if (onStateUpdated) onStateUpdated();
@@ -351,7 +351,7 @@ async function refreshChatMessages(onStateUpdated) {
         await DataService.updateChatMessageStatus(msgId, 'rejected');
         await DataService.addChatMessage({
           role: 'assistant',
-          content: `❌ **Đã từ chối đề xuất.** Bạn có muốn điều chỉnh thêm gì khác không?`
+          content: `<i data-lucide="x-circle" class="w-4 h-4 text-rose-500 inline-block mr-1"></i> **Đã từ chối đề xuất.** Bạn có muốn điều chỉnh thêm gì khác không?`
         });
         await refreshChatMessages(onStateUpdated);
       }
@@ -482,7 +482,26 @@ function renderApprovalDetailsContent(msg) {
   }
 
   // Standard details list (Food, Workout, Goals, Water, etc.)
-  const detailsList = prop.details || [];
+  let detailsList = prop.details || [];
+  if ((!detailsList || detailsList.length === 0) && prop.payload?.meals && Array.isArray(prop.payload.meals)) {
+    const mealTypeNamesVi = {
+      Breakfast: 'Bữa Sáng',
+      Lunch: 'Bữa Trưa',
+      Dinner: 'Bữa Tối',
+      Snack: 'Bữa Phụ'
+    };
+    detailsList = prop.payload.meals.map(m => ({
+      field: mealTypeNamesVi[m.type] || m.type || 'Bữa ăn',
+      from: '-',
+      to: `${m.name} (${m.calories || 0} kcal)`
+    }));
+  } else if ((!detailsList || detailsList.length === 0) && prop.payload?.workouts && Array.isArray(prop.payload.workouts)) {
+    detailsList = prop.payload.workouts.map(w => ({
+      field: w.type || 'Bài tập',
+      from: '-',
+      to: `${w.duration || 0} phút (${w.caloriesBurned || 0} kcal)`
+    }));
+  }
   return `
     <div class="space-y-2">
       ${detailsList.map((d, idx) => `
@@ -643,6 +662,11 @@ function parseMarkdown(text = '') {
   html = html.replace(/\n{3,}/g, '\n\n');
   html = html.replace(/\n/g, '<br/>');
   html = html.replace(/(?:<br\/>\s*){3,}/gi, '<br/><br/>');
+
+  // Strip excessive <br/> tags before & after block-level HTML elements
+  const blockTags = 'blockquote|ul|ol|pre|table|div|h3|h4|h5';
+  html = html.replace(new RegExp(`(?:<br\\s*\\/?>\\s*)+(?=<\\/?(?:${blockTags})\\b)`, 'gi'), '');
+  html = html.replace(new RegExp(`(<\\/(?:${blockTags})>\\s*)(?:<br\\s*\\/?>\\s*)+`, 'gi'), '$1');
 
   return html;
 }
