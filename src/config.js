@@ -5,6 +5,9 @@ export const CONFIG = {
   // 9Router AI API configuration read securely from .env
   NINEROUTER_API_KEY: import.meta.env.VITE_NINEROUTER_API_KEY || "sk-f040bde5ab80cf9c-nut82e-f2995b77",
   NINEROUTER_BASE_URL: import.meta.env.VITE_NINEROUTER_BASE_URL || "https://r7nnd8p.abc-tunnel.us/v1/chat/completions",
+  // LLM7.io API configuration read securely from .env (https://dash.llm7.io)
+  LLM7_API_KEY: import.meta.env.VITE_LLM7_API_KEY || "unused",
+  LLM7_BASE_URL: import.meta.env.VITE_LLM7_BASE_URL || "https://api.llm7.io/v1/chat/completions",
   DEFAULT_MODEL: import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.6-flash",
   SUPPORTED_MODELS: [
     // 1. Google / Gemini / Gemma
@@ -59,7 +62,16 @@ export const CONFIG = {
     { id: "oc/mimo-v2.5-free", name: "MiMo V2.5 Free (OpenCode 9Router)" },
 
     // 10. Ling / AntGroup
-    { id: "oc/ling-3.0-flash-free", name: "Ling 3.0 Flash Free (OpenCode 9Router)" }
+    { id: "oc/ling-3.0-flash-free", name: "Ling 3.0 Flash Free (OpenCode 9Router)" },
+
+    // 11. LLM7.io Free OpenAI-Compatible Platform
+    { id: "llm7/minimax-m2.7", name: "MiniMax M2.7 (LLM7.io Engine)" },
+    { id: "llm7/default", name: "LLM7 Default (Miễn phí & Tốc độ cao)" },
+    { id: "llm7/fast", name: "LLM7 Fast (Siêu tốc)" },
+    { id: "llm7/pro", name: "LLM7 Pro (Tối ưu)" },
+
+    // 12. Alibaba Qwen (Alibaba Cloud / 9Router)
+    { id: "alims-intl/qwen3.5-plus", name: "Qwen 3.5 Plus (Alibaba Cloud / 9Router)" }
   ],
   // Fallback mode if API Key is not set or network fails
   SMART_LOCAL_FALLBACK: true,
