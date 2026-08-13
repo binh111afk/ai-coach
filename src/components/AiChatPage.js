@@ -3,43 +3,194 @@ import { AiCoachService } from '../services/aiCoachService.js';
 import { appState } from '../services/appState.js';
 import { CONFIG } from '../config.js';
 import { renderGeminiIcon, renderPdfIcon, renderProviderIcon } from './ui/Icons.js';
+import { getLevelInfo } from '../services/gamificationService.js';
 
 export async function renderAiChatPage(onStateUpdated) {
   let isSending = false;
   let attachedFiles = [];
+  let searchQuery = '';
 
   const profile = await DataService.getUserProfile();
+  const goal = await DataService.getUserGoal();
+  const progress = await DataService.getUserProgress();
   let activeSessionId = await DataService.getCurrentSessionId();
   await DataService.getPhotos(); // Warm up photos cache for instant approval card lookup
 
-  const chatPageHtml = `
-    <div class="ai-chat-app">
-      <!-- SIDEBAR -->
-      <aside class="ai-chat-sidebar" id="ai-sidebar">
-        <div class="ai-sidebar-inner">
-          <div class="ai-sidebar-top">
-            <button class="btn-sidebar btn-history">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-              </svg>
-              Đoạn Trò Chuyện
-            </button>
-            <button class="btn-sidebar btn-new" id="btn-new-chat-session">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Mới
-            </button>
-          </div>
+  const levelInfo = getLevelInfo(progress.totalXp || 0, goal.journeyLevels);
+  const currentLevelNum = levelInfo.currentLevel ? levelInfo.currentLevel.level : (progress.level || 1);
+  const currentLevelTitle = levelInfo.currentLevel ? (levelInfo.currentLevel.title || levelInfo.currentLevel.name) : 'Cốt Lõi';
 
-          <div class="chat-list" id="chat-sessions-sidebar-container">
-            <!-- Rendered dynamically -->
+  const getInitialLetter = (fullName = '') => {
+    const parts = (fullName || 'H').trim().split(/\s+/);
+    const lastWord = parts[parts.length - 1];
+    return (lastWord ? lastWord.charAt(0) : 'H').toUpperCase();
+  };
+  const userInitialLetter = getInitialLetter(profile.name);
+
+  let userAvatarHtml = '';
+  if (profile.avatar) {
+    userAvatarHtml = `<img src="${profile.avatar}" class="w-full h-full rounded-full object-cover shadow-sm">`;
+  } else {
+    userAvatarHtml = `<div class="w-full h-full rounded-full bg-gradient-to-br from-purple-600 to-fuchsia-600 text-white flex items-center justify-center font-serif text-sm font-bold shadow-sm">${userInitialLetter}</div>`;
+  }
+
+  const chatPageHtml = `
+    <style>
+      :root {
+        --primary: #7C3AED;
+        --accent: #D946EF;
+        --pink: #EC4899;
+      }
+
+      .display { font-family: 'Fraunces', serif; }
+
+      .glass-card {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 20px 50px -10px rgba(124, 58, 237, 0.15);
+      }
+
+      body.dark .glass-card {
+        background: rgba(26, 22, 38, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Nút Cuộc trò chuyện mới - Wow Effect */
+      .btn-new-chat {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.4);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-new-chat:hover {
+        box-shadow: 0 12px 24px -4px rgba(124, 58, 237, 0.55);
+        transform: translateY(-2px);
+      }
+      .btn-new-chat::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        transition: 0.6s;
+      }
+      .btn-new-chat:hover::before {
+        left: 100%;
+      }
+
+      /* V12 Hover Toolbar */
+      .hover-toolbar { 
+        opacity: 0; 
+        transform: translateY(-50%) translateX(8px); 
+        transition: opacity 0.2s ease, transform 0.2s ease; 
+        pointer-events: none; 
+      }
+      .list-item-v12:hover .hover-toolbar { 
+        opacity: 1; 
+        transform: translateY(-50%) translateX(0); 
+        pointer-events: auto; 
+      }
+
+      .btn-send-glass { 
+        background: linear-gradient(135deg, var(--primary), var(--accent)); 
+        box-shadow: 0 4px 15px -3px rgba(124, 58, 237, 0.4); 
+        transition: all 0.3s ease; 
+        color: #ffffff;
+      }
+      .btn-send-glass:hover { transform: scale(1.05); }
+
+      @keyframes float-a { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(-2deg); } }
+      @keyframes float-b { 0%, 100% { transform: translateY(0) rotate(5deg); } 50% { transform: translateY(-10px) rotate(8deg); } }
+      @keyframes float-c { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-15px) rotate(-5deg); } }
+      @keyframes float-d { 0%, 100% { transform: translateY(0) rotate(10deg); } 50% { transform: translateY(-8px) rotate(12deg); } }
+      @keyframes float-e { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
+      @keyframes float-f { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-12px); } }
+
+      .float-a { animation: float-a 6s infinite ease-in-out; }
+      .float-b { animation: float-b 7s infinite ease-in-out; animation-delay: -1s; }
+      .float-c { animation: float-c 8s infinite ease-in-out; animation-delay: -2s; }
+      .float-d { animation: float-d 9s infinite ease-in-out; animation-delay: -3s; }
+      .float-e { animation: float-e 7s infinite ease-in-out; animation-delay: -1.5s; }
+      .float-f { animation: float-f 10s infinite ease-in-out; animation-delay: -4s; }
+
+      .dot-bg { position: absolute; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; opacity: 0.3; }
+
+      .file-chip {
+        animation: chip-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transition: all 0.2s ease;
+      }
+      @keyframes chip-in {
+        from { opacity: 0; transform: translateY(-6px) scale(0.92); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .caro-bg {
+        background-color: #F4F4F8 !important;
+        background-image: 
+          linear-gradient(rgba(124, 58, 237, 0.16) 1.5px, transparent 1.5px),
+          linear-gradient(90deg, rgba(124, 58, 237, 0.16) 1.5px, transparent 1.5px) !important;
+        background-size: 32px 32px !important;
+      }
+
+      body.dark .caro-bg {
+        background-color: #120F1D !important;
+        background-image: 
+          linear-gradient(rgba(167, 139, 250, 0.2) 1.5px, transparent 1.5px),
+          linear-gradient(90deg, rgba(167, 139, 250, 0.2) 1.5px, transparent 1.5px) !important;
+        background-size: 32px 32px !important;
+      }
+
+      .chat-area, .new-chat-hero, .input-area {
+        background-color: transparent !important;
+        background-image: none !important;
+      }
+    </style>
+
+    <div class="ai-chat-app">
+      <!-- SIDEBAR V12 Clean -->
+      <aside class="ai-chat-sidebar v12-sidebar glass-card rounded-3xl flex flex-col overflow-hidden" id="ai-sidebar">
+        
+        <!-- Header: Cuộc trò chuyện mới Wow Button -->
+        <div class="p-4 pb-3 flex-shrink-0">
+          <button type="button" class="btn-new-chat w-full text-white text-sm font-bold py-4 rounded-2xl flex items-center justify-center gap-2 relative z-10 cursor-pointer" id="btn-new-chat-session">
+            <i data-lucide="message-square-plus" class="w-5 h-5"></i> 
+            <span class="relative z-10">Cuộc trò chuyện mới</span>
+          </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="px-4 pb-3 flex-shrink-0">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="sidebar-search-input" placeholder="Tìm kiếm..." class="w-full pl-9 pr-3 py-2.5 bg-gray-50/70 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium focus:outline-none focus:border-[#7C3AED] focus:bg-white dark:focus:bg-gray-900 transition placeholder:text-gray-400 dark:text-gray-100">
+          </div>
+        </div>
+
+        <!-- Dynamic History Sessions Scroll Area -->
+        <div class="flex-1 overflow-y-auto px-2.5 pb-4 space-y-1 pt-1 custom-scrollbar" id="chat-sessions-sidebar-container">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Footer User Profile -->
+        <div class="p-3 border-t border-gray-100/80 dark:border-gray-800/80 flex items-center gap-3 flex-shrink-0 bg-white/40 dark:bg-gray-900/40">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center text-white font-bold text-sm shadow-md overflow-hidden flex-shrink-0">
+            ${userAvatarHtml}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">${escapeHtml(profile.name || 'Chiến Binh')}</p>
+            <div class="level-badge shadow-sm mt-0.5" style="padding: 0.2rem 0.65rem; font-size: 0.7rem; width: fit-content;">
+              <span class="level-dot"></span>
+              Lv.${currentLevelNum} · ${escapeHtml(currentLevelTitle)}
+            </div>
           </div>
         </div>
       </aside>
 
       <!-- MAIN -->
-      <main class="ai-chat-main">
+      <main class="ai-chat-main caro-bg">
         <!-- Top bar -->
         <div class="ai-topbar">
           <div class="topbar-left">
@@ -58,10 +209,11 @@ export async function renderAiChatPage(onStateUpdated) {
               </svg>
 
               <div class="model-dropdown" id="modelDropdown">
-                <!-- Dynamically populated model items with brand logos -->
+                <!-- Dynamically populated model items -->
               </div>
             </div>
           </div>
+
           <!-- Nav toggle button on the right of topbar -->
           <div class="topbar-right">
             <button class="btn-toggle" id="btnToggleNav" title="Ẩn/Hiện thanh điều hướng">
@@ -77,24 +229,22 @@ export async function renderAiChatPage(onStateUpdated) {
           <!-- Rendered dynamically -->
         </div>
 
-        <!-- Input area -->
-        <div class="input-area">
+        <!-- Glass Input Area -->
+        <div class="input-area p-3 sm:pb-5">
           <!-- File attach preview chips -->
-          <div class="attach-preview" id="page-attach-preview-container"></div>
+          <div class="attach-preview flex flex-wrap gap-2 mb-2 max-h-32 overflow-y-auto max-w-2xl mx-auto" id="page-attach-preview-container" style="display: none;"></div>
 
-          <div class="input-wrap">
-            <label for="page-chat-file-input" class="btn-attach" title="Đính kèm file (Có thể chọn nhiều file)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
-              </svg>
+          <!-- Glass Input Wrapper (Centered & Compact max-w-2xl) -->
+          <div class="glass-card rounded-[28px] sm:rounded-[32px] p-2 shadow-xl border border-white/80 dark:border-gray-800/80 flex items-center gap-2 max-w-2xl mx-auto w-full">
+            <label for="page-chat-file-input" class="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition flex-shrink-0 relative group cursor-pointer" title="Đính kèm tệp (Anh/PDF/Excel/Docx)">
+              <i data-lucide="plus" class="w-6 h-6 group-hover:rotate-90 transition-transform duration-300"></i>
             </label>
             <input type="file" id="page-chat-file-input" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.xlsx,.xls,.csv,.doc,.docx" style="display: none;">
 
-            <input type="text" id="page-chat-input-text" placeholder="Nhập câu hỏi, thực đơn hoặc đính kèm ảnh/PDF/Excel/DOCX..." />
-            <button class="btn-send" id="page-chat-btn-send" title="Gửi">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
+            <input type="text" id="page-chat-input-text" placeholder="Nhập câu hỏi của bạn..." class="flex-1 bg-transparent border-none focus:outline-none text-sm sm:text-base font-medium text-gray-800 dark:text-gray-100 placeholder:text-gray-400 py-2 min-w-0" />
+            
+            <button class="btn-send-glass w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white flex-shrink-0 cursor-pointer" id="page-chat-btn-send" title="Gửi câu hỏi">
+              <i data-lucide="arrow-up" class="w-6 h-6"></i>
             </button>
           </div>
         </div>
@@ -128,6 +278,18 @@ export async function renderAiChatPage(onStateUpdated) {
     // Nav toggle button in topbar
     document.getElementById('btnToggleNav')?.addEventListener('click', () => {
       if (window.toggleNavState) window.toggleNavState();
+    });
+
+    // Footer settings button
+    document.getElementById('btn-sidebar-open-settings')?.addEventListener('click', () => {
+      if (window.navigateToTab) window.navigateToTab('settings');
+    });
+
+    // Search bar filter binding
+    const searchInput = document.getElementById('sidebar-search-input');
+    searchInput?.addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      buildSidebar();
     });
 
     const buildModelDropdown = async () => {
@@ -200,6 +362,7 @@ export async function renderAiChatPage(onStateUpdated) {
     const buildSidebar = async () => {
       await renderChatSessionsSidebar(
         activeSessionId,
+        searchQuery,
         async (selectedId) => {
           activeSessionId = selectedId;
           await DataService.setCurrentSessionId(activeSessionId);
@@ -213,6 +376,9 @@ export async function renderAiChatPage(onStateUpdated) {
           }
           await buildSidebar();
           await refreshMessages(container, activeSessionId, onStateUpdated);
+        },
+        async () => {
+          await buildSidebar();
         }
       );
     };
@@ -230,30 +396,53 @@ export async function renderAiChatPage(onStateUpdated) {
     const renderPreviewChips = () => {
       if (!attachPreview) return;
       attachPreview.innerHTML = '';
-      if (attachedFiles.length === 0) return;
+      if (attachedFiles.length === 0) {
+        attachPreview.style.display = 'none';
+        return;
+      }
+      attachPreview.style.display = 'flex';
 
       attachedFiles.forEach((fileObj, idx) => {
         const type = getFileType(fileObj.name);
         const sizeStr = formatFileSize(fileObj.size);
-        const isImg = fileObj.dataUrl && (fileObj.type?.startsWith('image/') || ['jpg','jpeg','png','webp','svg'].includes(type));
-        const iconHtml = isImg 
-          ? `<img src="${fileObj.dataUrl}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color);" />`
-          : getFileIconSvg(type);
+        const isImg = fileObj.dataUrl && (fileObj.type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'svg'].includes(type));
+
+        let iconHtml = '';
+        let bgColor = 'bg-gray-100 dark:bg-gray-800';
+
+        if (isImg) {
+          iconHtml = `<img src="${fileObj.dataUrl}" class="w-full h-full object-cover rounded-lg">`;
+        } else if (type === 'pdf') {
+          iconHtml = `<i data-lucide="file-text" class="w-5 h-5 text-red-500"></i>`;
+          bgColor = 'bg-red-50 dark:bg-red-950/40';
+        } else if (type === 'xls') {
+          iconHtml = `<i data-lucide="sheet" class="w-5 h-5 text-green-500"></i>`;
+          bgColor = 'bg-green-50 dark:bg-green-950/40';
+        } else if (type === 'doc') {
+          iconHtml = `<i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i>`;
+          bgColor = 'bg-blue-50 dark:bg-blue-950/40';
+        } else {
+          iconHtml = `<i data-lucide="file" class="w-5 h-5 text-gray-500"></i>`;
+        }
 
         const chip = document.createElement('div');
-        chip.className = `file-chip ${type}`;
+        chip.className = `file-chip flex items-center gap-2 p-2 pr-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm hover:border-purple-300 transition-all group`;
         chip.innerHTML = `
-          <div class="file-icon">${iconHtml}</div>
-          <div class="file-info">
-            <div class="file-name" title="${fileObj.name}">${fileObj.name}</div>
-            <div class="file-size">${sizeStr}</div>
+          <div class="w-8 h-8 rounded-lg ${bgColor} flex items-center justify-center flex-shrink-0 overflow-hidden">
+            ${iconHtml}
           </div>
-          <button class="file-remove" data-index="${idx}" title="Xóa">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate max-w-[140px]">${fileObj.name}</span>
+            <span class="text-[10px] text-gray-400">${sizeStr}</span>
+          </div>
+          <button class="file-remove ml-1 w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 flex items-center justify-center transition flex-shrink-0" data-index="${idx}" title="Xóa">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
           </button>
         `;
         attachPreview.appendChild(chip);
       });
+
+      if (window.lucide) window.lucide.createIcons({ el: attachPreview });
 
       attachPreview.querySelectorAll('.file-remove').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -261,11 +450,12 @@ export async function renderAiChatPage(onStateUpdated) {
           const removeIdx = parseInt(btn.getAttribute('data-index'));
           const chipEl = btn.closest('.file-chip');
           if (chipEl) {
-            chipEl.classList.add('item-deleting');
+            chipEl.style.opacity = '0';
+            chipEl.style.transform = 'scale(0.8)';
             setTimeout(() => {
               attachedFiles.splice(removeIdx, 1);
               renderPreviewChips();
-            }, 250);
+            }, 200);
           } else {
             attachedFiles.splice(removeIdx, 1);
             renderPreviewChips();
@@ -336,7 +526,7 @@ export async function renderAiChatPage(onStateUpdated) {
       isSending = false;
       inputText.disabled = false;
       inputText.focus();
-      DataService.awardAiCoachXp().catch(() => {});
+      DataService.awardAiCoachXp().catch(() => { });
       await refreshMessages(container, activeSessionId, onStateUpdated, true);
 
       // Asynchronously generate AI title for this session if not set yet
@@ -346,7 +536,7 @@ export async function renderAiChatPage(onStateUpdated) {
             DataService.saveSessionTitle(activeSessionId, aiTitle);
             await buildSidebar();
           }
-        }).catch(() => {});
+        }).catch(() => { });
       } else {
         await buildSidebar();
       }
@@ -357,50 +547,212 @@ export async function renderAiChatPage(onStateUpdated) {
   }
 }
 
-async function renderChatSessionsSidebar(activeSessionId, onSelectSession, onDeleteSession) {
+function isSessionPinned(sessionId) {
+  try {
+    const pinned = JSON.parse(localStorage.getItem('ai_chat_pinned_sessions') || '[]');
+    return pinned.includes(sessionId);
+  } catch { return false; }
+}
+
+function togglePinSession(sessionId) {
+  try {
+    let pinned = JSON.parse(localStorage.getItem('ai_chat_pinned_sessions') || '[]');
+    if (pinned.includes(sessionId)) {
+      pinned = pinned.filter(id => id !== sessionId);
+    } else {
+      pinned.push(sessionId);
+    }
+    localStorage.setItem('ai_chat_pinned_sessions', JSON.stringify(pinned));
+  } catch { }
+}
+
+function formatSessionDateGroup(timestamp) {
+  if (!timestamp) return 'Hôm nay';
+  const date = new Date(timestamp);
+  const now = new Date();
+
+  if (date.toDateString() === now.toDateString()) return 'Hôm nay';
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Hôm qua';
+
+  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+  if (diffDays < 7) return 'Tuần này';
+
+  return 'Cũ hơn';
+}
+
+function formatSessionTimeAgo(timestamp) {
+  if (!timestamp) return 'Vừa xong';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMinutes = Math.floor((now - date) / (1000 * 60));
+  if (diffMinutes < 1) return 'Vừa xong';
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const hoursStr = String(date.getHours()).padStart(2, '0');
+  const minStr = String(date.getMinutes()).padStart(2, '0');
+  return `${hoursStr}:${minStr}`;
+}
+
+async function renderChatSessionsSidebar(activeSessionId, filterQuery, onSelectSession, onDeleteSession, onRefreshSidebar) {
   const sidebarContainer = document.getElementById('chat-sessions-sidebar-container');
   if (!sidebarContainer) return;
-  const sessions = await DataService.getChatSessions();
+
+  let sessions = await DataService.getChatSessions();
+
+  if (filterQuery) {
+    const q = filterQuery.toLowerCase();
+    sessions = sessions.filter(s => (s.title || '').toLowerCase().includes(q));
+  }
+
   if (sessions.length === 0) {
     sidebarContainer.innerHTML = `
-      <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1.5rem 0.5rem;">
-        Bấm <b>+ Mới</b> để tạo đoạn trò chuyện đầu tiên!
+      <div class="text-center text-gray-400 dark:text-gray-500 text-xs py-8 px-2 font-medium">
+        ${filterQuery ? 'Không tìm thấy cuộc trò chuyện phù hợp' : 'Bấm <b>+ Cuộc trò chuyện mới</b> để bắt đầu!'}
       </div>
     `;
     return;
   }
-  sidebarContainer.innerHTML = sessions.map(s => {
+
+  // Separate pinned vs unpinned sessions
+  const pinnedSessions = sessions.filter(s => isSessionPinned(s.id));
+  const unpinnedSessions = sessions.filter(s => !isSessionPinned(s.id));
+
+  // Group unpinned by date
+  const groups = {};
+  unpinnedSessions.forEach(s => {
+    const gName = formatSessionDateGroup(s.updatedAt);
+    if (!groups[gName]) groups[gName] = [];
+    groups[gName].push(s);
+  });
+
+  const renderSessionItemHtml = (s) => {
     const isActive = s.id === activeSessionId;
+    const pinned = isSessionPinned(s.id);
+    const timeAgoStr = formatSessionTimeAgo(s.updatedAt);
+    const previewText = s.messageCount ? `${s.messageCount} tin nhắn` : 'Trò chuyện cùng AI Coach';
+
     return `
-      <div class="chat-item ${isActive ? 'active' : ''}" data-session-id="${s.id}" title="${s.title}">
-        <span class="title">${s.title}</span>
-        <button class="delete" data-del-session-id="${s.id}" title="Xóa">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-          </svg>
-        </button>
+      <div class="list-item-v12 group relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${isActive ? 'bg-[#EDE9FE] dark:bg-purple-950/50' : 'hover:bg-gray-100/70 dark:hover:bg-gray-800/50'}" data-session-id="${s.id}">
+        <!-- Dot Indicator -->
+        <div class="w-2 h-2 rounded-full ${isActive ? 'bg-[#7C3AED]' : 'bg-gray-300 dark:bg-gray-600'} flex-shrink-0"></div>
+        
+        <!-- Title & Sub -->
+        <div class="flex-1 min-w-0 pr-12">
+          <h3 class="text-sm font-semibold ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-200'} truncate" id="session-title-text-${s.id}">${escapeHtml(s.title)}</h3>
+          <p class="text-[11px] text-gray-400 truncate mt-0.5">${timeAgoStr} · ${previewText}</p>
+        </div>
+
+        <!-- V12 Hover Toolbar (Aligned right, centered vertically on the hovered chat box) -->
+        <div class="hover-toolbar absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-white dark:bg-gray-900 p-1 rounded-lg shadow-md border border-gray-100 dark:border-gray-800 z-10">
+          <button type="button" class="btn-session-pin w-7 h-7 rounded-md hover:bg-purple-50 dark:hover:bg-purple-950/50 flex items-center justify-center text-gray-400 hover:text-[#7C3AED] transition" data-pin-session-id="${s.id}" title="${pinned ? 'Bỏ ghim' : 'Ghim'}">
+            <i data-lucide="pin" class="w-3.5 h-3.5 ${pinned ? 'fill-[#7C3AED] text-[#7C3AED]' : ''}"></i>
+          </button>
+          <button type="button" class="btn-session-edit w-7 h-7 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950/50 flex items-center justify-center text-gray-400 hover:text-blue-500 transition" data-edit-session-id="${s.id}" title="Đổi tên">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+          </button>
+          <button type="button" class="btn-session-delete w-7 h-7 rounded-md hover:bg-red-50 dark:hover:bg-red-950/50 flex items-center justify-center text-gray-400 hover:text-red-500 transition" data-del-session-id="${s.id}" title="Xóa">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <!-- Active Accent Left Bar -->
+        ${isActive ? `<div class="absolute left-0 top-3 bottom-3 w-1 bg-gradient-to-b from-[#7C3AED] to-[#D946EF] rounded-full"></div>` : ''}
       </div>
     `;
-  }).join('');
+  };
 
-  if (window.lucide) window.lucide.createIcons();
+  let sidebarHtml = '';
 
-  sidebarContainer.querySelectorAll('[data-session-id]').forEach(item => {
+  if (pinnedSessions.length > 0) {
+    sidebarHtml += `
+      <p class="text-[10px] font-bold text-[#7C3AED] dark:text-purple-400 uppercase tracking-wider px-3 mt-2 mb-1 flex items-center gap-1">
+        <i data-lucide="pin" class="w-3 h-3 fill-purple-500"></i> Đã ghim
+      </p>
+      ${pinnedSessions.map(renderSessionItemHtml).join('')}
+    `;
+  }
+
+  const groupOrder = ['Hôm nay', 'Hôm qua', 'Tuần này', 'Cũ hơn'];
+  groupOrder.forEach(gName => {
+    if (groups[gName] && groups[gName].length > 0) {
+      sidebarHtml += `
+        <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-3 mt-3 mb-1">${gName}</p>
+        ${groups[gName].map(renderSessionItemHtml).join('')}
+      `;
+    }
+  });
+
+  sidebarContainer.innerHTML = sidebarHtml;
+  if (window.lucide) window.lucide.createIcons({ el: sidebarContainer });
+
+  // Event handlers
+  sidebarContainer.querySelectorAll('.list-item-v12').forEach(item => {
     item.addEventListener('click', (e) => {
-      if (e.target.closest('[data-del-session-id]')) return;
+      if (e.target.closest('.hover-toolbar') || e.target.tagName === 'INPUT') return;
       onSelectSession(item.getAttribute('data-session-id'));
     });
   });
+
+  // Pin Button
+  sidebarContainer.querySelectorAll('[data-pin-session-id]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const sId = btn.getAttribute('data-pin-session-id');
+      togglePinSession(sId);
+      if (onRefreshSidebar) await onRefreshSidebar();
+    });
+  });
+
+  // Inline Edit Button
+  sidebarContainer.querySelectorAll('[data-edit-session-id]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sId = btn.getAttribute('data-edit-session-id');
+      const titleHeading = sidebarContainer.querySelector(`#session-title-text-${sId}`);
+      if (!titleHeading) return;
+
+      const currentTitle = titleHeading.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'w-full text-sm font-semibold bg-white dark:bg-gray-800 border border-purple-400 rounded px-1.5 py-0.5 focus:outline-none text-gray-900 dark:text-white shadow-sm';
+      input.value = currentTitle;
+
+      titleHeading.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const saveEdit = async () => {
+        const val = input.value.trim();
+        if (val && val !== currentTitle) {
+          DataService.saveSessionTitle(sId, val);
+        }
+        if (onRefreshSidebar) await onRefreshSidebar();
+      };
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveEdit();
+        if (e.key === 'Escape') if (onRefreshSidebar) onRefreshSidebar();
+      });
+      input.addEventListener('blur', saveEdit);
+    });
+  });
+
+  // Delete Button
   sidebarContainer.querySelectorAll('[data-del-session-id]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const sId = btn.getAttribute('data-del-session-id');
-      const itemEl = btn.closest('.chat-item');
+      const itemEl = btn.closest('.list-item-v12');
       if (itemEl) {
-        itemEl.classList.add('item-deleting');
+        itemEl.style.opacity = '0';
+        itemEl.style.transform = 'scale(0.9)';
         setTimeout(() => {
           if (onDeleteSession) onDeleteSession(sId);
-        }, 400);
+        }, 250);
       } else {
         if (onDeleteSession) onDeleteSession(sId);
       }
@@ -411,9 +763,9 @@ async function renderChatSessionsSidebar(activeSessionId, onSelectSession, onDel
 function getFileType(name = '') {
   const ext = name.split('.').pop().toLowerCase();
   if (['pdf'].includes(ext)) return 'pdf';
-  if (['png','jpg','jpeg','gif','webp'].includes(ext)) return 'img';
-  if (['xls','xlsx','csv'].includes(ext)) return 'xls';
-  if (['doc','docx'].includes(ext)) return 'doc';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) return 'img';
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return 'xls';
+  if (['doc', 'docx'].includes(ext)) return 'doc';
   return 'other';
 }
 
@@ -536,9 +888,9 @@ async function refreshMessages(container, sessionId, onStateUpdated, animateLast
   const profile = await DataService.getUserProfile();
 
   const getInitialLetter = (fullName = '') => {
-    const parts = (fullName || 'B').trim().split(/\s+/);
+    const parts = (fullName || 'H').trim().split(/\s+/);
     const lastWord = parts[parts.length - 1];
-    return (lastWord ? lastWord.charAt(0) : 'B').toUpperCase();
+    return (lastWord ? lastWord.charAt(0) : 'H').toUpperCase();
   };
   const userInitialLetter = getInitialLetter(profile.name);
 
@@ -551,17 +903,108 @@ async function refreshMessages(container, sessionId, onStateUpdated, animateLast
 
   if (history.length === 0) {
     container.innerHTML = `
-      <div class="empty-state" id="emptyState">
-        <div class="logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
-            <path d="M5 19l.75 2.25L8 22l-2.25.75L5 25l-.75-2.25L2 22l2.25-.75L5 19z" opacity="0.5"/>
-          </svg>
+      <div class="new-chat-hero relative w-full h-full flex flex-col items-center justify-center min-h-[480px] p-4 overflow-hidden select-none">
+        <!-- Floating background elements layer scattered around edges -->
+        <div class="absolute inset-0 z-0 pointer-events-none p-4 md:p-10">
+          
+          <div class="absolute top-[12%] left-[4%] md:left-[8%] glass-card p-2.5 md:p-3 rounded-2xl flex items-center gap-2 float-a shadow-md">
+            <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="file-text" class="w-4 h-4 text-red-500"></i>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tài liệu</p>
+              <p class="text-xs font-bold text-gray-700 dark:text-gray-200">Diet_Plan.pdf</p>
+            </div>
+          </div>
+
+          <div class="absolute top-[8%] right-[4%] md:right-[10%] glass-card p-2.5 md:p-3 rounded-2xl flex items-center gap-2 float-b shadow-md">
+            <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="sheet" class="w-4 h-4 text-green-500"></i>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bảng tính</p>
+              <p class="text-xs font-bold text-gray-700 dark:text-gray-200">Thuc_Pham.xlsx</p>
+            </div>
+          </div>
+
+          <div class="absolute top-[42%] left-[2%] md:left-[6%] w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white dark:bg-gray-800 shadow-xl flex items-center justify-center float-c border border-purple-100 dark:border-purple-900/40">
+            <i data-lucide="image" class="w-5 h-5 md:w-6 md:h-6 text-blue-500"></i>
+          </div>
+
+          <div class="absolute top-[38%] right-[2%] md:right-[6%] glass-card px-3.5 py-2 rounded-full flex items-center gap-2 float-d shadow-md">
+            <span class="w-2 h-2 bg-[#7C3AED] rounded-full animate-pulse"></span>
+            <span class="text-xs font-bold text-[#7C3AED] dark:text-purple-300">1,905 kcal</span>
+          </div>
+
+          <div class="absolute bottom-[22%] left-[6%] md:left-[12%] glass-card px-3 py-2 rounded-2xl float-e flex items-center gap-2 shadow-md">
+            <i data-lucide="beef" class="w-4 h-4 text-pink-500"></i>
+            <span class="text-xs font-bold text-gray-700 dark:text-gray-200">Protein 143g</span>
+          </div>
+
+          <div class="absolute bottom-[14%] left-[18%] md:left-[24%] w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white dark:bg-gray-800 shadow-xl flex items-center justify-center float-a border border-purple-100 dark:border-purple-900/40">
+            <i data-lucide="dumbbell" class="w-5 h-5 md:w-6 md:h-6 text-[#7C3AED]"></i>
+          </div>
+
+          <div class="absolute bottom-[16%] right-[18%] md:right-[24%] w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white dark:bg-gray-800 shadow-xl flex items-center justify-center float-b border border-purple-100 dark:border-purple-900/40">
+            <i data-lucide="fish" class="w-4 h-4 md:w-5 md:h-5 text-orange-500"></i>
+          </div>
+
+          <div class="absolute bottom-[20%] right-[6%] md:right-[12%] glass-card px-3.5 py-2 rounded-full flex items-center gap-2 float-f shadow-md">
+            <i data-lucide="calendar-days" class="w-4 h-4 text-[#D946EF]"></i>
+            <span class="text-xs font-bold text-gray-700 dark:text-gray-200">60 ngày</span>
+          </div>
+
+          <div class="absolute top-[28%] left-[12%] w-11 h-11 rounded-2xl bg-white dark:bg-gray-800 shadow-xl flex items-center justify-center float-f border border-purple-100 dark:border-purple-900/40">
+            <i data-lucide="droplet" class="w-4 h-4 text-blue-400"></i>
+          </div>
+
+          <div class="absolute top-[24%] right-[12%] glass-card px-3 py-2 rounded-2xl float-c flex items-center gap-2 shadow-md">
+            <i data-lucide="wheat" class="w-4 h-4 text-amber-500"></i>
+            <span class="text-xs font-bold text-gray-700 dark:text-gray-200">Carbs 191g</span>
+          </div>
+
+          <div class="dot-bg float-a" style="top: 20%; left: 25%;"></div>
+          <div class="dot-bg float-b" style="top: 60%; right: 25%; background: #7C3AED;"></div>
+          <div class="dot-bg float-c" style="bottom: 30%; left: 40%;"></div>
+          <div class="dot-bg float-d" style="top: 50%; right: 40%; background: #7C3AED;"></div>
         </div>
-        <h2>AI Coach Smart Brain</h2>
-        <p>Bắt đầu đoạn trò chuyện mới! Tôi có thể giúp bạn lập thực đơn, phân tích món ăn, đính kèm file PDF/Hình ảnh, tính toán bảng calo & macro và tự động điều khiển dữ liệu hệ thống.</p>
+
+        <!-- Center Main Content -->
+        <div class="relative z-10 w-full max-w-2xl flex flex-col items-center text-center px-4 my-auto">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-br from-[#7C3AED] to-[#D946EF] mx-auto mb-5 flex items-center justify-center shadow-2xl shadow-purple-500/30">
+            <i data-lucide="sparkles" class="w-8 h-8 sm:w-10 sm:h-10 text-white"></i>
+          </div>
+          <h1 class="display text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white leading-tight">Tôi có thể giúp gì cho bạn?</h1>
+          <p class="text-gray-500 dark:text-gray-400 mt-3 text-sm sm:text-base md:text-lg max-w-md">Nhập câu hỏi hoặc đính kèm tệp để bắt đầu tư vấn với AI Coach.</p>
+
+          <!-- Quick prompt suggestion chips -->
+          <div class="flex flex-wrap justify-center gap-2 mt-6 max-w-xl pointer-events-auto">
+            <button type="button" class="btn-quick-prompt glass-card px-3.5 py-2 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 hover:border-[#7C3AED] hover:text-[#7C3AED] transition flex items-center gap-1.5 shadow-sm" data-prompt="Ghi nhận bữa ăn trưa nay của tôi: 1 bát cơm, 150g ức gà">
+              <i data-lucide="utensils" class="w-3.5 h-3.5 text-purple-500"></i> Ghi nhận bữa ăn
+            </button>
+            <button type="button" class="btn-quick-prompt glass-card px-3.5 py-2 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 hover:border-[#7C3AED] hover:text-[#7C3AED] transition flex items-center gap-1.5 shadow-sm" data-prompt="Phân tích calo và macro hôm nay của tôi">
+              <i data-lucide="flame" class="w-3.5 h-3.5 text-amber-500"></i> Phân tích Calo & Macro
+            </button>
+            <button type="button" class="btn-quick-prompt glass-card px-3.5 py-2 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 hover:border-[#7C3AED] hover:text-[#7C3AED] transition flex items-center gap-1.5 shadow-sm" data-prompt="Gợi ý bài tập thể lực 30 phút tại nhà">
+              <i data-lucide="dumbbell" class="w-3.5 h-3.5 text-blue-500"></i> Gợi ý bài tập tại nhà
+            </button>
+          </div>
+        </div>
       </div>
     `;
+
+    if (window.lucide) window.lucide.createIcons({ el: container });
+
+    container.querySelectorAll('.btn-quick-prompt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const promptText = btn.getAttribute('data-prompt');
+        const inputText = document.getElementById('page-chat-input-text');
+        if (inputText) {
+          inputText.value = promptText;
+          inputText.focus();
+        }
+      });
+    });
     return;
   }
 
@@ -573,14 +1016,14 @@ async function refreshMessages(container, sessionId, onStateUpdated, animateLast
       filesHTML = `
         <div class="msg-files">
           ${attachments.map(f => {
-            const t = getFileType(f.fileName || f.name);
-            return `
+        const t = getFileType(f.fileName || f.name);
+        return `
               <div class="msg-file ${t}">
                 <div class="mf-icon">${getFileIconSvg(t)}</div>
                 <div class="mf-name" title="${f.fileName || f.name}">${f.fileName || f.name}</div>
               </div>
             `;
-          }).join('')}
+      }).join('')}
         </div>
       `;
     }
@@ -666,9 +1109,9 @@ async function refreshMessages(container, sessionId, onStateUpdated, animateLast
         filesHTML = `
           <div class="msg-files">
             ${attachments.map(f => {
-              const t = getFileType(f.fileName || f.name);
-              return `<div class="msg-file ${t}"><div class="mf-icon">${getFileIconSvg(t)}</div><div class="mf-name">${f.fileName || f.name}</div></div>`;
-            }).join('')}
+          const t = getFileType(f.fileName || f.name);
+          return `<div class="msg-file ${t}"><div class="mf-icon">${getFileIconSvg(t)}</div><div class="mf-name">${f.fileName || f.name}</div></div>`;
+        }).join('')}
           </div>
         `;
       }
@@ -680,7 +1123,7 @@ async function refreshMessages(container, sessionId, onStateUpdated, animateLast
 function runFastTypewriter(container, bubbleEl, fullHtml, filesHtml = '') {
   return new Promise(resolve => {
     const tokens = fullHtml.match(/(<[^>]+>|[^<>\s]+|\s+)/g) || [fullHtml];
-    const totalDuration = 1800; // Complete full message in ~1.8 seconds max
+    const totalDuration = 1800;
     const stepDelay = Math.max(8, Math.floor(totalDuration / tokens.length));
 
     let currentBuffer = '';
@@ -727,20 +1170,15 @@ function formatApprovalTitle(titleStr) {
   let mainText = '';
   let subText = '';
 
-  // Match 1: "Main (Sub)" e.g. "Ghi nhận Bữa Tối (Gà rán)"
   const parenMatch = cleanTitle.match(/^(.*?)\s*[\(\（](.*?)[\)\）]$/);
   if (parenMatch) {
     mainText = parenMatch[1].trim();
     subText = parenMatch[2].trim();
-  }
-  // Match 2: "Main : Sub" or "Main: Sub" e.g. "Ghi nhận bữa tối : Gà rán"
-  else if (cleanTitle.includes(':')) {
+  } else if (cleanTitle.includes(':')) {
     const idx = cleanTitle.indexOf(':');
     mainText = cleanTitle.substring(0, idx).trim();
     subText = cleanTitle.substring(idx + 1).trim();
-  }
-  // Match 3: "Main bằng Sub"
-  else if (cleanTitle.includes(' bằng ')) {
+  } else if (cleanTitle.includes(' bằng ')) {
     const parts = cleanTitle.split(' bằng ');
     mainText = parts[0].trim();
     subText = parts.slice(1).join(' bằng ').trim();
@@ -765,11 +1203,11 @@ function renderApprovalDetailsContent(msg) {
   const prop = msg.proposedChange;
   if (!prop) return '';
 
-  const isPhotoAction = prop.type === 'LOG_PROGRESS_PHOTO' || 
-                        prop.type === 'UPLOAD_PHOTO' || 
-                        prop.type === 'UPDATE_PHOTO_TAG' ||
-                        prop.type === 'COMPARE_PHOTOS' ||
-                        Boolean(prop.payload?.oldPhotoUrl || prop.payload?.photoUrl || prop.payload?.journeyDay || (prop.title && prop.title.includes('Ảnh Tiến Trình')));
+  const isPhotoAction = prop.type === 'LOG_PROGRESS_PHOTO' ||
+    prop.type === 'UPLOAD_PHOTO' ||
+    prop.type === 'UPDATE_PHOTO_TAG' ||
+    prop.type === 'COMPARE_PHOTOS' ||
+    Boolean(prop.payload?.oldPhotoUrl || prop.payload?.photoUrl || prop.payload?.journeyDay || (prop.title && prop.title.includes('Ảnh Tiến Trình')));
 
   if (isPhotoAction) {
     const targetDay = Number(prop.payload?.journeyDay || 1);
@@ -790,7 +1228,6 @@ function renderApprovalDetailsContent(msg) {
     if (oldImg || newImg) {
       return `
         <div class="info-box highlight p-2.5 rounded-xl flex items-center justify-center gap-3 border border-[rgba(124,58,237,0.25)] bg-[var(--accent-purple-light)]/30 w-fit mx-auto md:mx-0">
-          <!-- Old Image Thumbnail -->
           ${oldImg ? `
             <div class="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border border-gray-300 shadow-sm flex-shrink-0 bg-gray-100">
               <img src="${oldImg}" class="w-full h-full object-cover" alt="Ảnh cũ" />
@@ -803,13 +1240,11 @@ function renderApprovalDetailsContent(msg) {
             </div>
           `}
 
-          <!-- Arrow -->
           <div class="flex flex-col items-center justify-center text-[var(--accent-purple)] flex-shrink-0 px-1">
             <i data-lucide="arrow-right" class="w-4 h-4 md:w-5 md:h-5"></i>
             <span class="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 mt-0.5 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">${oldImg ? 'Ghi đè' : 'Tải lên'}</span>
           </div>
 
-          <!-- New Image Thumbnail (Side text removed as requested) -->
           ${newImg ? `
             <div class="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border-2 border-[var(--accent-purple)] shadow-md flex-shrink-0 bg-purple-50">
               <img src="${newImg}" class="w-full h-full object-cover" alt="Ảnh mới" />
@@ -826,15 +1261,9 @@ function renderApprovalDetailsContent(msg) {
     }
   }
 
-  // Standard details list (Food, Workout, Goals, Water, etc.)
   let detailsList = prop.details || [];
   if ((!detailsList || detailsList.length === 0) && prop.payload?.meals && Array.isArray(prop.payload.meals)) {
-    const mealTypeNamesVi = {
-      Breakfast: 'Bữa Sáng',
-      Lunch: 'Bữa Trưa',
-      Dinner: 'Bữa Tối',
-      Snack: 'Bữa Phụ'
-    };
+    const mealTypeNamesVi = { Breakfast: 'Bữa Sáng', Lunch: 'Bữa Trưa', Dinner: 'Bữa Tối', Snack: 'Bữa Phụ' };
     detailsList = prop.payload.meals.map(m => ({
       field: mealTypeNamesVi[m.type] || m.type || 'Bữa ăn',
       from: '-',
@@ -905,22 +1334,17 @@ function renderApprovalCardPage(msg) {
     <div class="approval-card-horizontal">
       <div class="blob"></div>
       
-      <!-- Layout ngang: Flex row (Đã bỏ icon theo yêu cầu) -->
       <div class="relative z-10 p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
-        
-        <!-- Cột 1: Title & Tag (Không có icon) -->
         <div class="md:w-2/5 lg:w-1/3 border-b md:border-b-0 md:border-r border-[var(--border-color)] pb-3 md:pb-0 md:pr-4">
           <span class="text-[10px] font-bold text-[var(--accent-purple)] bg-[var(--accent-purple-light)] px-2 py-0.5 rounded-md uppercase tracking-wider">Cập Nhật</span>
           ${formatApprovalTitle(prop.title)}
           <p class="text-xs text-muted hidden md:block mt-1">AI đã nhận diện thay đổi</p>
         </div>
 
-        <!-- Cột 2: Thông số / Thumbnail Ảnh thay đổi -->
         <div class="flex-1">
           ${renderApprovalDetailsContent(msg)}
         </div>
 
-        <!-- Cột 3: Nút bấm -->
         <div class="flex md:flex-col gap-2.5 md:w-1/4 lg:w-1/5 flex-shrink-0">
           <button class="btn-accept flex-1 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 text-xs md:text-sm whitespace-nowrap cursor-pointer" data-approve-prop="${msg.id}">
             <i data-lucide="check" class="w-4 h-4"></i>
@@ -931,27 +1355,24 @@ function renderApprovalCardPage(msg) {
             Từ Chối
           </button>
         </div>
-
       </div>
     </div>
   `;
+}
+
+function escapeHtml(str = '') {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function parseMarkdownPage(text = '') {
   if (!text) return '';
   let html = text;
 
-  // Code blocks & inline code
   html = html.replace(/```([\s\S]*?)```/g, '<pre style="background: rgba(0,0,0,0.18); padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; overflow-x: auto; margin: 0.5rem 0;"><code>$1</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(117, 86, 217, 0.15); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85rem; color: var(--accent-purple); font-weight: 600;">$1</code>');
-
-  // Quotes / Callout Box (> Quote)
   html = html.replace(/^>\s*(.*$)/gim, '<blockquote class="ai-callout-box">$1</blockquote>');
-
-  // Images
   html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<div style="margin: 0.5rem 0;"><img src="$2" alt="$1" style="max-width: 280px; max-height: 240px; border-radius: 12px; object-fit: cover; border: 2px solid var(--accent-purple); box-shadow: 0 4px 14px rgba(0,0,0,0.15);"></div>');
 
-  // Tables
   const tableRegex = /(?:\|[^\n]+\|\r?\n){2,}/g;
   html = html.replace(tableRegex, (match) => {
     const lines = match.trim().split('\n').map(l => l.trim()).filter(Boolean);
@@ -980,42 +1401,28 @@ function parseMarkdownPage(text = '') {
     return tableHtml;
   });
 
-  // Remove horizontal dividers ---
   html = html.replace(/^(?:---|\*\*\*|___)\s*$/gim, '');
-
-  // Headings
   html = html.replace(/^### (.*$)/gim, '<h5 style="margin: 0.5rem 0; font-weight: 800; color: var(--accent-purple); font-size: 0.95rem;">$1</h5>');
   html = html.replace(/^## (.*$)/gim, '<h4 style="margin: 0.6rem 0; font-weight: 800; color: var(--text-main); font-size: 1rem;">$1</h4>');
   html = html.replace(/^# (.*$)/gim, '<h3 style="margin: 0.75rem 0; font-weight: 800; color: var(--text-main); font-size: 1.1rem;">$1</h3>');
 
-  // Strict Semantic Bold Keyword Highlighting (ONLY matches exact numbers & units)
-  // 1. Calo
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*(?:kcal|calo|calories))\s*\*\*/gi, '<span class="badge-highlight badge-calo">🔥 $1</span>');
-  // 2. Protein
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*g?\s*(?:protein|đạm))\s*\*\*/gi, '<span class="badge-highlight badge-protein">🥩 $1</span>');
-  // 3. Carb / Fat / Macro
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*g?\s*(?:carb|fat|tinh bột|chất béo))\s*\*\*/gi, '<span class="badge-highlight badge-macro">🥑 $1</span>');
-  // 4. Water / Hydration
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*(?:ml|lít|l))\s*\*\*/gi, '<span class="badge-highlight badge-water">💧 $1</span>');
-  // 5. Journey Day
   html = html.replace(/\*\*\s*(ngày\s*\d+(?:\/\d+)?)\s*\*\*/gi, '<span class="badge-highlight badge-journey">🚩 $1</span>');
-  // 6. Weight
   html = html.replace(/\*\*\s*(\d+(?:[\.,]\d+)?\s*kg)\s*\*\*/gi, '<span class="badge-highlight badge-weight">⚖️ $1</span>');
-  // 7. General bold & italic
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 800; color: var(--accent-purple);">$1</strong>');
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-  // Lists
   html = html.replace(/^(\d+[\.\️⃣]|(?:[1-9]\d?️⃣))\s+(.*)$/gim, '<li style="margin-left: 1.2rem; margin-bottom: 0.3rem;"><strong>$1</strong> $2</li>');
   html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li style="margin-left: 1.2rem; list-style-type: disc; margin-bottom: 0.3rem;">$1</li>');
   html = html.replace(/(<li.*?>.*?<\/li>\n?)+/g, '<ul style="margin: 0.5rem 0; padding-left: 0.2rem;">$&</ul>');
 
-  // Clean up excess newlines & line breaks
   html = html.replace(/\n{3,}/g, '\n\n');
   html = html.replace(/\n/g, '<br/>');
   html = html.replace(/(?:<br\/>\s*){3,}/gi, '<br/><br/>');
 
-  // Strip excessive <br/> tags before & after block-level HTML elements
   const blockTags = 'blockquote|ul|ol|pre|table|div|h3|h4|h5';
   html = html.replace(new RegExp(`(?:<br\\s*\\/?>\\s*)+(?=<\\/?(?:${blockTags})\\b)`, 'gi'), '');
   html = html.replace(new RegExp(`(<\\/(?:${blockTags})>\\s*)(?:<br\\s*\\/?>\\s*)+`, 'gi'), '$1');

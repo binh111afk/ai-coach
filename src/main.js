@@ -110,11 +110,15 @@ async function handleTabChange(tab) {
     document.body.classList.remove('ai-tab-active');
   }
 
-  // Re-render navigation to switch between horizontal and right-vertical mode
-  await renderNavigation(tab, handleTabChange, handleOpenAiCoach, handleOpenSettings);
+  // Trigger active view rendering immediately (0ms delay)
+  const viewPromise = renderActiveView();
 
-  await updateNavigationXp();
-  await renderActiveView();
+  // Re-render navigation & XP asynchronously in parallel without blocking tab switch
+  renderNavigation(tab, handleTabChange, handleOpenAiCoach, handleOpenSettings).then(() => {
+    updateNavigationXp();
+  });
+
+  await viewPromise;
 }
 
 window.addEventListener('hashchange', () => {
@@ -132,6 +136,17 @@ async function renderActiveView() {
     const slideClass = newIdx >= prevIdx ? 'slide-from-right' : 'slide-from-left';
 
     mountNode.classList.remove('slide-from-right', 'slide-from-left');
+    // Instantly clear old tab markup so old view does NOT linger on screen
+    mountNode.innerHTML = `
+      <div class="flex flex-col items-center justify-center min-h-[360px] p-8 text-center animate-pulse">
+        <div class="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-400/30 flex items-center justify-center text-[#7C3AED] mb-3 shadow-sm">
+          <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+        </div>
+        <p class="text-xs font-semibold text-gray-400">Đang chuyển tab...</p>
+      </div>
+    `;
+    if (window.lucide) window.lucide.createIcons({ el: mountNode });
+
     // Force reflow for CSS animation restart
     void mountNode.offsetWidth;
     mountNode.classList.add(slideClass);

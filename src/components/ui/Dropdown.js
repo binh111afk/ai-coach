@@ -55,6 +55,15 @@ export function initDropdownListeners(containerNode, onChangeCallback) {
       document.querySelectorAll('.custom-dropdown-container.open').forEach(c => c.classList.remove('open'));
 
       if (!isOpen) {
+        // Auto-detect drop-up positioning if near bottom of screen or container
+        const rect = trigger.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < 220) {
+          container.classList.add('drop-up');
+        } else {
+          container.classList.remove('drop-up');
+        }
+
         container.classList.add('open');
         trigger.setAttribute('aria-expanded', 'true');
       } else {

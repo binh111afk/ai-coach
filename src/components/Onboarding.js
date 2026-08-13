@@ -2,10 +2,12 @@ import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generate
 import { AiCoachService } from '../services/aiCoachService.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
-import { renderGeminiIcon } from './ui/Icons.js';
 import confetti from 'canvas-confetti';
 
 export function renderOnboarding(onComplete) {
+  const mountNode = document.getElementById('modal-mount');
+  if (!mountNode) return;
+
   const formData = {
     gender: 'male',
     age: null,
@@ -14,76 +16,117 @@ export function renderOnboarding(onComplete) {
     targetWeight: null,
     targetDays: 60,
     activityLevel: 'moderate',
-    foodAllergies: '',
-    preferredWorkoutTimes: []
+    foodAllergies: 'Hải sản, Gluten',
+    preferredWorkoutTimes: ['Thứ 2, 4, 6 (18:00 - 19:00)']
   };
 
-  const activityOptions = Object.keys(ACTIVITY_MULTIPLIERS).map(key => ({
-    value: key,
-    label: ACTIVITY_MULTIPLIERS[key].label
-  }));
+  const selectedAllergies = new Set(['hải sản', 'gluten']);
+  let customAllergyInputVal = '';
+  let customWorkoutTimeInputVal = '';
+  let currentStep = 1;
+  let validationError = '';
 
-  const modalHtml = `
-    <div class="modal-overlay active" id="onboarding-modal">
-      <div class="modal-card" style="max-width: 560px;">
-        <div style="text-align: center; margin-bottom: 1.25rem;">
-          <div style="width: 54px; height: 54px; background: var(--primary-gradient); border-radius: 16px; margin: 0 auto 0.75rem auto; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 8px 20px rgba(117, 86, 217, 0.3);">
-            ${renderGeminiIcon({ width: 28, height: 28, strokeWidth: 1.8, color: '#fff' })}
+  const headers = {
+    1: { icon: 'user-plus', title: 'Thông Tin Cá Nhân', desc: 'Tự nhập chỉ số cá nhân. AI sẽ dựa vào đó để lập kế hoạch.' },
+    2: { icon: 'target', title: 'Mục Tiêu Của Bạn', desc: 'Chúng ta sẽ cùng nhau đạt được mốc sức khỏe này!' },
+    3: { icon: 'utensils', title: 'Sở Thích & Lịch Tập', desc: 'Tùy chỉnh thực đơn né dị ứng và khung giờ tập luyện.' },
+    4: { icon: 'sparkles', title: 'Tổng Kết Hành Trình', desc: 'Kiểm tra lại chỉ số & xác nhận kế hoạch với AI Coach.' }
+  };
+
+  const allergyPresets = [
+    { id: 'alg_seafood', label: 'Hải sản', value: 'hải sản', icon: 'fish' },
+    { id: 'alg_beef',    label: 'Thịt bò',  value: 'thịt bò',  icon: 'beef' },
+    { id: 'alg_gluten',  label: 'Gluten',   value: 'gluten',  icon: 'wheat' },
+    { id: 'alg_milk',    label: 'Sữa / Lactose', value: 'sữa', icon: 'milk' },
+    { id: 'alg_peanut',  label: 'Đậu phộng', value: 'đậu phộng', icon: 'nut' },
+    { id: 'alg_egg',     label: 'Trứng',    value: 'trứng',   icon: 'egg' },
+    { id: 'alg_spicy',   label: 'Đồ cay',   value: 'đồ cay',  icon: 'flame' }
+  ];
+
+  function updateFoodAllergiesString() {
+    const list = Array.from(selectedAllergies);
+    if (customAllergyInputVal.trim()) {
+      list.push(customAllergyInputVal.trim());
+    }
+    formData.foodAllergies = list.join(', ');
+  }
+
+  function computeStep4Calculations() {
+    const age = formData.age || 25;
+    const height = formData.height || 170;
+    const currentWeight = formData.currentWeight || 70;
+    const targetWeight = formData.targetWeight || 65;
+    const targetDays = formData.targetDays || 60;
+
+    const bmr = calculateBMR(formData.gender, currentWeight, height, age);
+    const tdee = calculateTDEE(bmr, formData.activityLevel);
+    const targetCalObj = calculateTargetCalories(tdee, currentWeight, targetWeight, targetDays);
+    const macros = calculateMacros(targetCalObj.targetCalories);
+    const water = calculateWaterTarget(currentWeight, formData.activityLevel);
+
+    formData.bmr = bmr;
+    formData.tdee = tdee;
+    formData.dailyCalorieTarget = targetCalObj.targetCalories;
+    formData.macroTarget = macros;
+    formData.waterTarget = water;
+  }
+
+  function getStepContent(step) {
+    if (step === 1) {
+      return `
+        <div class="flex-1 space-y-4 mt-2">
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" id="btn-gender-male" class="chip w-full justify-center !py-3.5 ${formData.gender === 'male' ? 'active' : ''}">
+              <i data-lucide="mars" class="w-4 h-4"></i> Nam
+            </button>
+            <button type="button" id="btn-gender-female" class="chip w-full justify-center !py-3.5 ${formData.gender === 'female' ? 'active' : ''}">
+              <i data-lucide="venus" class="w-4 h-4"></i> Nữ
+            </button>
           </div>
-          <h2>Thiết Lập Hành Trình Fitness</h2>
-          <p class="text-sm text-muted">Vui lòng tự nhập các chỉ số cá nhân. AI Coach sẽ tự động lập toàn bộ thực đơn &amp; lịch tập luyện cho hành trình của bạn.</p>
+
+          <div>
+            <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1.5 block">Tuổi</label>
+            <input type="number" id="ob-input-age" value="${formData.age !== null && formData.age !== undefined ? formData.age : ''}" placeholder="Ví dụ: 25" min="12" max="90" class="ui-input">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1.5 block">Chiều cao (cm)</label>
+              <input type="number" id="ob-input-height" value="${formData.height !== null && formData.height !== undefined ? formData.height : ''}" placeholder="Ví dụ: 170" min="100" max="230" class="ui-input">
+            </div>
+            <div>
+              <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1.5 block">Cân nặng (kg)</label>
+              <input type="number" id="ob-input-weight" value="${formData.currentWeight !== null && formData.currentWeight !== undefined ? formData.currentWeight : ''}" placeholder="Ví dụ: 70" step="0.1" min="30" max="250" class="ui-input">
+            </div>
+          </div>
         </div>
+      `;
+    }
 
-        <!-- Step 1: Physical Parameters -->
-        <div class="onboarding-step" id="step-1">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 1/5: Chỉ số cơ thể</h4>
-          <div class="form-group">
-            <label class="form-label">Giới tính</label>
-            <div style="display: flex; gap: 0.75rem;">
-              <label class="btn btn-secondary" style="flex: 1; justify-content: center; cursor: pointer;" id="label-gender-male">
-                <input type="radio" name="gender" value="male" checked style="display: none;"> <i data-lucide="user"></i> Nam
-              </label>
-              <label class="btn btn-secondary" style="flex: 1; justify-content: center; cursor: pointer;" id="label-gender-female">
-                <input type="radio" name="gender" value="female" style="display: none;"> <i data-lucide="user-check"></i> Nữ
-              </label>
-            </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
-            <div class="form-group">
-              <label class="form-label">Tuổi *</label>
-              <input type="number" class="form-input" id="ob-age" value="" placeholder="Ví dụ: 25" min="12" max="90" onfocus="this.select()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Chiều cao (cm) *</label>
-              <input type="number" class="form-input" id="ob-height" value="" placeholder="Ví dụ: 170" min="100" max="230" onfocus="this.select()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Cân nặng (kg) *</label>
-              <input type="number" class="form-input" id="ob-weight" value="" placeholder="Ví dụ: 70" step="0.1" min="30" max="250" onfocus="this.select()">
-            </div>
-          </div>
-          <div id="ob-step1-error" style="color: var(--danger); font-size: 0.825rem; font-weight: 700; margin-top: 0.5rem; display: none;"></div>
-          <button class="btn btn-primary" style="width: 100%; margin-top: 1.25rem;" id="btn-step1-next">Tiếp Theo <i data-lucide="arrow-right"></i></button>
-        </div>
+    if (step === 2) {
+      const activityOptions = Object.keys(ACTIVITY_MULTIPLIERS).map(key => ({
+        value: key,
+        label: ACTIVITY_MULTIPLIERS[key].label
+      }));
 
-        <!-- Step 2: Goal & Activity -->
-        <div class="onboarding-step" id="step-2" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 2/5: Mục tiêu, Thời gian &amp; Khung giờ tập</h4>
-          
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-            <div class="form-group">
-              <label class="form-label">Cân nặng mục tiêu (kg) *</label>
-              <input type="number" class="form-input" id="ob-target-weight" value="" placeholder="Ví dụ: 65" step="0.1" onfocus="this.select()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Thời gian hành trình (ngày) *</label>
-              <input type="number" class="form-input" id="ob-target-days" value="" placeholder="Ví dụ: 60" min="10" max="365" onfocus="this.select()">
+      return `
+        <div class="flex-1 space-y-4 mt-2">
+          <div>
+            <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1.5 block">Cân nặng mục tiêu (kg)</label>
+            <div class="relative">
+              <input type="number" id="ob-input-target-weight" value="${formData.targetWeight !== null && formData.targetWeight !== undefined ? formData.targetWeight : ''}" placeholder="Ví dụ: 65" step="0.1" class="ui-input !pl-12">
+              <i data-lucide="trending-down" class="w-5 h-5 text-[#7C3AED] absolute left-4 top-1/2 -translate-y-1/2"></i>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Mức độ vận động hàng ngày</label>
-            <div id="ob-activity-dropdown-container">
+          <div>
+            <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1.5 block">Thời gian hành trình (ngày)</label>
+            <input type="number" id="ob-input-target-days" value="${formData.targetDays !== null && formData.targetDays !== undefined ? formData.targetDays : ''}" placeholder="Ví dụ: 60" min="10" max="365" class="ui-input">
+          </div>
+
+          <div>
+            <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1.5 block">Mức độ vận động</label>
+            <div>
               ${renderDropdown({
                 id: 'ob-activity-dropdown',
                 options: activityOptions,
@@ -92,848 +135,827 @@ export function renderOnboarding(onComplete) {
               })}
             </div>
           </div>
+        </div>
+      `;
+    }
 
-          <!-- Preferred Workout Time Multi-select Chips -->
-          <div class="form-group" style="margin-top: 1rem;">
-            <label class="form-label" style="display: flex; align-items: center; gap: 0.35rem;">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Khung giờ bạn có thể tập luyện hàng ngày <span class="text-muted">(có thể chọn nhiều)</span>
-            </label>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.4rem;" id="ob-workout-time-chips">
-              <button type="button" id="btn-add-custom-workout-time"
-                style="padding: 0.45rem 1rem; border-radius: 20px; border: 1.5px dashed var(--accent-purple); background: rgba(124, 58, 237, 0.08); color: var(--accent-purple); font-size: 0.85rem; font-weight: 800; cursor: pointer; transition: all 0.18s; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.4rem;">
-                <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> + Thêm Khung Giờ Tập
+    if (step === 3) {
+      const timesHtml = formData.preferredWorkoutTimes.length > 0
+        ? formData.preferredWorkoutTimes.map((t, idx) => `
+            <div class="flex items-center justify-between p-3 bg-[#F5F3FF] border border-[#EDE9FE] rounded-2xl transition hover:border-[#7C3AED]">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-sm flex-shrink-0">
+                  <i data-lucide="dumbbell" class="w-4 h-4 text-[#7C3AED]"></i>
+                </div>
+                <div class="overflow-hidden">
+                  <p class="text-xs sm:text-sm font-bold text-gray-800 truncate">${t}</p>
+                </div>
+              </div>
+              <button type="button" class="btn-remove-time text-gray-400 hover:text-red-500 transition p-1 flex-shrink-0" data-index="${idx}">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
               </button>
             </div>
-          </div>
-          
-          <div id="ob-step2-error" style="color: var(--danger); font-size: 0.825rem; font-weight: 700; margin-top: 0.5rem; display: none;"></div>
+          `).join('')
+        : `<p class="text-xs text-gray-400 italic py-2">Chưa có khung giờ tập nào được chọn. Nhập tự do hoặc bấm nút bên dưới.</p>`;
 
-          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
-            <button class="btn btn-secondary" style="flex: 1;" id="btn-step2-back"><i data-lucide="arrow-left"></i> Quay lại</button>
-            <button class="btn btn-primary" style="flex: 1;" id="btn-step2-next">Tiếp Theo <i data-lucide="arrow-right"></i></button>
-          </div>
-        </div>
+      return `
+        <div class="flex-1 space-y-5 mt-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+          <div>
+            <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2.5 block">Dị ứng / Kiêng khem</label>
+            <div class="flex flex-wrap gap-2 mb-3">
+              ${allergyPresets.map(preset => {
+                const isActive = selectedAllergies.has(preset.value);
+                return `
+                  <button type="button" class="chip btn-allergy-preset ${isActive ? 'active' : ''}" data-value="${preset.value}">
+                    <i data-lucide="${preset.icon}" class="w-4 h-4"></i> ${preset.label}
+                  </button>
+                `;
+              }).join('')}
+            </div>
 
-        <!-- Step 2b: Food Allergies & Preferences -->
-        <div class="onboarding-step" id="step-2b" style="display: none;">
-          <h4 style="margin-bottom: 0.5rem; color: var(--accent-purple);">Bước 3/5: Dị ứng &amp; Sở thích ăn uống</h4>
-          <p class="text-sm text-muted" style="margin-bottom: 1rem;">AI Coach sẽ tự động <b>loại bỏ</b> các món có chứa thực phẩm bạn không dùng được khỏi toàn bộ thực đơn hành trình.</p>
-
-          <!-- Quick-select allergy chips -->
-          <div class="form-group">
-            <label class="form-label">Chọn nhanh dị ứng / kiêng khem (có thể chọn nhiều)</label>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem;" id="allergy-chips">
-              ${[
-                { id: 'alg_seafood',  label: '🦐 Hải sản', value: 'hải sản' },
-                { id: 'alg_egg',     label: '🥚 Trứng',    value: 'trứng' },
-                { id: 'alg_milk',    label: '🥛 Sữa / Lactose', value: 'sữa' },
-                { id: 'alg_gluten',  label: '🌾 Gluten',   value: 'gluten' },
-                { id: 'alg_peanut',  label: '🥜 Đậu phộng', value: 'đậu phộng' },
-                { id: 'alg_soy',     label: '🫘 Đậu nành', value: 'đậu nành' },
-                { id: 'alg_pork',    label: '🐷 Thịt heo', value: 'thịt heo' },
-                { id: 'alg_beef',    label: '🐄 Thịt bò',  value: 'thịt bò' },
-                { id: 'alg_spicy',   label: '🌶️ Cay',      value: 'đồ cay' },
-                { id: 'alg_vegan',   label: '🥦 Ăn chay',  value: 'ăn chay (không thịt cá)' }
-              ].map(chip => `
-                <button type="button" class="allergy-chip" id="${chip.id}" data-value="${chip.value}"
-                  style="padding: 0.35rem 0.85rem; border-radius: 20px; border: 1.5px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap;">
-                  ${chip.label}
-                </button>
-              `).join('')}
+            <div class="flex gap-2">
+              <input type="text" id="ob-input-custom-allergy" value="${customAllergyInputVal}" placeholder="Nhập đồ ăn khác (vd: cà tím, nấm...)" class="ui-input flex-1 text-sm !py-2.5">
+            </div>
+            
+            <div class="mt-2 text-xs font-semibold ${formData.foodAllergies ? 'text-[#7C3AED]' : 'text-emerald-600'}">
+              ${formData.foodAllergies ? `🚫 AI sẽ loại bỏ khỏi thực đơn: ${formData.foodAllergies}` : '✅ Không có dị ứng — AI sẽ lập thực đơn phong phú tối đa.'}
             </div>
           </div>
 
-          <!-- Free-text additional restrictions -->
-          <div class="form-group" style="margin-top: 0.75rem;">
-            <label class="form-label">Ghi thêm dị ứng / kiêng khem khác <span class="text-muted">(tuỳ chọn)</span></label>
-            <input type="text" class="form-input" id="ob-allergy-custom"
-              placeholder="Ví dụ: không ăn cà tím, kiêng đồ ngọt, không ăn nấm..."
-              style="margin-top: 0.35rem;">
-          </div>
-
-          <div id="ob-step2b-allergy-preview" style="margin-top: 0.65rem; font-size: 0.82rem; color: var(--accent-purple); min-height: 1.5rem;"></div>
-
-          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
-            <button class="btn btn-secondary" style="flex: 1;" id="btn-step2b-back"><i data-lucide="arrow-left"></i> Quay lại</button>
-            <button class="btn btn-primary" style="flex: 1;" id="btn-step2b-next">Tính Toán AI <i data-lucide="cpu"></i></button>
-          </div>
-        </div>
-
-        <!-- Step 3: AI Calculations & Journey Plan Summary -->
-        <div class="onboarding-step" id="step-3" style="display: none;">
-          <h4 style="margin-bottom: 1rem; color: var(--accent-purple);">Bước 4/5: Kết quả tính toán AI &amp; Chỉ số</h4>
-          <div id="ai-calc-results"></div>
-          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
-            <button class="btn btn-secondary" style="flex: 1;" id="btn-step3-back"><i data-lucide="arrow-left"></i> Quay lại</button>
-            <button class="btn btn-primary" style="flex: 1.5;" id="btn-step3-next">Kiểm Tra Thông Tin <i data-lucide="arrow-right"></i></button>
-          </div>
-        </div>
-
-        <!-- Step 4: Review All Entered & Selected Information -->
-        <div class="onboarding-step" id="step-4" style="display: none;">
-          <h4 style="margin-bottom: 0.5rem; color: var(--accent-purple);">Bước 5/5: Kiểm tra &amp; Xác nhận thông tin</h4>
-          <p class="text-sm text-muted" style="margin-bottom: 1rem;">Vui lòng rà soát lại các chỉ số bạn đã nhập/chọn trước khi AI Coach thiết lập toàn bộ hành trình.</p>
-          
-          <div id="ob-review-content"></div>
-
-          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
-            <button class="btn btn-secondary" style="flex: 1;" id="btn-step4-back"><i data-lucide="arrow-left"></i> Quay lại</button>
-            <button class="btn btn-primary" style="flex: 1.5;" id="btn-confirm-onboarding">Bắt Đầu Hành Trình! <i data-lucide="rocket"></i></button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  const mountNode = document.getElementById('modal-mount');
-  if (mountNode) {
-    mountNode.innerHTML = modalHtml;
-    if (window.lucide) window.lucide.createIcons();
-
-    // Init custom dropdown
-    initDropdownListeners(mountNode, (val) => {
-      formData.activityLevel = val;
-    });
-
-    // Gender toggle
-    const maleLabel = document.getElementById('label-gender-male');
-    const femaleLabel = document.getElementById('label-gender-female');
-    maleLabel.addEventListener('click', () => {
-      formData.gender = 'male';
-      maleLabel.className = 'btn btn-primary';
-      femaleLabel.className = 'btn btn-secondary';
-    });
-    femaleLabel.addEventListener('click', () => {
-      formData.gender = 'female';
-      femaleLabel.className = 'btn btn-primary';
-      maleLabel.className = 'btn btn-secondary';
-    });
-    maleLabel.click();
-
-    // Step 1 -> Step 2 validation
-    document.getElementById('btn-step1-next').addEventListener('click', () => {
-      const ageVal = document.getElementById('ob-age').value.trim();
-      const heightVal = document.getElementById('ob-height').value.trim();
-      const weightVal = document.getElementById('ob-weight').value.trim();
-      const errDiv = document.getElementById('ob-step1-error');
-
-      if (!ageVal || !heightVal || !weightVal) {
-        errDiv.textContent = '⚠️ Vui lòng tự nhập đầy đủ thông tin Tuổi, Chiều cao và Cân nặng!';
-        errDiv.style.display = 'block';
-        return;
-      }
-
-      errDiv.style.display = 'none';
-      formData.age = parseInt(ageVal);
-      formData.height = parseFloat(heightVal);
-      formData.currentWeight = parseFloat(weightVal);
-
-      document.getElementById('step-1').style.display = 'none';
-      document.getElementById('step-2').style.display = 'block';
-    });
-
-    // Step 2 Back & Next (→ Step 2b allergy)
-    document.getElementById('btn-step2-back').addEventListener('click', () => {
-      document.getElementById('step-2').style.display = 'none';
-      document.getElementById('step-1').style.display = 'block';
-    });
-
-    // Step 2: Workout time chips logic
-    document.querySelectorAll('.workout-time-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const val = chip.getAttribute('data-value');
-        const idx = formData.preferredWorkoutTimes.indexOf(val);
-        if (idx > -1) {
-          if (formData.preferredWorkoutTimes.length > 1) {
-            formData.preferredWorkoutTimes.splice(idx, 1);
-            chip.style.background = 'var(--bg-card)';
-            chip.style.borderColor = 'var(--border-color)';
-            chip.style.color = 'var(--text-main)';
-          }
-        } else {
-          formData.preferredWorkoutTimes.push(val);
-          chip.style.background = 'rgba(124, 58, 237, 0.15)';
-          chip.style.borderColor = 'var(--accent-purple)';
-          chip.style.color = 'var(--accent-purple)';
-        }
-      });
-    });
-
-    // Custom Workout Time Picker Modal Prompt Handler
-    document.getElementById('btn-add-custom-workout-time')?.addEventListener('click', () => {
-      document.getElementById('modal-add-custom-time')?.remove();
-
-      const overlay = document.createElement('div');
-      overlay.className = 'custom-modal-overlay';
-      overlay.id = 'modal-add-custom-time';
-      overlay.style.zIndex = '99999999';
-
-      overlay.innerHTML = `
-        <div class="custom-modal-card" style="max-width: 440px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <div class="custom-modal-title" style="margin: 0; font-size: 1.1rem; color: var(--accent-purple); display: flex; align-items: center; gap: 0.4rem;">
-              <i data-lucide="clock" style="width: 20px; height: 20px;"></i> Thêm Khung Giờ Tập Tự Chọn
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-gray-500 text-xs font-bold uppercase tracking-wider block">Khung Giờ Tập</label>
+              <span class="text-[11px] text-purple-600 font-semibold">${formData.preferredWorkoutTimes.length} khung giờ đã chọn</span>
             </div>
-            <button class="btn btn-secondary btn-icon btn-sm" id="btn-close-custom-time-modal" style="border: 0; width: 28px; height: 28px;">
-              <i data-lucide="x" style="width: 16px; height: 16px;"></i>
-            </button>
-          </div>
-          <p class="text-sm text-muted" style="margin-bottom: 1.1rem; line-height: 1.45; text-align: left;">
-            Vui lòng chọn mốc <b>Giờ Bắt Đầu</b> và <b>Giờ Kết Thúc</b> tập luyện phù hợp với thời gian biểu rảnh của bạn:
-          </p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
-            <div class="form-group" style="margin: 0; text-align: left;">
-              <label class="form-label" style="font-size: 0.8rem;">Giờ Bắt Đầu *</label>
-              <input type="time" class="form-input" id="custom-time-start" value="06:30" style="font-size: 1rem; padding: 0.5rem; text-align: center;">
+
+            <!-- Scrollable list of chosen workout times -->
+            <div class="space-y-2 mb-3 max-h-40 overflow-y-auto pr-1 custom-scrollbar" id="workout-times-list">
+              ${timesHtml}
             </div>
-            <div class="form-group" style="margin: 0; text-align: left;">
-              <label class="form-label" style="font-size: 0.8rem;">Giờ Kết Thúc *</label>
-              <input type="time" class="form-input" id="custom-time-end" value="07:30" style="font-size: 1rem; padding: 0.5rem; text-align: center;">
+
+            <!-- Free-text input for custom workout schedule -->
+            <div class="flex gap-2 mb-2">
+              <input type="text" id="ob-input-custom-workout-time" value="${customWorkoutTimeInputVal}" placeholder="Tự nhập giờ tập (vd: Trưa 12:00, 5h sáng...)" class="ui-input flex-1 text-xs sm:text-sm !py-2.5">
+              <button type="button" id="btn-add-custom-time-input" class="w-11 h-11 rounded-2xl bg-[#7C3AED] text-white flex items-center justify-center flex-shrink-0 shadow-md hover:bg-[#6D28D9] transition" title="Thêm giờ tập">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+              </button>
             </div>
-          </div>
-          <div class="custom-modal-actions">
-            <button class="btn btn-secondary custom-modal-btn" id="btn-cancel-custom-time">Hủy Bỏ</button>
-            <button class="btn btn-primary custom-modal-btn" id="btn-confirm-custom-time">
-              <i data-lucide="plus"></i> Thêm Khung Giờ
+
+            <button type="button" id="btn-add-workout-time-dialog" class="w-full py-2.5 border-2 border-dashed border-gray-300 rounded-2xl text-xs font-bold text-gray-500 hover:border-[#7C3AED] hover:text-[#7C3AED] transition flex items-center justify-center gap-1.5">
+              <i data-lucide="calendar-plus" class="w-4 h-4"></i> Chọn Khung Giờ Mẫu Theo Ngày
             </button>
           </div>
         </div>
       `;
+    }
 
-      document.body.appendChild(overlay);
-      requestAnimationFrame(() => overlay.classList.add('active'));
+    if (step === 4) {
+      computeStep4Calculations();
 
-      if (window.lucide) window.lucide.createIcons();
-
-      const closeModal = () => {
-        overlay.classList.remove('active');
-        setTimeout(() => overlay.remove(), 300);
-      };
-
-      overlay.querySelector('#btn-close-custom-time-modal')?.addEventListener('click', closeModal);
-      overlay.querySelector('#btn-cancel-custom-time')?.addEventListener('click', closeModal);
-
-      overlay.querySelector('#btn-confirm-custom-time')?.addEventListener('click', () => {
-        const startVal = overlay.querySelector('#custom-time-start')?.value || '06:30';
-        const endVal = overlay.querySelector('#custom-time-end')?.value || '07:30';
-        const timeRangeStr = `${startVal} - ${endVal}`;
-
-        if (!formData.preferredWorkoutTimes.includes(timeRangeStr)) {
-          formData.preferredWorkoutTimes.push(timeRangeStr);
-        }
-
-        // Dynamically add new time chip to UI
-        const chipContainer = document.getElementById('ob-workout-time-chips');
-        const addBtn = document.getElementById('btn-add-custom-workout-time');
-        const chipId = 'wt_custom_' + Date.now();
-
-        const chipBtn = document.createElement('button');
-        chipBtn.type = 'button';
-        chipBtn.className = 'workout-time-chip active';
-        chipBtn.id = chipId;
-        chipBtn.setAttribute('data-value', timeRangeStr);
-        chipBtn.style.cssText = 'padding: 0.38rem 0.8rem; border-radius: 20px; border: 1.5px solid var(--accent-purple); background: rgba(124, 58, 237, 0.15); color: var(--accent-purple); font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap;';
-        chipBtn.innerHTML = `⏱️ ${timeRangeStr} (Tự chọn)`;
-
-        chipBtn.addEventListener('click', () => {
-          const idx = formData.preferredWorkoutTimes.indexOf(timeRangeStr);
-          if (idx > -1) {
-            if (formData.preferredWorkoutTimes.length > 1) {
-              formData.preferredWorkoutTimes.splice(idx, 1);
-              chipBtn.style.background = 'var(--bg-card)';
-              chipBtn.style.borderColor = 'var(--border-color)';
-              chipBtn.style.color = 'var(--text-main)';
-            }
-          } else {
-            formData.preferredWorkoutTimes.push(timeRangeStr);
-            chipBtn.style.background = 'rgba(124, 58, 237, 0.15)';
-            chipBtn.style.borderColor = 'var(--accent-purple)';
-            chipBtn.style.color = 'var(--accent-purple)';
-          }
-        });
-
-        if (chipContainer && addBtn) {
-          chipContainer.insertBefore(chipBtn, addBtn);
-        }
-
-        confetti({ particleCount: 35, spread: 60, origin: { y: 0.6 } });
-        closeModal();
-      });
-    });
-
-    document.getElementById('btn-step2-next').addEventListener('click', () => {
-      const targetWeightVal = document.getElementById('ob-target-weight').value.trim();
-      const targetDaysVal = document.getElementById('ob-target-days').value.trim();
-      const errDiv = document.getElementById('ob-step2-error');
-      if (!targetWeightVal) {
-        errDiv.textContent = '⚠️ Vui lòng tự nhập Cân nặng mục tiêu!';
-        errDiv.style.display = 'block';
-        return;
-      }
-      errDiv.style.display = 'none';
-      if (targetDaysVal) {
-        formData.targetDays = Math.max(10, parseInt(targetDaysVal) || 60);
-      }
-      document.getElementById('step-2').style.display = 'none';
-      document.getElementById('step-2b').style.display = 'block';
-      if (window.lucide) window.lucide.createIcons();
-    });
-
-    // Step 2b: Allergy chips logic
-    const selectedAllergies = new Set();
-    const updateAllergyPreview = () => {
-      const custom = (document.getElementById('ob-allergy-custom')?.value || '').trim();
-      const chips = [...selectedAllergies].join(', ');
-      const all = [chips, custom].filter(Boolean).join(', ');
-      formData.foodAllergies = all;
-      const preview = document.getElementById('ob-step2b-allergy-preview');
-      if (preview) {
-        preview.textContent = all
-          ? `🚫 AI sẽ né: ${all}`
-          : '✅ Không có dị ứng — AI sẽ lập thực đơn đa dạng tối đa.';
-      }
-    };
-
-    document.querySelectorAll('.allergy-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const val = chip.getAttribute('data-value');
-        if (selectedAllergies.has(val)) {
-          selectedAllergies.delete(val);
-          chip.style.background = 'var(--bg-card)';
-          chip.style.borderColor = 'var(--border-color)';
-          chip.style.color = 'var(--text-main)';
-        } else {
-          selectedAllergies.add(val);
-          chip.style.background = 'rgba(124, 58, 237, 0.12)';
-          chip.style.borderColor = 'var(--accent-purple)';
-          chip.style.color = 'var(--accent-purple)';
-        }
-        updateAllergyPreview();
-      });
-    });
-
-    document.getElementById('ob-allergy-custom')?.addEventListener('input', updateAllergyPreview);
-    updateAllergyPreview(); // init
-
-    document.getElementById('btn-step2b-back').addEventListener('click', () => {
-      document.getElementById('step-2b').style.display = 'none';
-      document.getElementById('step-2').style.display = 'block';
-    });
-
-    const calculateAndShowSummary = () => {
-      const targetWeightVal = document.getElementById('ob-target-weight').value.trim();
-      const targetDaysVal = document.getElementById('ob-target-days').value.trim();
-      const errDiv = document.getElementById('ob-step2-error');
-
-      if (!targetWeightVal) {
-        // Guard: go back to step 2 to fill in target weight
-        document.getElementById('step-2b').style.display = 'none';
-        document.getElementById('step-2').style.display = 'block';
-        errDiv.textContent = '⚠️ Vui lòng tự nhập Cân nặng mục tiêu!';
-        errDiv.style.display = 'block';
-        return false;
-      }
-
-      errDiv.style.display = 'none';
-      formData.targetWeight = parseFloat(targetWeightVal);
-      formData.targetDays = parseInt(targetDaysVal) || 60;
-
-      // Calculate BMR, TDEE, Deficit, Macros, Water
-      const bmr = calculateBMR(formData.gender, formData.currentWeight, formData.height, formData.age);
-      const tdee = calculateTDEE(bmr, formData.activityLevel);
-      const targetCalObj = calculateTargetCalories(tdee, formData.currentWeight, formData.targetWeight, formData.targetDays);
-      const macros = calculateMacros(targetCalObj.targetCalories);
-      const water = calculateWaterTarget(formData.currentWeight, formData.activityLevel);
-
-      // Check weight loss speed safety
-      const diffKg = formData.currentWeight - formData.targetWeight;
-      let recommendedDays = formData.targetDays;
+      const currentW = formData.currentWeight || 70;
+      const targetW = formData.targetWeight || 65;
+      const targetD = formData.targetDays || 60;
+      const diffKg = currentW - targetW;
+      let recommendedDays = targetD;
       let isTooFast = false;
 
       if (diffKg > 0) {
-        // Safe rate: max ~0.75kg - 1.0kg / week (approx 0.1kg/day)
         recommendedDays = Math.max(30, Math.ceil((diffKg * 7700) / 500));
-        if (formData.targetDays < recommendedDays || targetCalObj.targetCalories <= 1200) {
+        if (targetD < recommendedDays || (formData.dailyCalorieTarget && formData.dailyCalorieTarget <= 1200)) {
           isTooFast = true;
         }
       }
 
-      formData.bmr = bmr;
-      formData.tdee = tdee;
-      formData.dailyCalorieTarget = targetCalObj.targetCalories;
-      formData.macroTarget = macros;
-      formData.waterTarget = water;
-
-      // Render summary
-      const resultsHtml = `
-        <div style="background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-card); border: 1px solid var(--border-color); font-size: 0.9rem;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
-            <div>
-              <span class="text-muted text-xs">BMR (Calo nền):</span>
-              <div style="font-weight: 800; font-size: 1.1rem; color: var(--accent-blue);">${bmr} kcal</div>
+      return `
+        <!-- Fixed Max Height Scrollable Summary Container -->
+        <div class="flex-1 space-y-4 mt-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+          <!-- Calorie Target Card -->
+          <div class="relative bg-gradient-to-r from-[#7C3AED] to-[#D946EF] p-4 sm:p-5 rounded-2xl text-white overflow-hidden shadow-lg shadow-purple-500/20">
+            <div class="relative z-10">
+              <span class="text-xs font-bold uppercase tracking-wider opacity-85">Mục Tiêu Nạp Calo</span>
+              <div class="flex items-baseline gap-1 mt-1">
+                <p class="display text-3xl sm:text-4xl font-bold">${formData.dailyCalorieTarget?.toLocaleString() || 1905}</p>
+                <span class="text-sm font-medium opacity-85">kcal/ngày</span>
+              </div>
+              <div class="flex items-center gap-4 mt-2.5 text-xs font-medium opacity-90">
+                <span class="flex items-center gap-1"><i data-lucide="heart-pulse" class="w-3.5 h-3.5"></i> BMR: ${formData.bmr} kcal</span>
+                <span class="flex items-center gap-1"><i data-lucide="flame" class="w-3.5 h-3.5"></i> TDEE: ${formData.tdee} kcal</span>
+              </div>
             </div>
-            <div>
-              <span class="text-muted text-xs">TDEE (Calo duy trì):</span>
-              <div style="font-weight: 800; font-size: 1.1rem; color: var(--accent-amber);">${tdee} kcal</div>
-            </div>
-          </div>
-          <div style="margin-bottom: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border-color);">
-            <span class="text-muted text-xs">Mục tiêu Calo hàng ngày:</span>
-            <div style="font-weight: 900; font-size: 1.4rem; color: var(--accent-purple);">${targetCalObj.targetCalories} kcal/ngày</div>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; text-align: center; background: var(--bg-card); padding: 0.65rem; border-radius: 10px; border: 1px solid var(--border-color);">
-            <div>
-              <span class="text-muted text-xs">Protein</span>
-              <div style="font-weight: 800; color: var(--accent-purple);">${macros.protein}g</div>
-            </div>
-            <div>
-              <span class="text-muted text-xs">Carb</span>
-              <div style="font-weight: 800; color: var(--accent-blue);">${macros.carb}g</div>
-            </div>
-            <div>
-              <span class="text-muted text-xs">Fat</span>
-              <div style="font-weight: 800; color: var(--accent-amber);">${macros.fat}g</div>
-            </div>
-            <div>
-              <span class="text-muted text-xs">Nước</span>
-              <div style="font-weight: 800; color: var(--accent-blue);">${water} ml</div>
-            </div>
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xs pointer-events-none"></div>
+            <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-white/10 rounded-full blur-xs pointer-events-none"></div>
           </div>
 
+          <!-- Summary Info Card -->
+          <div class="bg-[#F9FAFB] border border-gray-100 rounded-2xl p-3.5 sm:p-4 space-y-2.5 text-xs sm:text-sm">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Thông Tin Đã Nhập</h3>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-gray-500"><i data-lucide="scale" class="w-4 h-4 text-[#7C3AED]"></i> Cân nặng</div>
+              <div class="font-bold flex items-center gap-2 text-gray-800">
+                <span>${currentW}kg</span>
+                <i data-lucide="arrow-right" class="w-3 h-3 text-[#7C3AED]"></i>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] to-[#D946EF]">${targetW}kg</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-gray-500"><i data-lucide="calendar-days" class="w-4 h-4 text-[#7C3AED]"></i> Thời gian</div>
+              <span class="font-bold text-gray-800">${targetD} ngày</span>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-gray-500"><i data-lucide="dumbbell" class="w-4 h-4 text-[#7C3AED]"></i> Giờ tập</div>
+              <span class="font-bold text-gray-800 text-right text-xs max-w-[180px] sm:max-w-[210px] truncate">${formData.preferredWorkoutTimes.join(', ') || 'Chưa chọn'}</span>
+            </div>
+
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-2 text-gray-500 flex-shrink-0"><i data-lucide="ban" class="w-4 h-4 text-red-400"></i> Dị ứng</div>
+              <div class="flex flex-wrap gap-1 justify-end">
+                ${formData.foodAllergies 
+                  ? formData.foodAllergies.split(',').map(a => `<span class="text-[10px] font-bold bg-[#EDE9FE] text-[#7C3AED] px-2 py-0.5 rounded-md">${a.trim()}</span>`).join('')
+                  : '<span class="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md">Không có</span>'
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Safety Rate Warning (if too fast) -->
           ${isTooFast ? `
-            <div style="margin-top: 0.85rem; background: #fef2f2; border: 1.5px solid #fecaca; padding: 0.85rem; border-radius: 12px; color: #991b1b; font-size: 0.825rem; line-height: 1.5;">
-              <div style="font-weight: 800; color: #dc2626; font-size: 0.875rem; margin-bottom: 0.3rem;">
-                ⚠️ Lời Nhắc Nhở An Toàn Sức Khỏe AI Coach
+            <div class="bg-red-50 border border-red-200 p-3.5 rounded-2xl text-xs text-red-800 space-y-1.5">
+              <div class="font-bold flex items-center gap-1.5 text-red-600 text-sm">
+                <i data-lucide="alert-triangle" class="w-4 h-4"></i> Nhắc Nhở An Toàn Sức Khỏe AI
               </div>
-              Mục tiêu giảm <b>${diffKg.toFixed(1)} kg</b> trong <b>${formData.targetDays} ngày</b> là quá nhanh, dễ dẫn đến mệt mỏi và mất cơ!
-              <br>
-              💡 <b>Thời gian khuyến nghị phù hợp: ${recommendedDays} ngày</b> (để giảm an toàn ~0.5kg - 0.7kg/tuần).
-              <div style="margin-top: 0.6rem;">
-                <button type="button" id="btn-apply-recommended-days" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #dc2626; border-color: #fca5a5; background: #fff;">
-                  ⚡ Áp dụng ngay ${recommendedDays} ngày
-                </button>
-              </div>
+              <p>Mục tiêu giảm <b>${diffKg.toFixed(1)} kg</b> trong <b>${targetD} ngày</b> là khá nhanh, dễ mệt mỏi!</p>
+              <p>💡 <b>Khuyên dùng: ${recommendedDays} ngày</b> (để giảm an toàn ~0.5kg/tuần).</p>
+              <button type="button" id="btn-apply-recommended-days" class="w-full py-2 bg-white border border-red-300 text-red-600 font-bold rounded-xl hover:bg-red-100 transition shadow-xs mt-1">
+                ⚡ Áp dụng ngay ${recommendedDays} ngày
+              </button>
             </div>
           ` : ''}
 
-          <div style="margin-top: 0.85rem; background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.08)); border: 1.5px solid rgba(245, 158, 11, 0.3); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: #d97706; display: flex; align-items: center; gap: 0.55rem;">
-            <i data-lucide="crown" style="width: 22px; height: 22px; flex-shrink: 0; color: #f59e0b;"></i>
-            <div>
-              🏆 <b>Hệ Thống Level AI Cá Nhân Hóa:</b> Tự động sinh <b>${Math.max(5, Math.round(formData.targetDays / 10))} Cấp Độ</b> (~1 Level / 10 ngày) &amp; <b>5 Huy Hiệu Cột Mốc</b> cho hành trình <b>${formData.targetDays} Ngày</b>!
+          <!-- Macros Breakdown -->
+          <div class="space-y-2.5 pt-1">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Phân Bổ Dinh Dưỡng</h3>
+            
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0"><i data-lucide="egg" class="w-4 h-4 text-[#7C3AED]"></i></div>
+              <div class="flex-1">
+                <div class="flex justify-between text-xs font-bold mb-1"><span class="text-gray-700">Protein</span><span class="text-[#7C3AED]">${formData.macroTarget?.protein || 140}g</span></div>
+                <div class="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-[#7C3AED] rounded-full" style="width: 30%;"></div></div>
+              </div>
             </div>
-          </div>
 
-          <div style="margin-top: 0.75rem; background: rgba(124, 58, 237, 0.08); border: 1px solid var(--border-highlight); padding: 0.75rem; border-radius: 12px; font-size: 0.825rem; color: var(--accent-purple);">
-            ✨ <b>AI Auto-Planner:</b> Sau khi xác nhận, AI Coach sẽ tự động thiết lập toàn bộ thực đơn (né ${formData.foodAllergies || 'không có dị ứng'}), lịch tập luyện &amp; checklist hàng ngày cho hành trình <b>${formData.targetDays} ngày</b>!
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0"><i data-lucide="wheat" class="w-4 h-4 text-[#F59E0B]"></i></div>
+              <div class="flex-1">
+                <div class="flex justify-between text-xs font-bold mb-1"><span class="text-gray-700">Carbs</span><span class="text-[#F59E0B]">${formData.macroTarget?.carb || 190}g</span></div>
+                <div class="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-[#F59E0B] rounded-full" style="width: 45%;"></div></div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0"><i data-lucide="droplet" class="w-4 h-4 text-[#EC4899]"></i></div>
+              <div class="flex-1">
+                <div class="flex justify-between text-xs font-bold mb-1"><span class="text-gray-700">Fat</span><span class="text-[#EC4899]">${formData.macroTarget?.fat || 60}g</span></div>
+                <div class="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-[#EC4899] rounded-full" style="width: 25%;"></div></div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0"><i data-lucide="glass-water" class="w-4 h-4 text-[#3B82F6]"></i></div>
+              <div class="flex-1">
+                <div class="flex justify-between text-xs font-bold mb-1"><span class="text-gray-700">Nước</span><span class="text-[#3B82F6]">${formData.waterTarget?.toLocaleString() || 2450} ml</span></div>
+                <div class="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-[#3B82F6] rounded-full" style="width: 80%;"></div></div>
+              </div>
+            </div>
           </div>
         </div>
       `;
+    }
+  }
 
-      document.getElementById('ai-calc-results').innerHTML = resultsHtml;
+  function renderWrapper() {
+    const h = headers[currentStep];
+    const stepContent = getStepContent(currentStep);
+    
+    let stepBars = '';
+    for (let i = 1; i <= 4; i++) {
+      stepBars += `<div class="h-1.5 flex-1 rounded-full ${i <= currentStep ? 'bg-[#7C3AED]' : 'bg-gray-200'} transition-all duration-300"></div>`;
+    }
 
-      // Attach button handler if warning exists
-      const applyBtn = document.getElementById('btn-apply-recommended-days');
-      if (applyBtn) {
-        applyBtn.addEventListener('click', () => {
-          document.getElementById('ob-target-days').value = recommendedDays;
-          calculateAndShowSummary();
-        });
-      }
+    return `
+      <style>
+        :root {
+          --primary: #7C3AED;
+          --accent: #D946EF;
+          --fg: #1E1B2E;
+        }
+        .display { font-family: 'Fraunces', serif; }
+        
+        .btn-gradient {
+          background: linear-gradient(135deg, var(--primary), var(--accent));
+          box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.4);
+          transition: all 0.2s ease; color: white; font-weight: 700;
+        }
+        .btn-gradient:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -4px rgba(124, 58, 237, 0.5); }
+        .btn-gradient:active { transform: translateY(0); }
+        
+        .ui-input {
+          width: 100%; padding: 12px 16px;
+          background: #F9FAFB; border: 1.5px solid #E5E7EB;
+          border-radius: 16px; font-weight: 600; color: var(--fg);
+          transition: all 0.2s;
+        }
+        .ui-input:focus {
+          outline: none; background: white;
+          border-color: var(--primary);
+          box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+        }
+        .ui-input::placeholder { color: #9CA3AF; font-weight: 500; }
 
-      // Hide step-2b (current step), show step-3
-      document.getElementById('step-2b').style.display = 'none';
-      document.getElementById('step-3').style.display = 'block';
-      if (window.lucide) window.lucide.createIcons();
-      return true;
-    };
+        .chip {
+          padding: 10px 16px; border-radius: 12px;
+          border: 1.5px solid #E5E7EB; background: white;
+          font-size: 13px; font-weight: 600; cursor: pointer;
+          transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+          user-select: none;
+        }
+        .chip:hover { border-color: #C4B5FD; background: #FAF5FF; }
+        .chip.active {
+          background: #EDE9FE; border-color: var(--primary); color: var(--primary);
+        }
 
-    document.getElementById('btn-step2b-next').addEventListener('click', calculateAndShowSummary);
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-    // Step 3 Back → Step 2b
-    document.getElementById('btn-step3-back').addEventListener('click', () => {
-      document.getElementById('step-3').style.display = 'none';
-      document.getElementById('step-2b').style.display = 'block';
-    });
+        .onboarding-overlay {
+          position: fixed; inset: 0;
+          background: rgba(15, 23, 42, 0.65);
+          backdrop-filter: blur(8px);
+          z-index: 999999;
+          display: flex; align-items: center; justify-content: center;
+          padding: 1rem; overflow-y: auto;
+        }
+      </style>
 
-    // Step 3 Next → Step 4 Review (Bước 5/5)
-    const showReviewStep = () => {
-      const genderText = formData.gender === 'male' ? 'Nam' : 'Nữ';
-      const actObj = ACTIVITY_MULTIPLIERS[formData.activityLevel] || {};
-      const actText = actObj.label || 'Vừa phải';
-      const allergyText = formData.foodAllergies
-        ? `<span style="color: #dc2626; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Né: ${formData.foodAllergies}</span>`
-        : '<span style="color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Không có dị ứng (Thực đơn đa dạng)</span>';
-
-      const reviewHtml = `
-        <div style="background: var(--bg-subtle); padding: 1.1rem; border-radius: var(--radius-card); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.875rem; text-align: left;">
+      <div class="onboarding-overlay" id="onboarding-modal">
+        <div class="bg-white p-5 sm:p-7 rounded-3xl shadow-2xl border border-gray-100/90 w-full max-w-md max-h-[90vh] flex flex-col my-auto transition-all overflow-visible relative">
           
-          <!-- Section 1: Physical parameters -->
-          <div style="background: var(--bg-card); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-color);">
-            <div style="font-weight: 800; color: var(--accent-purple); margin-bottom: 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> 1. Chỉ số cá nhân
+          <!-- Step Progress -->
+          <div class="flex gap-2 mb-5 flex-shrink-0">${stepBars}</div>
+          
+          <!-- Header -->
+          <div class="mb-2 flex-shrink-0">
+            <div class="w-11 h-11 rounded-2xl bg-[#EDE9FE] flex items-center justify-center mb-2.5 text-[#7C3AED]">
+              <i data-lucide="${h.icon}" class="w-5 h-5"></i>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; color: var(--text-main);">
-              <div>• Giới tính: <b>${genderText}</b></div>
-              <div>• Tuổi: <b>${formData.age} tuổi</b></div>
-              <div>• Chiều cao: <b>${formData.height} cm</b></div>
-              <div>• Cân nặng hiện tại: <b>${formData.currentWeight} kg</b></div>
-            </div>
+            <h2 class="display text-xl sm:text-2xl font-semibold text-gray-900">${h.title}</h2>
+            <p class="text-xs sm:text-sm text-gray-500 mt-0.5">${h.desc}</p>
           </div>
 
-          <!-- Section 2: Goals & Journey Duration -->
-          <div style="background: var(--bg-card); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-color);">
-            <div style="font-weight: 800; color: var(--accent-blue); margin-bottom: 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> 2. Mục tiêu &amp; Thời gian hành trình
+          <!-- Step Validation Error -->
+          ${validationError ? `
+            <div class="bg-red-50 text-red-600 text-xs font-bold p-3 rounded-xl border border-red-200 mb-2 flex items-center gap-2 flex-shrink-0">
+              <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0"></i>
+              <span>${validationError}</span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; color: var(--text-main);">
-              <div>• Cân nặng mục tiêu: <b style="color: var(--accent-purple);">${formData.targetWeight} kg</b></div>
-              <div>• Thời gian hành trình: <b style="color: var(--accent-blue);">${formData.targetDays} ngày</b></div>
-            </div>
-            <div style="margin-top: 0.35rem; font-size: 0.825rem; color: var(--text-muted);">
-              • Vận động: <b>${actText}</b>
-            </div>
+          ` : ''}
+
+          <!-- Step Content Body -->
+          ${stepContent}
+
+          <!-- Action Buttons Footer -->
+          <div class="mt-auto pt-5 flex gap-3 flex-shrink-0">
+            ${currentStep > 1 ? `
+              <button type="button" id="btn-onboarding-prev" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition flex-shrink-0">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+              </button>
+            ` : ''}
+            <button type="button" id="btn-onboarding-next" class="btn-gradient flex-1 py-3.5 sm:py-4 rounded-2xl flex items-center justify-center gap-2 text-sm sm:text-base">
+              ${currentStep === 4 ? 'Bắt Đầu Hành Trình!' : 'Tiếp Theo'} 
+              <i data-lucide="${currentStep !== 4 ? 'arrow-right' : 'rocket'}" class="w-5 h-5"></i>
+            </button>
           </div>
 
-          <!-- Section 3: Food allergies & restrictions -->
-          <div style="background: var(--bg-card); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-color);">
-            <div style="font-weight: 800; color: #dc2626; margin-bottom: 0.35rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#dc2626" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 3. Dị ứng &amp; Sở thích ăn uống
-            </div>
-            <div style="font-size: 0.85rem; line-height: 1.4;">
-              ${allergyText}
-            </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindEvents() {
+    // Custom Dropdown Initialization (Step 2)
+    initDropdownListeners(mountNode, (val, dropdownId) => {
+      if (dropdownId === 'ob-activity-dropdown') {
+        formData.activityLevel = val;
+      }
+    });
+
+    // Gender buttons
+    document.getElementById('btn-gender-male')?.addEventListener('click', () => {
+      formData.gender = 'male';
+      render();
+    });
+    document.getElementById('btn-gender-female')?.addEventListener('click', () => {
+      formData.gender = 'female';
+      render();
+    });
+
+    // Inputs change sync
+    document.getElementById('ob-input-age')?.addEventListener('input', (e) => {
+      formData.age = parseInt(e.target.value) || null;
+    });
+    document.getElementById('ob-input-height')?.addEventListener('input', (e) => {
+      formData.height = parseFloat(e.target.value) || null;
+    });
+    document.getElementById('ob-input-weight')?.addEventListener('input', (e) => {
+      formData.currentWeight = parseFloat(e.target.value) || null;
+    });
+    document.getElementById('ob-input-target-weight')?.addEventListener('input', (e) => {
+      formData.targetWeight = parseFloat(e.target.value) || null;
+    });
+    document.getElementById('ob-input-target-days')?.addEventListener('input', (e) => {
+      formData.targetDays = parseInt(e.target.value) || null;
+    });
+
+    // Allergy chips
+    document.querySelectorAll('.btn-allergy-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-value');
+        if (selectedAllergies.has(val)) {
+          selectedAllergies.delete(val);
+        } else {
+          selectedAllergies.add(val);
+        }
+        updateFoodAllergiesString();
+        render();
+      });
+    });
+
+    // Custom allergy text input
+    document.getElementById('ob-input-custom-allergy')?.addEventListener('input', (e) => {
+      customAllergyInputVal = e.target.value;
+      updateFoodAllergiesString();
+    });
+
+    // Remove workout time slot
+    document.querySelectorAll('.btn-remove-time').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(btn.getAttribute('data-index'));
+        if (!isNaN(idx) && idx >= 0 && idx < formData.preferredWorkoutTimes.length) {
+          formData.preferredWorkoutTimes.splice(idx, 1);
+          render();
+        }
+      });
+    });
+
+    // Custom workout time text input sync & add button
+    const customTimeInputEl = document.getElementById('ob-input-custom-workout-time');
+    if (customTimeInputEl) {
+      customTimeInputEl.addEventListener('input', (e) => {
+        customWorkoutTimeInputVal = e.target.value;
+      });
+      customTimeInputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addCustomWorkoutTimeFromInput();
+        }
+      });
+    }
+
+    const addCustomTimeBtn = document.getElementById('btn-add-custom-time-input');
+    if (addCustomTimeBtn) {
+      addCustomTimeBtn.addEventListener('click', () => {
+        addCustomWorkoutTimeFromInput();
+      });
+    }
+
+    function addCustomWorkoutTimeFromInput() {
+      const val = customWorkoutTimeInputVal.trim();
+      if (val) {
+        if (!formData.preferredWorkoutTimes.includes(val)) {
+          formData.preferredWorkoutTimes.push(val);
+        }
+        customWorkoutTimeInputVal = '';
+        render();
+      }
+    }
+
+    // Add Workout Time Picker Dialog
+    document.getElementById('btn-add-workout-time-dialog')?.addEventListener('click', () => {
+      openAddWorkoutTimeModal();
+    });
+
+    // Step 4 auto-apply safety recommendation
+    document.getElementById('btn-apply-recommended-days')?.addEventListener('click', () => {
+      const currentW = formData.currentWeight || 70;
+      const targetW = formData.targetWeight || 65;
+      const diffKg = currentW - targetW;
+      const recommendedDays = Math.max(30, Math.ceil((diffKg * 7700) / 500));
+      formData.targetDays = recommendedDays;
+      render();
+    });
+
+    // Navigation buttons
+    document.getElementById('btn-onboarding-prev')?.addEventListener('click', () => {
+      validationError = '';
+      if (currentStep > 1) {
+        currentStep--;
+        render();
+      }
+    });
+
+    document.getElementById('btn-onboarding-next')?.addEventListener('click', () => {
+      validationError = '';
+      
+      if (currentStep === 1) {
+        if (!formData.age || !formData.height || !formData.currentWeight) {
+          validationError = 'Vui lòng tự nhập đầy đủ thông tin Tuổi, Chiều cao và Cân nặng!';
+          render();
+          return;
+        }
+        currentStep = 2;
+        render();
+        return;
+      }
+
+      if (currentStep === 2) {
+        if (!formData.targetWeight) {
+          validationError = 'Vui lòng tự nhập Cân nặng mục tiêu!';
+          render();
+          return;
+        }
+        if (!formData.targetDays) {
+          formData.targetDays = 60; // fallback if left empty
+        }
+        currentStep = 3;
+        render();
+        return;
+      }
+
+      if (currentStep === 3) {
+        currentStep = 4;
+        render();
+        return;
+      }
+
+      if (currentStep === 4) {
+        finishOnboarding();
+      }
+    });
+  }
+
+  function openAddWorkoutTimeModal() {
+    const dialogOverlay = document.createElement('div');
+    dialogOverlay.className = 'onboarding-overlay';
+    dialogOverlay.style.zIndex = '9999999';
+
+    const daysOptions = [
+      { value: 'Thứ 2, 4, 6', label: 'Thứ 2, 4, 6' },
+      { value: 'Thứ 3, 5, 7', label: 'Thứ 3, 5, 7' },
+      { value: 'Hàng ngày', label: 'Hàng ngày' },
+      { value: 'Cuối tuần (T7, CN)', label: 'Cuối tuần (T7, CN)' }
+    ];
+    let selectedDaysVal = 'Thứ 2, 4, 6';
+
+    dialogOverlay.innerHTML = `
+      <div class="bg-white p-6 rounded-3xl shadow-2xl border border-gray-100 w-full max-w-sm my-auto overflow-visible relative">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2 text-base">
+            <i data-lucide="clock" class="w-5 h-5 text-[#7C3AED]"></i> Thêm Khung Giờ Tập
+          </h3>
+          <button type="button" id="btn-close-wt-dialog" class="text-gray-400 hover:text-gray-600 p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3 mb-5">
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Các ngày trong tuần</label>
+            ${renderDropdown({
+              id: 'wt-days-dropdown',
+              options: daysOptions,
+              value: selectedDaysVal,
+              placeholder: 'Chọn ngày tập...'
+            })}
           </div>
 
-          <!-- Section 4: AI Calorie & Macro Target -->
-          <div style="background: rgba(124, 58, 237, 0.08); padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--border-highlight);">
-            <div style="font-weight: 800; color: var(--accent-purple); margin-bottom: 0.35rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.35rem;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg> 4. Chỉ số dinh dưỡng AI
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Giờ bắt đầu</label>
+              <input type="time" id="wt-start-time" value="18:00" class="ui-input !py-2 text-center text-sm">
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-              <span>Mục tiêu Calo:</span>
-              <b style="font-size: 1.05rem; color: var(--accent-purple);">${formData.dailyCalorieTarget} kcal/ngày</b>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);">
-              <span>Protein: <b style="color: var(--accent-purple);">${formData.macroTarget?.protein}g</b></span>
-              <span>Carb: <b style="color: var(--accent-blue);">${formData.macroTarget?.carb}g</b></span>
-              <span>Fat: <b style="color: var(--accent-amber);">${formData.macroTarget?.fat}g</b></span>
-              <span>Nước: <b>${formData.waterTarget}ml</b></span>
+            <div>
+              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Giờ kết thúc</label>
+              <input type="time" id="wt-end-time" value="19:00" class="ui-input !py-2 text-center text-sm">
             </div>
           </div>
         </div>
-      `;
 
-      document.getElementById('ob-review-content').innerHTML = reviewHtml;
-      document.getElementById('step-3').style.display = 'none';
-      document.getElementById('step-4').style.display = 'block';
-      if (window.lucide) window.lucide.createIcons();
-    };
+        <div class="flex gap-2">
+          <button type="button" id="btn-cancel-wt-dialog" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl text-sm hover:bg-gray-200 transition">Hủy</button>
+          <button type="button" id="btn-confirm-wt-dialog" class="flex-1 py-3 btn-gradient rounded-2xl text-sm font-bold flex items-center justify-center gap-1">
+            <i data-lucide="plus" class="w-4 h-4"></i> Thêm
+          </button>
+        </div>
+      </div>
+    `;
 
-    document.getElementById('btn-step3-next').addEventListener('click', showReviewStep);
+    document.body.appendChild(dialogOverlay);
+    if (window.lucide) window.lucide.createIcons();
 
-    // Step 4 Back → Step 3
-    document.getElementById('btn-step4-back').addEventListener('click', () => {
-      document.getElementById('step-4').style.display = 'none';
-      document.getElementById('step-3').style.display = 'block';
+    initDropdownListeners(dialogOverlay, (val, dropdownId) => {
+      if (dropdownId === 'wt-days-dropdown') {
+        selectedDaysVal = val;
+      }
     });
 
-    document.getElementById('btn-confirm-onboarding').addEventListener('click', async () => {
-      const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
-      const modalEl = document.getElementById('onboarding-modal');
-      if (modalEl) {
-        modalEl.innerHTML = `
-          <style>
-            .setup-modal-content {
-              width: 100%;
-              max-width: 460px;
-              background: linear-gradient(165deg, #ffffff 0%, #faf5ff 100%);
-              border-radius: 32px;
-              padding: 44px 40px 40px;
-              text-align: center;
-              box-shadow:
-                0 0 0 1px rgba(167, 139, 250, 0.2),
-                0 8px 16px -4px rgba(0, 0, 0, 0.1),
-                0 32px 64px -12px rgba(124, 58, 237, 0.35),
-                0 0 80px rgba(139, 92, 246, 0.15);
-              position: relative;
-              overflow: hidden;
-              animation: modalIn 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
-              margin: auto;
-            }
-
-            @keyframes modalIn {
-              from { opacity: 0; transform: scale(0.85) translateY(30px); }
-              to   { opacity: 1; transform: scale(1) translateY(0); }
-            }
-
-            .setup-modal-content::before {
-              content: '';
-              position: absolute;
-              inset: -2px;
-              border-radius: 34px;
-              background: linear-gradient(135deg, #a78bfa, #7c3aed, #c084fc, #a78bfa);
-              background-size: 300% 300%;
-              animation: borderGlow 4s ease infinite;
-              z-index: -1;
-              opacity: 0.6;
-              filter: blur(8px);
-            }
-
-            @keyframes borderGlow {
-              0%, 100% { background-position: 0% 50%; }
-              50% { background-position: 100% 50%; }
-            }
-
-            .setup-modal-content::after {
-              content: '';
-              position: absolute;
-              top: -80px;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 280px;
-              height: 280px;
-              background: radial-gradient(circle, rgba(167, 139, 250, 0.25), transparent 65%);
-              pointer-events: none;
-            }
-
-            .icon-wrap {
-              position: relative;
-              width: 88px;
-              height: 88px;
-              margin: 0 auto 24px;
-              z-index: 1;
-            }
-
-            .icon-ring {
-              position: absolute;
-              inset: 0;
-              border-radius: 50%;
-              border: 2px solid transparent;
-              border-top-color: #a78bfa;
-              border-right-color: #7c3aed;
-              animation: spin 1.8s linear infinite;
-            }
-
-            .icon-ring.r2 {
-              inset: -8px;
-              border-top-color: #c4b5fd;
-              border-right-color: transparent;
-              border-bottom-color: #a78bfa;
-              animation-duration: 2.6s;
-              animation-direction: reverse;
-              opacity: 0.5;
-            }
-
-            .icon-ring.r3 {
-              inset: -16px;
-              border-top-color: transparent;
-              border-left-color: #ddd6fe;
-              animation-duration: 3.4s;
-              opacity: 0.3;
-            }
-
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-
-            .setup-icon {
-              position: absolute;
-              inset: 10px;
-              border-radius: 22px;
-              background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #6d28d9 100%);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow:
-                0 8px 24px rgba(124, 58, 237, 0.5),
-                inset 0 1px 0 rgba(255,255,255,0.25);
-              animation: iconPulse 2.5s ease-in-out infinite;
-            }
-
-            @keyframes iconPulse {
-              0%, 100% { transform: scale(1); box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5), inset 0 1px 0 rgba(255,255,255,0.25); }
-              50% { transform: scale(1.06); box-shadow: 0 12px 32px rgba(124, 58, 237, 0.65), inset 0 1px 0 rgba(255,255,255,0.25); }
-            }
-
-            .setup-icon svg {
-              width: 30px;
-              height: 30px;
-              color: #fff;
-              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-            }
-
-            .setup-title {
-              font-size: 22px;
-              font-weight: 800;
-              color: #1e1b4b;
-              letter-spacing: -0.03em;
-              margin-bottom: 10px;
-              position: relative;
-              z-index: 1;
-            }
-
-            .setup-desc {
-              font-size: 14.5px;
-              line-height: 1.65;
-              color: #64748b;
-              max-width: 360px;
-              margin: 0 auto 36px;
-              position: relative;
-              z-index: 1;
-            }
-
-            .status-box {
-              background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-              border: 1.5px solid #ddd6fe;
-              border-radius: 18px;
-              padding: 20px 22px;
-              text-align: left;
-              position: relative;
-              z-index: 1;
-              overflow: hidden;
-            }
-
-            .status-box::before {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: -100%;
-              width: 60%;
-              height: 100%;
-              background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-              animation: shine 2.8s ease-in-out infinite;
-            }
-
-            @keyframes shine {
-              0% { left: -100%; }
-              50%, 100% { left: 150%; }
-            }
-
-            .status-label {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-              font-size: 14.5px;
-              font-weight: 700;
-              color: #5b21b6;
-              margin-bottom: 10px;
-              position: relative;
-            }
-
-            .status-label .spark {
-              width: 20px;
-              height: 20px;
-              color: #7c3aed;
-              animation: sparkSpin 2s linear infinite;
-            }
-
-            @keyframes sparkSpin {
-              0% { transform: rotate(0deg) scale(1); }
-              50% { transform: rotate(180deg) scale(1.2); }
-              100% { transform: rotate(360deg) scale(1); }
-            }
-
-            .status-text {
-              font-size: 13.5px;
-              line-height: 1.6;
-              color: #6b7280;
-              position: relative;
-            }
-
-            .progress-track {
-              height: 6px;
-              background: #e9d5ff;
-              border-radius: 99px;
-              margin-top: 24px;
-              overflow: hidden;
-              position: relative;
-              z-index: 1;
-            }
-
-            .progress-fill {
-              height: 100%;
-              width: 15%;
-              border-radius: 99px;
-              background: linear-gradient(90deg, #a78bfa, #7c3aed, #c084fc);
-              background-size: 200% 100%;
-              animation: progressMove 2s ease-in-out infinite, progressGrow 40s ease-out forwards;
-            }
-
-            @keyframes progressMove {
-              0% { background-position: 0% 0%; }
-              100% { background-position: 200% 0%; }
-            }
-
-            @keyframes progressGrow {
-              from { width: 10%; }
-              to { width: 92%; }
-            }
-
-            .progress-label {
-              font-size: 12px;
-              font-weight: 600;
-              color: #a78bfa;
-              margin-top: 10px;
-              position: relative;
-              z-index: 1;
-            }
-          </style>
-
-          <div class="setup-modal-content">
-            <div class="icon-wrap">
-              <div class="icon-ring"></div>
-              <div class="icon-ring r2"></div>
-              <div class="icon-ring r3"></div>
-              <div class="setup-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
-                  <path d="M5 19l.75 2.25L8 22l-2.25.75L5 25l-.75-2.25L2 22l2.25-.75L5 19z" opacity="0.6"/>
-                </svg>
-              </div>
-            </div>
-
-            <h1 class="setup-title">Thiết Lập Hành Trình Fitness</h1>
-            <p class="setup-desc">
-              Vui lòng đợi trong giây lát. AI Coach đang lập thực đơn &amp; lịch tập luyện cho hành trình <b>${formData.targetDays} ngày</b> của bạn.
-            </p>
-
-            <div class="status-box">
-              <div class="status-label">
-                <svg class="spark" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                </svg>
-                AI Coach Đang Gọi Mô Hình AI Online...
-              </div>
-              <div style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.75rem; border-radius: 20px; background: rgba(124, 58, 237, 0.12); color: #7c3aed; font-weight: 700; font-size: 0.78rem; margin-bottom: 0.6rem;">
-                🤖 Mô hình: ${selectedModel}
-              </div>
-              ${formData.foodAllergies ? `<div style="font-size: 0.8rem; color: #dc2626; font-weight: 700; margin-bottom: 0.5rem;">🚫 Đang né thực phẩm: ${formData.foodAllergies}</div>` : ''}
-              <p class="status-text">
-                Đang kết nối 9router AI API để tự động sinh ra Kế Hoạch Thực Đơn Dinh Dưỡng &amp; Lịch Tập Luyện Cá Nhân Hóa dành riêng cho bạn...
-              </p>
-            </div>
-
-            <div class="progress-track">
-              <div class="progress-fill"></div>
-            </div>
-            <div class="progress-label">Đang tạo kế hoạch cá nhân hóa...</div>
-          </div>
-        `;
+    const close = () => dialogOverlay.remove();
+    dialogOverlay.querySelector('#btn-close-wt-dialog')?.addEventListener('click', close);
+    dialogOverlay.querySelector('#btn-cancel-wt-dialog')?.addEventListener('click', close);
+    dialogOverlay.querySelector('#btn-confirm-wt-dialog')?.addEventListener('click', () => {
+      const days = selectedDaysVal || 'Thứ 2, 4, 6';
+      const start = dialogOverlay.querySelector('#wt-start-time')?.value || '18:00';
+      const end = dialogOverlay.querySelector('#wt-end-time')?.value || '19:00';
+      const timeStr = `${days} (${start} - ${end})`;
+      if (!formData.preferredWorkoutTimes.includes(timeStr)) {
+        formData.preferredWorkoutTimes.push(timeStr);
       }
+      close();
+      render();
+    });
+  }
 
+  function render() {
+    mountNode.innerHTML = renderWrapper();
+    if (window.lucide) window.lucide.createIcons();
+    bindEvents();
+  }
+
+  async function finishOnboarding() {
+    const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
+
+    const targetDays = formData.targetDays || 60;
+    const currentWeight = formData.currentWeight || 70;
+    const targetWeight = formData.targetWeight || 65;
+    const age = formData.age || 25;
+    const height = formData.height || 170;
+
+    // Fill in calculated defaults if missing
+    formData.targetDays = targetDays;
+    formData.currentWeight = currentWeight;
+    formData.targetWeight = targetWeight;
+    formData.age = age;
+    formData.height = height;
+
+    computeStep4Calculations();
+    
+    // Replace modal content with new AI Thinking animation screen (Light Mode)
+    mountNode.innerHTML = `
+      <style>
+        .ai-bg-light {
+          background-color: #F4F4F8;
+          background-image: 
+            linear-gradient(rgba(124, 58, 237, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(124, 58, 237, 0.05) 1px, transparent 1px);
+          background-size: 32px 32px;
+        }
+
+        @keyframes floatOrb {
+          0%, 100% { transform: translate(0, 0); }
+          33% { transform: translate(40px, -50px); }
+          66% { transform: translate(-30px, 40px); }
+        }
+        .orb {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(80px);
+          animation: floatOrb 15s infinite ease-in-out;
+          opacity: 0.6;
+        }
+
+        @keyframes spin-slow { to { transform: rotate(360deg); } }
+        @keyframes spin-reverse { to { transform: rotate(-360deg); } }
+        .ring-1 { animation: spin-slow 8s linear infinite; }
+        .ring-2 { animation: spin-reverse 12s linear infinite; }
+        .ring-3 { animation: spin-slow 5s linear infinite; }
+
+        @keyframes pulse-glow-light {
+          0%, 100% { 
+            box-shadow: 0 10px 30px -5px rgba(124, 58, 237, 0.3), 0 0 0 8px rgba(124, 58, 237, 0.05); 
+            transform: scale(1); 
+          }
+          50% { 
+            box-shadow: 0 15px 40px -5px rgba(217, 70, 239, 0.4), 0 0 0 16px rgba(217, 70, 239, 0.05); 
+            transform: scale(1.03); 
+          }
+        }
+        .core-glow-light { animation: pulse-glow-light 3s infinite ease-in-out; }
+
+        .orbit-dot {
+          position: absolute;
+          width: 12px; height: 12px;
+          background: #D946EF;
+          border-radius: 50%;
+          box-shadow: 0 0 12px rgba(217, 70, 239, 0.6);
+          top: 50%; left: 50%;
+          margin: -6px 0 0 -6px;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+        .cursor::after {
+          content: '|';
+          margin-left: 4px;
+          animation: blink 1s infinite step-end;
+          color: #7C3AED;
+          font-weight: 300;
+        }
+
+        @keyframes ping-online {
+          0% { transform: scale(1); opacity: 1; }
+          75%, 100% { transform: scale(2.5); opacity: 0; }
+        }
+        .online-dot::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background: #10B981;
+          animation: ping-online 1.5s infinite cubic-bezier(0, 0, 0.2, 1);
+        }
+
+        .premium-card {
+          background: #FFFFFF;
+          border: 1px solid rgba(124, 58, 237, 0.1);
+          box-shadow: 0 20px 50px -20px rgba(124, 58, 237, 0.15);
+        }
+
+        @keyframes shimmer-light {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .shimmer-bar-light {
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.8) 20%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.8) 80%, transparent 100%);
+          background-size: 200% 100%;
+          animation: shimmer-light 2s infinite linear;
+        }
+      </style>
+
+      <div class="onboarding-overlay ai-bg-light !p-4 overflow-hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 9999999;">
+        <!-- Background Orbs (Pastel) -->
+        <div class="orb w-96 h-96 bg-[#A78BFA] top-0 left-0"></div>
+        <div class="orb w-[500px] h-[500px] bg-[#F472B6] bottom-0 right-0" style="animation-delay: -5s;"></div>
+        <div class="orb w-80 h-80 bg-[#93C5FD] top-1/2 left-1/4" style="animation-delay: -10s;"></div>
+
+        <div class="relative z-10 w-full max-w-sm flex flex-col items-center text-center text-[#1E1B2E] m-auto">
+          
+          <!-- Header Text -->
+          <div class="mb-6 flex flex-col items-center justify-center">
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-[#7C3AED] bg-[#EDE9FE] px-3 py-1 rounded-full">AI Coach</span>
+            <h2 class="display text-2xl font-semibold text-gray-900 mt-2">Thiết Lập Hành Trình</h2>
+          </div>
+
+          <!-- AI Core Visual -->
+          <div class="relative w-48 h-48 sm:w-56 sm:h-56 mb-6 flex items-center justify-center">
+            <!-- Vòng ngoài 1 -->
+            <div class="ring-1 absolute w-full h-full border-2 border-dashed border-purple-300 rounded-full"></div>
+            <!-- Vòng ngoài 2 -->
+            <div class="ring-2 absolute w-36 h-36 sm:w-44 sm:h-44 border-2 border-fuchsia-300 rounded-full" style="border-right-color: transparent; border-left-color: transparent;"></div>
+            <!-- Vòng trong 3 -->
+            <div class="ring-3 absolute w-28 h-28 sm:w-32 sm:h-32 border-2 border-purple-400/60 rounded-full" style="border-top-color: transparent; border-bottom-color: transparent;"></div>
+            
+            <!-- Quỹ đạo chấm sáng -->
+            <div class="ring-1 absolute w-36 h-36 sm:w-44 sm:h-44">
+              <div class="orbit-dot"></div>
+            </div>
+            <div class="ring-2 absolute w-28 h-28 sm:w-32 sm:h-32">
+              <div class="orbit-dot" style="background: #7C3AED; box-shadow: 0 0 12px rgba(124, 58, 237, 0.6); margin: -4px 0 0 -4px; width: 8px; height: 8px;"></div>
+            </div>
+
+            <!-- Lõi AI trung tâm -->
+            <div class="core-glow-light w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex items-center justify-center relative">
+              <i data-lucide="brain-circuit" class="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow-lg"></i>
+            </div>
+          </div>
+
+          <!-- Text Status -->
+          <div class="mb-6 min-h-[70px] flex flex-col items-center justify-center">
+            <h3 id="ob-ai-status-text" class="text-lg sm:text-xl font-bold text-gray-800 cursor min-h-[28px]">Đang khởi tạo...</h3>
+            <p id="ob-ai-sub-status" class="text-xs sm:text-sm text-gray-500 mt-1 transition-opacity duration-300">Vui lòng đợi trong giây lát</p>
+          </div>
+
+          <!-- API Info Card -->
+          <div class="premium-card w-full p-4 rounded-2xl flex flex-col gap-3">
+            <!-- API Info -->
+            <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2 font-mono text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 max-w-[210px] truncate">
+                <i data-lucide="terminal" class="w-4 h-4 text-[#7C3AED] flex-shrink-0"></i>
+                <span class="truncate">${selectedModel}</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-emerald-600 font-semibold flex-shrink-0">
+                <div class="relative w-2 h-2 bg-emerald-500 rounded-full online-dot"></div>
+                <span>Online</span>
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden relative">
+              <div id="ob-ai-progress-fill" class="h-full bg-gradient-to-r from-[#7C3AED] to-[#D946EF] rounded-full transition-all duration-500 ease-out relative" style="width: 0%;">
+                <div class="absolute inset-0 shimmer-bar-light"></div>
+              </div>
+            </div>
+            
+            <div class="flex justify-between items-center text-[11px] text-gray-400 font-medium">
+              <span>Đang tạo kế hoạch cá nhân hóa...</span>
+              <span id="ob-ai-progress-text">0%</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    if (window.lucide) window.lucide.createIcons();
+
+    // Typewriter steps setup
+    const steps = [
+      { text: `Đang kết nối ${selectedModel}...`, sub: "Thiết lập mã hóa an toàn & kết nối AI", progress: 15 },
+      { text: "Phân tích BMR & TDEE...", sub: `BMR: ${formData.bmr} kcal — TDEE: ${formData.tdee} kcal`, progress: 35 },
+      { text: "Lọc thực đơn dị ứng...", sub: formData.foodAllergies ? `Né thực phẩm: ${formData.foodAllergies}` : 'Thực đơn đa dạng tối đa', progress: 55 },
+      { text: "Phân bổ Macro dinh dưỡng...", sub: `Protein ${formData.macroTarget?.protein || 140}g — Carb ${formData.macroTarget?.carb || 190}g — Fat ${formData.macroTarget?.fat || 60}g`, progress: 75 },
+      { text: `Hoàn thiện ${formData.targetDays} ngày tập...`, sub: `Lịch tập: ${formData.preferredWorkoutTimes.join(', ') || 'Cá nhân hóa'}`, progress: 90 },
+      { text: "Hoàn tất!", sub: "Kế hoạch của bạn đã sẵn sàng", progress: 100 }
+    ];
+
+    let currentStepIdx = 0;
+    const statusTextEl = document.getElementById('ob-ai-status-text');
+    const subStatusEl = document.getElementById('ob-ai-sub-status');
+    const progressFillEl = document.getElementById('ob-ai-progress-fill');
+    const progressTextEl = document.getElementById('ob-ai-progress-text');
+
+    function typeWriter(text, element, callback) {
+      if (!element) return;
+      element.textContent = '';
+      element.classList.add('cursor');
+      let i = 0;
+      const speed = 35;
+      
+      function type() {
+        if (!element || !document.contains(element)) return;
+        if (i < text.length) {
+          element.textContent += text.charAt(i);
+          i++;
+          setTimeout(type, speed);
+        } else {
+          setTimeout(callback, 300);
+        }
+      }
+      type();
+    }
+
+    function advanceAnimationStep() {
+      if (currentStepIdx >= steps.length) return;
+      const step = steps[currentStepIdx];
+      if (progressFillEl) progressFillEl.style.width = step.progress + '%';
+      if (progressTextEl) progressTextEl.textContent = step.progress + '%';
+
+      if (subStatusEl) subStatusEl.style.opacity = '0';
+      setTimeout(() => {
+        typeWriter(step.text, statusTextEl, () => {
+          if (subStatusEl) {
+            subStatusEl.textContent = step.sub;
+            subStatusEl.style.opacity = '1';
+          }
+          currentStepIdx++;
+          if (currentStepIdx < steps.length) {
+            setTimeout(advanceAnimationStep, 1000);
+          }
+        });
+      }, 150);
+    }
+
+    advanceAnimationStep();
+
+    // Data generation execution
+    const executeDataGeneration = async () => {
+      // 1. Save Profile
       const profile = await DataService.getUserProfile();
       profile.gender = formData.gender;
       profile.age = formData.age;
       profile.height = formData.height;
       profile.currentWeight = formData.currentWeight;
       profile.activityLevel = formData.activityLevel;
-      profile.foodAllergies = formData.foodAllergies || ''; // Save allergies before AI call
+      profile.foodAllergies = formData.foodAllergies || '';
       profile.preferredWorkoutTimes = formData.preferredWorkoutTimes;
       profile.isOnboarded = true;
       await DataService.saveUserProfile(profile);
 
+      // 2. Generate Levels & Badges
       const journeyGamification = generateJourneyLevelsAndBadges(formData.targetDays);
 
+      // 3. Save Goal
       const goal = await DataService.getUserGoal();
       goal.startWeight = formData.currentWeight;
       goal.targetWeight = formData.targetWeight;
@@ -954,7 +976,7 @@ export function renderOnboarding(onComplete) {
 
       const today = DataService.getTodayString();
 
-      // Attempt Real Online AI Generation via AiCoachService
+      // 4. Online AI Plan Generation (with local fallback)
       let weeklyMealPlan = null;
       let weeklyWorkoutRoutine = null;
       let journeyPhases = null;
@@ -966,19 +988,16 @@ export function renderOnboarding(onComplete) {
           weeklyWorkoutRoutine = aiPlan.weeklyWorkoutRoutine;
           journeyPhases = aiPlan.journeyPhases || null;
           console.log(`✅ [Onboarding] AI generated ${journeyPhases?.length || 0} phases for ${formData.targetDays} days.`);
-        } else {
-          console.warn('⚠️ [Onboarding] AI returned null/invalid plan. Falling back to local generator.');
         }
       } catch (aiErr) {
-        console.error('❌ [Onboarding] AiCoachService.generateFullJourneyPlan error:', aiErr);
+        console.error('❌ [Onboarding] AiCoachService plan generation error:', aiErr);
       }
 
-      // Smart Local Generator Failsafe (if AI failed or timed out)
       if (!weeklyMealPlan || !weeklyWorkoutRoutine) {
         weeklyMealPlan = generate7DayMealPlan(100000, today, profile.foodAllergies);
         weeklyWorkoutRoutine = generate7DayWorkoutRoutine('home', 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg');
       }
-      // Always ensure journeyPhases exists (local fallback if AI didn't return it)
+
       if (!journeyPhases || journeyPhases.length === 0) {
         journeyPhases = generateFullJourneyPhases(
           formData.targetDays,
@@ -988,10 +1007,9 @@ export function renderOnboarding(onComplete) {
           profile.foodAllergies || '',
           formData.preferredWorkoutTimes
         );
-        console.log(`✅ [Onboarding] Local generator: ${journeyPhases.length} phases for ${formData.targetDays} days.`);
       }
 
-      // Safety sanitize: remove any allergic foods from BOTH AI and local plans before saving
+      // Sanitize allergy foods from plans
       const allergyStr = profile.foodAllergies || '';
       if (allergyStr) {
         const sanitizeDay = (dayData) => ({
@@ -1001,13 +1019,13 @@ export function renderOnboarding(onComplete) {
           dinner:    dayData.dinner    ? sanitizeMealItem(dayData.dinner,    allergyStr) : null,
           snack:     dayData.snack     ? sanitizeMealItem(dayData.snack,     allergyStr) : null,
         });
-        // Sanitize weeklyMealPlan (flat)
+
         if (weeklyMealPlan) {
           Object.keys(weeklyMealPlan).forEach(k => {
             if (weeklyMealPlan[k]) weeklyMealPlan[k] = sanitizeDay(weeklyMealPlan[k]);
           });
         }
-        // Sanitize each phase's weeklyMealPlan
+
         if (journeyPhases) {
           journeyPhases = journeyPhases.map(phase => ({
             ...phase,
@@ -1018,6 +1036,7 @@ export function renderOnboarding(onComplete) {
         }
       }
 
+      // 5. Save Plan
       const plan = {
         id: 'current_plan',
         dailyBudgetVnd: 100000,
@@ -1033,7 +1052,7 @@ export function renderOnboarding(onComplete) {
       };
       await DataService.saveUserPlan(plan);
 
-      // Pre-populate daily checklist (personalized to user targets & allergy info)
+      // 6. Save Daily Log
       const dailyLog = await DataService.getDailyLog(today);
       const allergyNote = formData.foodAllergies ? ` (né: ${formData.foodAllergies})` : '';
       dailyLog.checklist = [
@@ -1046,20 +1065,31 @@ export function renderOnboarding(onComplete) {
         { id: 'ch_sleep',   task: `😴 Ngủ đủ 7–8 tiếng để phục hồi cơ bắp`, done: false }
       ];
       await DataService.saveDailyLog(dailyLog);
+    };
 
-      // Close modal & trigger celebration callback
-      const activeModal = document.getElementById('onboarding-modal');
-      if (activeModal) activeModal.remove();
+    await executeDataGeneration();
+
+    // Fast-forward to completed state
+    if (progressFillEl) progressFillEl.style.width = '100%';
+    if (progressTextEl) progressTextEl.textContent = '100%';
+    if (statusTextEl) statusTextEl.textContent = 'Hoàn tất!';
+    if (subStatusEl) {
+      subStatusEl.textContent = 'Kế hoạch của bạn đã sẵn sàng';
+      subStatusEl.style.opacity = '1';
+    }
+
+    setTimeout(() => {
+      if (statusTextEl) statusTextEl.classList.remove('cursor');
+      mountNode.innerHTML = '';
       try {
-        if (typeof confetti === 'function') {
-          confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
-        } else if (typeof window.confetti === 'function') {
-          window.confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
-        }
+        confetti({ particleCount: 90, spread: 100, origin: { y: 0.6 } });
       } catch (e) {
-        console.warn('🎊 confetti not available:', e.message);
+        console.warn('confetti trigger fallback:', e);
       }
       if (onComplete) onComplete();
-    });
+    }, 800);
   }
+
+  // Initial render
+  render();
 }
