@@ -7023,6 +7023,54 @@ body.dark .nav-arrow {
   pointer-events: none;
 }
 
+/* ==========================================
+   APPLE GLASS AI INSIGHT CARD STYLES
+   ========================================== */
+.cursor::after {
+  content: '▎';
+  color: #D946EF;
+  animation: blink 1s infinite;
+  font-weight: 100;
+  margin-left: 2px;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.ai-core { position: relative; }
+.ai-core::before {
+  content: ''; position: absolute; inset: -2px; border-radius: 50%;
+  border: 2px solid rgba(124, 58, 237, 0.4);
+  animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.toggle-group {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+body.dark .toggle-group {
+  background: rgba(30, 27, 46, 0.6);
+  border-color: rgba(124, 58, 237, 0.3);
+}
+.toggle-group button {
+  color: var(--text-muted);
+  border-radius: 999px;
+  transition: all 0.3s ease;
+}
+.toggle-group button.active {
+  background: #FFFFFF;
+  color: #7C3AED;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+body.dark .toggle-group button.active {
+  background: #7C3AED;
+  color: #FFFFFF;
+}
+
 
 
 

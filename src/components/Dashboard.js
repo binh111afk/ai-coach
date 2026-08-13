@@ -74,6 +74,33 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const waterTarget = goal.waterTarget || 2695;
   const waterPercent = Math.min(100, Math.round((waterIntake / waterTarget) * 100));
 
+  // Auto-check checklist items if target criteria are met
+  todayLog.checklist.forEach(item => {
+    const textLower = (item.task || '').toLowerCase();
+    let isAchieved = false;
+
+    if (textLower.includes('nước') || textLower.includes('water') || textLower.includes('lit') || textLower.includes('2.7l')) {
+      isAchieved = waterIntake >= waterTarget && waterTarget > 0;
+    } else if (textLower.includes('cal') || textLower.includes('kcal') || textLower.includes('calo')) {
+      isAchieved = caloriesIn >= calorieTarget && calorieTarget > 0;
+    } else if (textLower.includes('protein') || textLower.includes('đạm')) {
+      isAchieved = currentProtein >= pTarget && pTarget > 0;
+    } else if (textLower.includes('carb') || textLower.includes('tinh bột')) {
+      isAchieved = currentCarb >= cTarget && cTarget > 0;
+    } else if (textLower.includes('fat') || textLower.includes('chất béo')) {
+      isAchieved = currentFat >= fTarget && fTarget > 0;
+    } else if (textLower.includes('tập') || textLower.includes('workout') || textLower.includes('ai plan') || textLower.includes('lịch ai')) {
+      isAchieved = (todayLog.workouts || []).length > 0 || !!todayLog.isRestDay;
+    } else if (textLower.includes('ghi nhật ký') || textLower.includes('bữa ăn')) {
+      isAchieved = (todayLog.meals || []).length > 0;
+    }
+
+    if (isAchieved && !item.done) {
+      item.done = true;
+      DataService.toggleChecklistItem(todayLog.date, item.id);
+    }
+  });
+
   // Version 3 Stat Info calculation (matching Image 1 exactly: plain colored text, NO background pill)
   const getVersion3StatInfo = (taskText, itemDone) => {
     const textLower = (taskText || '').toLowerCase();
@@ -554,7 +581,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     if (window.lucide) window.lucide.createIcons();
 
     // Render AI Progress Evaluation Summary Widget
-    await renderAiSummaryWidget('dashboard-ai-summary-container');
+    await renderAiSummaryWidget('dashboard-ai-summary-container', disciplineScore, todayLog);
 
     // Render ApexCharts with complete daily logs history & start milestone
     const allLogs = await DataService.getAllDailyLogs();
@@ -611,11 +638,60 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     document.getElementById('dash-btn-quick-log-workout-2')?.addEventListener('click', () => handleQuickLogWorkout('Đi bộ nhẹ nhàng 5.000 bước', 30, 180));
     document.getElementById('dash-btn-quick-log-workout-3')?.addEventListener('click', () => handleQuickLogWorkout('Giãn cơ & Thả lỏng', 15, 90));
 
-    function updateDashboardRealtime(updatedLog) {
+    async function updateDashboardRealtime(updatedLog) {
       const cIn = updatedLog.meals.reduce((sum, m) => sum + (m.calories || 0), 0);
       const cOut = updatedLog.workouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
-      const net = cIn - cOut;
+      const cProt = updatedLog.meals.reduce((sum, m) => sum + (m.protein || 0), 0);
+      const cCarb = updatedLog.meals.reduce((sum, m) => sum + (m.carb || 0), 0);
+      const cFat = updatedLog.meals.reduce((sum, m) => sum + (m.fat || 0), 0);
       const wIntake = updatedLog.waterIntake || 0;
+
+      // Auto check targets
+      let checklistChanged = false;
+      for (const item of updatedLog.checklist) {
+        const textLower = (item.task || '').toLowerCase();
+        let achieved = false;
+
+        if (textLower.includes('nước') || textLower.includes('water') || textLower.includes('lit') || textLower.includes('2.7l')) {
+          achieved = wIntake >= waterTarget && waterTarget > 0;
+        } else if (textLower.includes('cal') || textLower.includes('kcal') || textLower.includes('calo')) {
+          achieved = cIn >= calorieTarget && calorieTarget > 0;
+        } else if (textLower.includes('protein') || textLower.includes('đạm')) {
+          achieved = cProt >= pTarget && pTarget > 0;
+        } else if (textLower.includes('carb') || textLower.includes('tinh bột')) {
+          achieved = cCarb >= cTarget && cTarget > 0;
+        } else if (textLower.includes('fat') || textLower.includes('chất béo')) {
+          achieved = cFat >= fTarget && fTarget > 0;
+        } else if (textLower.includes('tập') || textLower.includes('workout') || textLower.includes('ai plan') || textLower.includes('lịch ai')) {
+          achieved = (updatedLog.workouts || []).length > 0 || !!updatedLog.isRestDay;
+        } else if (textLower.includes('ghi nhật ký') || textLower.includes('bữa ăn')) {
+          achieved = (updatedLog.meals || []).length > 0;
+        }
+
+        if (achieved && !item.done) {
+          item.done = true;
+          checklistChanged = true;
+          await DataService.toggleChecklistItem(todayLog.date, item.id);
+        }
+      }
+
+      if (checklistChanged) {
+        const container = document.getElementById('dash-checklist-container');
+        if (container) {
+          updatedLog.checklist.forEach(item => {
+            const input = container.querySelector(`[data-task-id="${item.id}"]`);
+            if (input) {
+              input.checked = item.done;
+              const row = input.closest('.check-item');
+              const textSpan = row?.querySelector('.task-text');
+              if (textSpan) {
+                if (item.done) textSpan.classList.add('line-through', 'opacity-50');
+                else textSpan.classList.remove('line-through', 'opacity-50');
+              }
+            }
+          });
+        }
+      }
 
       const hMeal = updatedLog.meals.length > 0;
       const hWater = wIntake > 0;
@@ -627,7 +703,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       const discScore = Math.min(100, Math.round((cCount / 4) * 80 + (Math.min(100, (wIntake / waterTarget) * 100) / 100) * 20));
 
       const netCalEl = document.getElementById('dash-net-calories');
-      if (netCalEl) netCalEl.innerText = `${net}`;
+      if (netCalEl) netCalEl.innerText = `${cIn - cOut}`;
 
       const discScoreEl = document.getElementById('dash-discipline-score');
       if (discScoreEl) discScoreEl.innerText = `${discScore}`;
@@ -635,7 +711,13 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       const discFillEl = document.getElementById('dash-discipline-fill');
       if (discFillEl) discFillEl.style.width = `${discScore}%`;
 
-      renderAiSummaryWidget('dashboard-ai-summary-container');
+      const badgeCountEl = document.getElementById('checklist-badge-count');
+      if (badgeCountEl) {
+        const doneCount = updatedLog.checklist.filter(t => t.done).length;
+        badgeCountEl.innerText = `${doneCount}/${updatedLog.checklist.length} Tick`;
+      }
+
+      renderAiSummaryWidget('dashboard-ai-summary-container', discScore, updatedLog);
     }
 
     // Water quick buttons + smooth animation
