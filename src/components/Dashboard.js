@@ -18,23 +18,21 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
 
   const { mealEntry: todayRecommendedMeals, workout: todayRecommendedWorkout, phase: currentPhase } = getPlanForJourneyDay(plan, currentJourneyDay);
 
-  // Calorie calculations
+  // Calorie calculations for Calorie Deficit VS Bar
   const caloriesIn = (todayLog.meals || []).reduce((sum, m) => sum + (m.calories || m.kcal || 0), 0);
   const caloriesOut = (todayLog.workouts || []).reduce((sum, w) => sum + (w.caloriesBurned || w.calories || w.caloBurned || 0), 0);
-  const netCalories = caloriesIn - caloriesOut;
   const calorieTarget = goal.dailyCalorieTarget || 2214;
 
-  // Dual-segment Calorie Ring Calculations (In vs Out Ratio)
-  const totalCal = caloriesIn + caloriesOut;
-  let inLen = 267;
-  let outLen = 267;
-  if (totalCal > 0) {
-    inLen = Math.round(534 * (caloriesIn / totalCal));
-    if (caloriesIn > 0 && inLen < 15) inLen = 15;
-    if (caloriesOut > 0 && (534 - inLen) < 15) inLen = 534 - 15;
-    outLen = 534 - inLen;
+  const totalVsCal = caloriesIn + caloriesOut;
+  let inPercent = 50;
+  let outPercent = 50;
+  if (totalVsCal > 0) {
+    inPercent = Math.min(90, Math.max(10, Math.round((caloriesIn / totalVsCal) * 100)));
+    outPercent = 100 - inPercent;
   }
-  const diffCal = Math.abs(caloriesIn - caloriesOut);
+
+  const calorieDeficit = caloriesOut - caloriesIn;
+  const isDeficit = calorieDeficit >= 0;
 
   // Macros
   const currentProtein = todayLog.meals.reduce((sum, m) => sum + (m.protein || 0), 0);
@@ -45,6 +43,28 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const cTarget = goal.macroTarget?.carb || 221;
   const fTarget = goal.macroTarget?.fat || 74;
 
+  // Macro Donut SVG Segment Arc Calculations (Proportional & Non-overlapping)
+  const totalConsumedMacros = currentProtein + currentCarb + currentFat;
+  const C_MACRO = 251.3; // Circumference for r=40
+  let pLen = 0, cLen = 0, fLen = 0;
+  let pOffset = 0, cOffset = 0, fOffset = 0;
+
+  if (totalConsumedMacros > 0) {
+    pLen = Math.round(C_MACRO * (currentProtein / totalConsumedMacros));
+    cLen = Math.round(C_MACRO * (currentCarb / totalConsumedMacros));
+    if (currentProtein > 0 && pLen < 12) pLen = 12;
+    if (currentCarb > 0 && cLen < 12) cLen = 12;
+    fLen = C_MACRO - pLen - cLen;
+    if (currentFat > 0 && fLen < 12) {
+      fLen = 12;
+      cLen = C_MACRO - pLen - fLen;
+    }
+
+    pOffset = 0;
+    cOffset = -pLen;
+    fOffset = -(pLen + cLen);
+  }
+
   // Weight
   const currentW = todayLog.weight || profile.currentWeight;
   const targetW = goal.targetWeight || 65;
@@ -53,6 +73,47 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
   const waterIntake = todayLog.waterIntake || 0;
   const waterTarget = goal.waterTarget || 2695;
   const waterPercent = Math.min(100, Math.round((waterIntake / waterTarget) * 100));
+
+  // Version 3 Stat Info calculation (matching Image 1 exactly: plain colored text, NO background pill)
+  const getVersion3StatInfo = (taskText, itemDone) => {
+    const textLower = (taskText || '').toLowerCase();
+    
+    if (textLower.includes('nước') || textLower.includes('water') || textLower.includes('2.7l') || textLower.includes('lit')) {
+      const currentL = (waterIntake / 1000).toFixed(1);
+      const targetL = (waterTarget / 1000).toFixed(1);
+      const val = (waterIntake >= waterTarget || itemDone) ? `${targetL}L` : `${currentL}L`;
+      return { text: val, colorClass: 'text-blue-500 font-semibold text-xs' };
+    }
+    
+    if (textLower.includes('cal') || textLower.includes('kcal') || textLower.includes('calo')) {
+      const val = (caloriesIn >= calorieTarget || itemDone) ? `${calorieTarget} kcal` : `${caloriesIn} kcal`;
+      return { text: val, colorClass: 'text-orange-500 font-semibold text-xs' };
+    }
+    
+    if (textLower.includes('protein') || textLower.includes('đạm')) {
+      const val = (currentProtein >= pTarget || itemDone) ? `${pTarget}g` : `${currentProtein}g`;
+      return { text: val, colorClass: 'text-pink-500 font-semibold text-xs' };
+    }
+
+    if (textLower.includes('carb') || textLower.includes('tinh bột')) {
+      const val = (currentCarb >= cTarget || itemDone) ? `${cTarget}g` : `${currentCarb}g`;
+      return { text: val, colorClass: 'text-amber-500 font-semibold text-xs' };
+    }
+
+    if (textLower.includes('fat') || textLower.includes('chất béo')) {
+      const val = (currentFat >= fTarget || itemDone) ? `${fTarget}g` : `${currentFat}g`;
+      return { text: val, colorClass: 'text-sky-500 font-semibold text-xs' };
+    }
+
+    if (textLower.includes('tập') || textLower.includes('workout') || textLower.includes('ai plan') || textLower.includes('lịch ai')) {
+      return { text: 'AI Plan', colorClass: 'text-purple-500 font-semibold text-xs' };
+    }
+
+    return { 
+      text: itemDone ? 'Đã xong' : 'Chưa xong', 
+      colorClass: itemDone ? 'text-emerald-500 font-semibold text-xs' : 'text-purple-500 font-semibold text-xs' 
+    };
+  };
 
   // Check-in Touchpoints & Discipline Score
   const hasMeal = todayLog.meals.length > 0;
@@ -102,36 +163,85 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       <!-- Overview Grid (Top Stats - 3 Columns) -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         
-        <!-- 1. Calorie Dual Ring (In vs Out Interactive) -->
-        <div class="card p-6 flex flex-col items-center justify-center fade-up" style="animation-delay: 0.1s">
-          <div class="text-[10px] uppercase tracking-[0.2em] text-muted font-bold mb-4" style="color: var(--text-muted);" id="dash-cal-card-title">ĐỘ CHÊNH LỆCH CALO (IN vs OUT)</div>
-          <div class="relative w-48 h-48">
-            <svg viewBox="0 0 200 200" class="w-full h-full cursor-pointer">
-              <!-- Background ring fallback -->
-              <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(124, 58, 237, 0.1)" stroke-width="14"/>
-              
-              <!-- In Segment (Tím #7C3AED) -->
-              <circle id="dash-ring-in" cx="100" cy="100" r="85" fill="none" stroke="#7C3AED" stroke-width="14" 
-                      stroke-dasharray="${inLen} ${534 - inLen}" stroke-dashoffset="0" transform="rotate(-90 100 100)"
-                      class="transition-all duration-300 hover:stroke-[18px]"/>
-                      
-              <!-- Out Segment (Hồng #D946EF) -->
-              <circle id="dash-ring-out" cx="100" cy="100" r="85" fill="none" stroke="#D946EF" stroke-width="14" 
-                      stroke-dasharray="${outLen} ${534 - outLen}" stroke-dashoffset="-${inLen}" transform="rotate(-90 100 100)"
-                      class="transition-all duration-300 hover:stroke-[18px]"/>
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div class="display text-4xl font-semibold transition-all duration-200" style="color: var(--text-main);" id="dash-cal-center-num">${diffCal}</div>
-              <div class="text-xs font-medium text-muted mt-1 transition-all duration-200" style="color: var(--text-muted);" id="dash-cal-center-label">/ ${calorieTarget} kcal</div>
+        <!-- 1. Calorie Deficit (IN vs OUT VS Bar) -->
+        <div class="card p-6 flex flex-col justify-between fade-up" style="animation-delay: 0.1s">
+          <!-- Header -->
+          <div class="flex items-center justify-between w-full mb-4">
+            <div>
+              <p class="text-[11px] font-bold uppercase tracking-widest text-muted" style="color: var(--text-muted);">Độ Chênh Lệch</p>
+              <h2 class="display text-xl font-semibold mt-0.5" style="color: var(--text-main);">Calo IN vs OUT</h2>
+            </div>
+            <div class="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0" style="background: rgba(124, 58, 237, 0.12); color: #7C3AED;">
+              <i data-lucide="scale" class="w-5 h-5"></i>
             </div>
           </div>
-          <div class="mt-4 flex gap-4 text-xs font-semibold">
-            <span class="flex items-center gap-1.5 cursor-pointer transition hover:scale-105" id="dash-tag-in" style="color: var(--text-main);">
-              <div class="w-2.5 h-2.5 rounded-full" style="background: #7C3AED;"></div> In: ${caloriesIn}
-            </span>
-            <span class="flex items-center gap-1.5 cursor-pointer transition hover:scale-105" id="dash-tag-out" style="color: var(--text-main);">
-              <div class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></div> Out: ${caloriesOut}
-            </span>
+
+          <!-- Middle Section (Stats Row + VS Bar) Centered Vertically -->
+          <div class="my-auto py-3">
+            <!-- Stats Row (Left vs Right) -->
+            <div class="flex justify-between items-end mb-5">
+              <!-- Cột Trái: IN -->
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-[#EDE9FE] dark:bg-purple-950/60 flex items-center justify-center mt-1 flex-shrink-0">
+                  <i data-lucide="utensils" class="w-5 h-5 text-[#7C3AED]"></i>
+                </div>
+                <div>
+                  <span class="text-xs font-bold text-[#7C3AED] uppercase tracking-wider">In</span>
+                  <p class="display text-2xl md:text-3xl font-bold leading-none mt-1" style="color: var(--text-main);">${caloriesIn.toLocaleString()}</p>
+                  <p class="text-[10px] text-muted mt-1" style="color: var(--text-muted);">kcal nạp vào</p>
+                </div>
+              </div>
+              
+              <!-- Cột Phải: OUT -->
+              <div class="flex items-start gap-3 text-right">
+                <div>
+                  <span class="text-xs font-bold text-[#D946EF] uppercase tracking-wider">Out</span>
+                  <p class="display text-2xl md:text-3xl font-bold leading-none mt-1" style="color: var(--text-main);">${caloriesOut.toLocaleString()}</p>
+                  <p class="text-[10px] text-muted mt-1" style="color: var(--text-muted);">kcal đốt ra (tập luyện)</p>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-[#FCE7F3] dark:bg-pink-950/60 flex items-center justify-center mt-1 flex-shrink-0">
+                  <i data-lucide="flame" class="w-5 h-5 text-[#D946EF]"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Thanh đối đầu VS (Dynamic percentages) -->
+            <div class="relative w-full h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden flex">
+              <!-- Mảng Tím (IN) -->
+              <div class="relative h-full bg-gradient-to-r from-[#7C3AED] to-[#8B5CF6] transition-all duration-700" style="width: ${inPercent}%;">
+                <div class="shine-sweep"></div>
+              </div>
+              <!-- Mảng Hồng (OUT) -->
+              <div class="relative h-full bg-gradient-to-l from-[#D946EF] to-[#EC4899] transition-all duration-700" style="width: ${outPercent}%;">
+                <div class="shine-sweep"></div>
+              </div>
+              
+              <!-- Biển báo VS ở giữa -->
+              <div class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white dark:bg-[#1E1B2E] border-2 border-purple-200 dark:border-purple-800 shadow-md flex items-center justify-center z-10 transition-all duration-700" style="left: ${inPercent}%;">
+                <span class="text-[9px] font-extrabold text-[#7C3AED]">VS</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kết quả Thâm hụt / Dư thừa -->
+          <div class="bg-gradient-to-r from-[#F5F3FF] to-[#FCE7F3] dark:from-purple-950/40 dark:to-pink-950/40 border border-[#EDE9FE] dark:border-purple-900/40 p-4 rounded-2xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-white dark:bg-[#1E1B2E] flex items-center justify-center shadow-sm flex-shrink-0">
+                ${isDeficit ? `
+                  <i data-lucide="trending-down" class="w-5 h-5 text-[#7C3AED]"></i>
+                ` : `
+                  <i data-lucide="trending-up" class="w-5 h-5 text-amber-500"></i>
+                `}
+              </div>
+              <div>
+                <span class="text-sm font-semibold block leading-tight" style="color: var(--text-main);">${isDeficit ? 'Thâm hụt Calo' : 'Dư thừa Calo'}</span>
+                <span class="text-[10px] text-muted" style="color: var(--text-muted);">${isDeficit ? '(Out trừ đi In)' : '(In vượt hơn Out)'}</span>
+              </div>
+            </div>
+            <!-- Chữ gradient Tím-Hồng rất sang -->
+            <div class="display text-2xl font-bold ${isDeficit ? 'text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] to-[#D946EF]' : 'text-amber-500'}">
+              ${Math.abs(calorieDeficit).toLocaleString()} <span class="text-xs font-sans text-muted" style="color: var(--text-muted);">kcal</span>
+            </div>
           </div>
         </div>
 
@@ -184,32 +294,61 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
           </div>
         </div>
 
-        <!-- 3. Checklist Progress -->
-        <div class="card p-6 fade-up" style="animation-delay: 0.25s">
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-muted font-bold" style="color: var(--text-muted);">CHECKLIST KỶ LUẬT</div>
-            <span class="text-xs font-bold px-2.5 py-1 rounded-full" style="background: rgba(124, 58, 237, 0.12); color: var(--accent-purple);" id="checklist-badge-count">
-              ${todayLog.checklist.filter(t => t.done).length}/${todayLog.checklist.length} Tick
-            </span>
-          </div>
+        <!-- 3. Checklist Progress (Version 3 iOS Minimalist Style) -->
+        <div class="card p-6 fade-up flex flex-col justify-between" style="animation-delay: 0.25s">
+          <div>
+            <!-- Header INSIDE the main card box -->
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-color" style="border-bottom: 1px solid var(--border-color, rgba(124, 58, 237, 0.12));">
+              <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Checklist Kỷ Luật</h2>
+              <span class="text-xs font-bold text-muted opacity-80" style="color: var(--text-muted);" id="checklist-badge-count">
+                ${todayLog.checklist.filter(t => t.done).length}/${todayLog.checklist.length} Tick
+              </span>
+            </div>
 
-          <div class="space-y-3 max-h-60 overflow-y-auto pr-1" id="dash-checklist-container">
-            ${todayLog.checklist.map(item => `
-              <div class="checklist-item-row flex items-center justify-between">
-                <div style="flex: 1;">
-                  ${renderCheckbox({ taskId: item.id, checked: item.done, labelText: item.task })}
-                </div>
-                <button class="btn btn-secondary btn-icon btn-sm" data-delete-task-id="${item.id}" style="width: 24px; height: 24px; border: 0; padding: 0; color: var(--text-muted);" title="Xóa">
-                  <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
-                </button>
+            <!-- List inside rounded container with divide lines (matching Image 1 Version 3) -->
+            <div class="rounded-3xl border border-gray-200/80 dark:border-gray-800 overflow-hidden max-h-72 overflow-y-auto bg-white dark:bg-[#181524]" id="dash-checklist-container">
+              <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                ${todayLog.checklist.map(item => {
+                  const cleanTaskName = (item.task || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu, '').trim();
+                  const { text: statText, colorClass } = getVersion3StatInfo(item.task, item.done);
+                  return `
+                    <label class="group check-item flex items-center justify-between gap-4 p-4 cursor-pointer !bg-transparent !rounded-none !border-0 hover:!bg-gray-50/80 dark:hover:!bg-gray-800/50 transition-colors">
+                      <div class="flex items-center gap-4 min-w-0 flex-1">
+                        <input type="checkbox" class="custom-checkbox-input" data-task-id="${item.id}" ${item.done ? 'checked' : ''}>
+                        <div class="custom-check">
+                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <span class="task-text text-sm font-medium ${item.done ? 'line-through opacity-50' : ''}" style="color: var(--text-main);">
+                          ${cleanTaskName}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center justify-end flex-shrink-0 min-w-[60px]">
+                        <!-- Stat text (NO pill background, plain colored text as in Image 1!) -->
+                        <span class="group-hover:hidden ${colorClass}">
+                          ${statText}
+                        </span>
+                        <!-- Delete button (visible ONLY on hover) -->
+                        <button type="button" class="hidden group-hover:flex items-center justify-center w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors" data-delete-task-id="${item.id}" title="Xóa">
+                          <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                      </div>
+                    </label>
+                  `;
+                }).join('')}
               </div>
-            `).join('')}
+            </div>
           </div>
 
-          <!-- Quick Add Daily Task Input -->
-          <form id="form-add-daily-task" class="flex gap-2 mt-4 pt-3 border-t border-color">
-            <input type="text" class="form-input text-xs flex-1 rounded-xl px-3 py-2" id="input-new-daily-task" placeholder="+ Thêm việc kỷ luật..." style="background: var(--bg-input); color: var(--text-main);" required>
-            <button type="submit" class="btn btn-primary btn-sm px-3 rounded-xl"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+          <!-- Bottom "+ Thêm việc kỷ luật" Button (Exact Version 3 layout) -->
+          <form id="form-add-daily-task" class="mt-4 flex items-center gap-3 pt-2">
+            <div class="w-6 h-6 rounded-md border-2 border-[#C4B5FD] flex items-center justify-center flex-shrink-0 text-[#7C3AED]">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            </div>
+            <input type="text" class="form-input text-sm flex-1 border-0 bg-transparent px-1 py-1 focus:ring-0" id="input-new-daily-task" placeholder="Thêm việc kỷ luật..." style="color: var(--text-main);" required>
+            <button type="submit" class="btn btn-primary btn-sm px-3 py-1.5 rounded-xl text-xs font-semibold">Thêm</button>
           </form>
         </div>
 
@@ -222,28 +361,42 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
         
         <!-- Weight Trend Chart -->
-        <div class="card p-6 fade-up" style="animation-delay: 0.3s">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Cân Nặng Thực Tế vs Mục Tiêu</h2>
-            <button class="btn btn-secondary btn-sm text-xs rounded-xl" id="btn-quick-log-weight"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Ghi Cân Nặng</button>
+        <div class="card p-6 fade-up h-full flex flex-col justify-between" style="animation-delay: 0.3s">
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="display text-xl font-semibold whitespace-nowrap" style="color: var(--text-main);">Biểu Đồ Cân Nặng</h2>
+              <button class="btn btn-secondary btn-sm text-xs rounded-xl flex items-center gap-1.5 whitespace-nowrap" id="btn-quick-log-weight">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Ghi Cân Nặng
+              </button>
+            </div>
+            <div id="chart-weight-trend" style="min-height: 250px;"></div>
           </div>
-          <div id="chart-weight-trend" style="min-height: 250px;"></div>
+          <div class="mt-3 pt-2 flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap flex-nowrap">
+            <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0" style="background: rgba(117, 86, 217, 0.1); color: #7556D9;">
+              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: #7556D9;"></span> Thực Tế
+            </span>
+            <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0" style="background: rgba(245, 158, 11, 0.1); color: #F59E0B;">
+              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: #F59E0B;"></span> Mục Tiêu
+            </span>
+          </div>
         </div>
 
         <!-- Calorie In/Out Chart -->
-        <div class="card p-6 fade-up" style="animation-delay: 0.35s">
-          <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-            <h2 class="display text-xl font-semibold" style="color: var(--text-main);">Biểu Đồ Calo Nạp & Đốt</h2>
-            <div class="flex items-center gap-2 text-xs font-bold">
-              <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background: rgba(124, 58, 237, 0.1); color: var(--accent-purple);">
-                <span class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-purple);"></span> Calo Nạp (In)
-              </span>
-              <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background: rgba(217, 70, 239, 0.1); color: #D946EF;">
-                <span class="w-2.5 h-2.5 rounded-full" style="background: #D946EF;"></span> Calo Đốt (Out)
-              </span>
+        <div class="card p-6 fade-up h-full flex flex-col justify-between" style="animation-delay: 0.35s">
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="display text-xl font-semibold whitespace-nowrap" style="color: var(--text-main);">Biểu Đồ Calo</h2>
             </div>
+            <div id="chart-calorie-io" style="min-height: 250px;"></div>
           </div>
-          <div id="chart-calorie-io" style="min-height: 250px;"></div>
+          <div class="mt-3 pt-2 flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap flex-nowrap">
+            <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0" style="background: rgba(124, 58, 237, 0.1); color: var(--accent-purple);">
+              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: var(--accent-purple);"></span> Calo Nạp
+            </span>
+            <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0" style="background: rgba(217, 70, 239, 0.1); color: #D946EF;">
+              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: #D946EF;"></span> Calo Đốt
+            </span>
+          </div>
         </div>
 
       </div>
@@ -351,13 +504,22 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
           <div class="flex flex-col items-center justify-center py-4">
             <div class="relative w-32 h-32 mb-4">
               <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
+                <!-- Track background ring -->
                 <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(124, 58, 237, 0.08)" stroke-width="12"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#EC4899" stroke-width="12" 
-                        stroke-dasharray="251.2" stroke-dashoffset="${(251.2 * (1 - Math.min(1, currentProtein / pTarget))).toFixed(1)}" stroke-linecap="round"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#F59E0B" stroke-width="12" 
-                        stroke-dasharray="251.2" stroke-dashoffset="${(251.2 * (1 - Math.min(1, currentCarb / cTarget))).toFixed(1)}" stroke-linecap="round" style="opacity: 0.85;"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#3B82F6" stroke-width="12" 
-                        stroke-dasharray="251.2" stroke-dashoffset="${(251.2 * (1 - Math.min(1, currentFat / fTarget))).toFixed(1)}" stroke-linecap="round" style="opacity: 0.7;"/>
+                
+                ${totalConsumedMacros > 0 ? `
+                  <!-- Protein Arc (Hồng #EC4899) -->
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#EC4899" stroke-width="12" 
+                          stroke-dasharray="${pLen} ${C_MACRO - pLen}" stroke-dashoffset="${pOffset}" class="transition-all duration-300"/>
+                  
+                  <!-- Carbs Arc (Vàng #F59E0B) -->
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#F59E0B" stroke-width="12" 
+                          stroke-dasharray="${cLen} ${C_MACRO - cLen}" stroke-dashoffset="${cOffset}" class="transition-all duration-300"/>
+                  
+                  <!-- Fat Arc (Xanh Dương #3B82F6) -->
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#3B82F6" stroke-width="12" 
+                          stroke-dasharray="${fLen} ${C_MACRO - fLen}" stroke-dashoffset="${fOffset}" class="transition-all duration-300"/>
+                ` : ''}
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center">
                 <span class="display text-xl font-semibold" style="color: var(--text-main);">${Math.min(100, Math.round(((currentProtein + currentCarb + currentFat) / (pTarget + cTarget + fTarget)) * 100))}%</span>
@@ -399,43 +561,7 @@ export async function renderDashboard(onNavigateTab, onOpenAiCoach) {
     const historyLogs = allLogs.length > 0 ? allLogs : [todayLog];
     renderWeightChart('chart-weight-trend', historyLogs, targetW, goal);
     renderCalorieChart('chart-calorie-io', historyLogs, calorieTarget);
-    renderMacroChart('chart-macro-doughnut', { protein: currentProtein, carb: currentCarb, fat: currentFat }, goal.macroTarget);
-
-    // Calorie Ring Hover Event Handlers
-    const ringIn = document.getElementById('dash-ring-in');
-    const ringOut = document.getElementById('dash-ring-out');
-    const tagIn = document.getElementById('dash-tag-in');
-    const tagOut = document.getElementById('dash-tag-out');
-    const centerNum = document.getElementById('dash-cal-center-num');
-    const centerLabel = document.getElementById('dash-cal-center-label');
-
-    const defaultNum = diffCal;
-    const defaultLabel = `/ ${calorieTarget} kcal`;
-
-    const showIn = () => {
-      if (centerNum) { centerNum.textContent = caloriesIn; centerNum.style.color = '#7C3AED'; }
-      if (centerLabel) centerLabel.textContent = 'Calo Nạp Vào (In)';
-    };
-
-    const showOut = () => {
-      if (centerNum) { centerNum.textContent = caloriesOut; centerNum.style.color = '#D946EF'; }
-      if (centerLabel) centerLabel.textContent = 'Calo Tiêu Hao (Out)';
-    };
-
-    const resetDefault = () => {
-      if (centerNum) { centerNum.textContent = defaultNum; centerNum.style.color = 'var(--text-main)'; }
-      if (centerLabel) centerLabel.textContent = defaultLabel;
-    };
-
-    ringIn?.addEventListener('mouseenter', showIn);
-    ringIn?.addEventListener('mouseleave', resetDefault);
-    tagIn?.addEventListener('mouseenter', showIn);
-    tagIn?.addEventListener('mouseleave', resetDefault);
-
-    ringOut?.addEventListener('mouseenter', showOut);
-    ringOut?.addEventListener('mouseleave', resetDefault);
-    tagOut?.addEventListener('mouseenter', showOut);
-    tagOut?.addEventListener('mouseleave', resetDefault);
+    // Render Charts
 
     document.getElementById('dash-level-badge')?.addEventListener('click', () => showLevelRoadmapModal());
     document.getElementById('dash-btn-ai-coach')?.addEventListener('click', onOpenAiCoach);

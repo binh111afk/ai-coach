@@ -380,13 +380,13 @@ export const DataService = {
       if (!checklist || checklist.length === 0) {
         const allergyNote = plan.foodAllergies ? ` (né: ${plan.foodAllergies})` : '';
         checklist = [
-          { id: `task_water_${dateStr}`,   task: `💧 Uống đủ ${((goal.waterTarget || 2500) / 1000).toFixed(1)}L nước`, done: false },
-          { id: `task_calo_${dateStr}`,    task: `🍽️ Ăn đủ ${goal.dailyCalorieTarget || 1800} kcal${allergyNote}`, done: false },
-          { id: `task_protein_${dateStr}`, task: `💪 Nạp đủ ${goal.macroTarget?.protein || 120}g Protein`, done: false },
-          { id: `task_workout_${dateStr}`, task: `🏋️ Tập luyện theo lịch AI hôm nay`, done: false },
-          { id: `task_log_${dateStr}`,     task: `📝 Ghi nhật ký bữa ăn vào AI Coach`, done: false },
-          { id: `task_photo_${dateStr}`,   task: `📸 Chụp ảnh tiến trình cơ thể`, done: false },
-          { id: `task_sleep_${dateStr}`,   task: `😴 Ngủ đủ 7–8 tiếng tối nay`, done: false }
+          { id: `task_water_${dateStr}`,   task: `Uống đủ ${((goal.waterTarget || 2500) / 1000).toFixed(1)}L nước`, done: false },
+          { id: `task_calo_${dateStr}`,    task: `Ăn đủ ${goal.dailyCalorieTarget || 1800} kcal${allergyNote}`, done: false },
+          { id: `task_protein_${dateStr}`, task: `Nạp đủ ${goal.macroTarget?.protein || 120}g Protein`, done: false },
+          { id: `task_workout_${dateStr}`, task: `Tập luyện theo lịch AI hôm nay`, done: false },
+          { id: `task_log_${dateStr}`,     task: `Ghi nhật ký bữa ăn vào AI Coach`, done: false },
+          { id: `task_photo_${dateStr}`,   task: `Chụp ảnh tiến trình cơ thể`, done: false },
+          { id: `task_sleep_${dateStr}`,   task: `Ngủ đủ 7–8 tiếng tối nay`, done: false }
         ];
       }
 

@@ -86,7 +86,7 @@ export const Modal = {
             </svg>
           </div>
           <div class="custom-modal-title">${title}</div>
-          ${message ? `<div class="custom-modal-message">${message}</div>` : ''}
+          ${message ? `<div class="custom-modal-message">${formatModalMessage(message)}</div>` : ''}
           <input
             id="modal-prompt-input"
             type="text"
@@ -137,6 +137,17 @@ export const Modal = {
     });
   }
 };
+
+function formatModalMessage(text = '') {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-gray-100">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+    .replace(/\[(.*?)\]/g, '<span class="inline-block font-bold text-[#7C3AED] bg-purple-100 dark:bg-purple-900/50 dark:text-purple-300 px-2 py-0.5 rounded-lg text-xs border border-purple-200 dark:border-purple-800">$1</span>')
+    .replace(/\n\n/g, '<div class="my-2"></div>')
+    .replace(/\n/g, '<br/>');
+}
+
 function createModalDOM({ title, message, type, confirmText, cancelText, showCancel }) {
   const overlay = document.createElement('div');
   overlay.className = 'custom-modal-overlay';
@@ -148,7 +159,7 @@ function createModalDOM({ title, message, type, confirmText, cancelText, showCan
       </div>
 
       <div class="custom-modal-title">${title}</div>
-      <div class="custom-modal-message">${message}</div>
+      <div class="custom-modal-message">${formatModalMessage(message)}</div>
 
       <div class="custom-modal-actions">
         ${showCancel ? `

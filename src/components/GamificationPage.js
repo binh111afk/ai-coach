@@ -58,14 +58,26 @@ export async function renderGamificationPage() {
 
   const remainingXpNeeded = levelInfo.nextLevel ? Math.max(0, levelInfo.xpNeededForNext - levelInfo.xpInCurrentLevel) : 0;
 
+  const currentLevelIndex = Math.max(0, levelInfo.allLevels.findIndex(l => l.level === levelInfo.currentLevel.level));
+  const totalLevelsCount = levelInfo.allLevels.length;
+
+  let segmentXpPercent = 0;
+  if (levelInfo.nextLevel && levelInfo.xpNeededForNext > 0) {
+    segmentXpPercent = Math.min(1, Math.max(0, levelInfo.xpInCurrentLevel / levelInfo.xpNeededForNext));
+  } else if (!levelInfo.nextLevel) {
+    segmentXpPercent = 1;
+  }
+
+  const overallProgressUnits = currentLevelIndex + segmentXpPercent;
+  const lineFillWidthPx = Math.round(overallProgressUnits * 176);
+  const pinLeftPx = 88 + lineFillWidthPx;
+  const segmentPercentRounded = Math.round(segmentXpPercent * 100);
+
   const html = `
     <div class="max-w-6xl mx-auto w-full space-y-6 fade-up">
       
       <!-- ==================== STATUS HUB WOW EFFECT ==================== -->
       <div class="relative mb-6 fade-up">
-        <!-- Background Glows -->
-        <div class="absolute -top-4 left-10 w-48 h-48 bg-[var(--primary)] rounded-full blur-3xl opacity-20"></div>
-        <div class="absolute -top-2 right-10 w-48 h-48 bg-[var(--accent)] rounded-full blur-3xl opacity-20"></div>
         
         <div class="relative glass-card rounded-[28px] p-6 md:p-8" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
           <div class="flex flex-col md:flex-row gap-8 items-center justify-between">
@@ -145,11 +157,8 @@ export async function renderGamificationPage() {
 
       <!-- Badges Showcase -->
       <div class="glass-card rounded-[32px] p-6 md:p-8 relative overflow-hidden fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
-        <!-- Decorative blobs -->
-        <div class="blob bg-[var(--accent-purple)] w-48 h-48 -top-12 -right-12"></div>
-        <div class="blob bg-[var(--accent)] w-40 h-40 -bottom-10 -left-10 opacity-20"></div>
-
         <div class="relative z-10">
+
           <!-- Header -->
           <div class="flex items-center gap-3.5 mb-6">
             <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0" style="background: linear-gradient(135deg, #F59E0B, #D946EF);">
@@ -196,11 +205,8 @@ export async function renderGamificationPage() {
 
       <!-- Level Roadmap Section -->
       <div class="glass-card rounded-[32px] p-6 md:p-8 relative overflow-hidden fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
-        <!-- Decorative blobs -->
-        <div class="blob bg-[var(--accent-purple)] w-48 h-48 -top-12 -right-12"></div>
-        <div class="blob bg-[var(--accent)] w-40 h-40 -bottom-10 -left-10 opacity-20"></div>
-
         <div class="relative z-10">
+
           <!-- Header -->
           <div class="flex items-center gap-3.5 mb-6">
             <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #3B82F6);">
@@ -212,56 +218,90 @@ export async function renderGamificationPage() {
             </div>
           </div>
 
-          <!-- Levels Grid -->
-          <div class="levels-grid">
-            ${levelInfo.allLevels.map(l => {
-              const isCurrent = levelInfo.currentLevel.level === l.level;
-              const isCompleted = levelInfo.currentLevel.level > l.level;
-              const statusClass = isCurrent ? 'current' : (isCompleted ? 'completed' : 'locked');
+          <!-- Flowing Energy Track Container -->
+          <div class="relative py-4 px-2 md:px-10">
+            <!-- Navigation Arrow Left -->
+            <button id="btn-scroll-level-left" class="nav-arrow left" aria-label="Cuộn sang trái">
+              <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
 
-              return `
-                <div class="level-item ${statusClass}">
-                  <div class="level-badge">Lvl ${l.level}</div>
-                  <div class="level-name" title="${l.name}">${l.name}</div>
-                  <div style="font-size: 0.725rem; color: var(--text-muted); margin-top: 0.15rem; font-weight: 600;">Cột mốc: Ngày ${l.dayMilestone || l.level * 10}</div>
-                  <div class="level-xp">
-                    ${isCurrent ? `
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                      </svg>
-                      ${l.minXp} XP
-                      <span class="current-tag">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                          <circle cx="12" cy="12" r="4"/>
-                        </svg>
-                        Hiện tại
-                      </span>
-                    ` : (isCompleted ? `
-                      <svg viewBox="0 0 24 24" fill="currentColor" style="color: #22c55e;">
-                        <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                      </svg>
-                      ${l.minXp} XP
-                    ` : `
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 17.2 5.7 21l2.3-7-6-4.8h7.6L12 2z"/>
-                      </svg>
-                      ${l.minXp} XP
-                    `)}
+            <!-- Navigation Arrow Right -->
+            <button id="btn-scroll-level-right" class="nav-arrow right" aria-label="Cuộn sang phải">
+              <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Scrollable Track Line -->
+            <div id="level-roadmap-track" class="flex items-center overflow-x-auto scrollbar-hide py-10 px-4">
+              <div class="flex items-center relative min-w-max">
+                
+                <!-- Background gray line (centered exactly at Y=36px) -->
+                <div class="absolute left-[88px] right-[88px] top-[34px] h-1 bg-gray-200 dark:bg-gray-700/60 rounded-full"></div>
+                
+                <!-- Progress purple gradient line (filled exactly to current XP) -->
+                <div class="absolute left-[88px] top-[34px] h-1 bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#D946EF] rounded-full transition-all duration-700 shadow-[0_0_12px_rgba(217,70,239,0.6)]" style="width: ${lineFillWidthPx}px;"></div>
+                
+                <!-- Flowing energy laser animation -->
+                <div class="absolute left-[88px] right-[88px] top-[34px] h-1 overflow-hidden rounded-full pointer-events-none">
+                  <div class="flow-line-anim"></div>
+                </div>
+
+                <!-- XP Progress Glowing Indicator Pin Pinpoint (Centered at Y=36px) -->
+                <div class="absolute top-[36px] z-30 pointer-events-none transition-all duration-700" style="left: ${pinLeftPx}px; transform: translate(-50%, -50%);">
+                  <div class="relative flex items-center justify-center">
+                    <div class="w-6 h-6 rounded-full bg-[#D946EF] opacity-75 animate-ping"></div>
+                    <div class="w-4.5 h-4.5 rounded-full bg-gradient-to-r from-[#7C3AED] to-[#D946EF] border-2 border-white dark:border-[#1E1B2E] shadow-xl absolute"></div>
+                  </div>
+                  <!-- Floating Tooltip badge anchored above pin -->
+                  <div class="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#7C3AED] to-[#D946EF] text-white text-[10px] font-extrabold shadow-lg border border-white/40 whitespace-nowrap flex items-center gap-1">
+                    <i data-lucide="zap" class="w-3 h-3 text-amber-300 fill-amber-300"></i>
+                    ${progress.totalXp} XP (${segmentPercentRounded}%)
                   </div>
                 </div>
-              `;
-            }).join('')}
+
+                <!-- Level Nodes -->
+                ${levelInfo.allLevels.map((l, idx) => {
+                  const isCurrent = levelInfo.currentLevel.level === l.level;
+                  const isCompleted = levelInfo.currentLevel.level > l.level;
+
+                  return `
+                    <div class="flex flex-col items-center z-10 w-44 drop-in" style="animation-delay: ${(idx * 0.1).toFixed(1)}s">
+                      ${isCurrent ? `
+                        <div class="w-[72px] h-[72px] rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] text-white flex items-center justify-center display font-bold text-2xl pulse-glow ring-4 ring-white dark:ring-[#1E1B2E] shadow-xl">
+                          ${l.level}
+                        </div>
+                        <h4 class="display text-base font-bold mt-4 text-center shine-text">${l.name}</h4>
+                        <p class="text-xs text-muted mt-1 text-center font-bold" style="color: var(--text-muted);">
+                          Ngày ${l.dayMilestone || l.level * 10} · <span class="text-[#D946EF] font-extrabold">${l.minXp} XP</span>
+                        </p>
+                      ` : (isCompleted ? `
+                        <div class="w-[72px] h-[72px] rounded-full bg-emerald-500 text-white flex items-center justify-center display font-bold text-2xl ring-4 ring-white dark:ring-[#1E1B2E] shadow-md">
+                          <i data-lucide="check" class="w-7 h-7"></i>
+                        </div>
+                        <h4 class="display text-base font-semibold mt-4 text-center text-emerald-600 dark:text-emerald-400">${l.name}</h4>
+                        <p class="text-xs text-muted mt-1 text-center font-semibold" style="color: var(--text-muted);">
+                          Ngày ${l.dayMilestone || l.level * 10} · ${l.minXp} XP
+                        </p>
+                      ` : `
+                        <div class="w-[72px] h-[72px] rounded-full bg-white dark:bg-[#25213B] border-2 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 flex items-center justify-center display font-bold text-2xl ring-4 ring-white dark:ring-[#1E1B2E]">
+                          ${l.level}
+                        </div>
+                        <h4 class="display text-base font-semibold text-gray-400 dark:text-gray-500 mt-4 text-center">${l.name}</h4>
+                        <p class="text-xs text-gray-300 dark:text-gray-600 mt-1 text-center font-medium">
+                          Ngày ${l.dayMilestone || l.level * 10} · ${l.minXp} XP
+                        </p>
+                      `)}
+                    </div>
+                  `;
+                }).join('')}
+
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- XP Rules & Unlock Conditions -->
       <div class="glass-card rounded-[32px] p-6 md:p-8 relative overflow-hidden fade-up" style="border: 1px solid rgba(124, 58, 237, 0.18) !important;">
-        
-        <!-- Decorative blobs -->
-        <div class="blob bg-[var(--accent-purple)] w-48 h-48 -top-12 -right-12"></div>
-        <div class="blob bg-[var(--accent)] w-40 h-40 -bottom-10 -left-10 opacity-20"></div>
-
         <div class="relative z-10">
           <!-- Header -->
           <div class="flex items-center gap-3.5 mb-6">
@@ -379,15 +419,15 @@ export async function renderGamificationPage() {
               Bảo Vệ Streak & Năng Lượng Tích Cực
             </h3>
 
-            <div class="streak-box rounded-2xl p-4 md:p-5 flex gap-3.5 items-start">
+            <div class="streak-box rounded-2xl p-4 md:p-5 flex gap-3.5 items-start bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 shadow-sm">
               <div class="flex-shrink-0 pt-0.5">
                 <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-md flex-shrink-0" style="background: linear-gradient(135deg, #7C3AED, #D946EF);">
                   <i data-lucide="shield" class="w-5 h-5" style="color: #FFFFFF;"></i>
                 </div>
               </div>
               <div class="text-sm leading-relaxed" style="color: var(--text-main);">
-                AI Coach áp dụng triết lý <span class="font-bold">Năng Lượng Tích Cực</span>: cho phép bạn <span class="font-bold" style="color: var(--accent-purple);">nghỉ tập để phục hồi</span>. Hãy đánh dấu 
-                <span class="font-bold px-2 py-0.5 rounded-md text-xs mx-1" style="background: var(--primary-soft); color: var(--accent-purple);">Ngày Nghỉ Phục Hồi</span> 
+                AI Coach áp dụng triết lý <span class="font-bold">Năng Lượng Tích Cực</span>: cho phép bạn <span class="font-bold text-[#7C3AED] dark:text-purple-300">nghỉ tập để phục hồi</span>. Hãy đánh dấu 
+                <span class="font-bold px-2.5 py-1 rounded-lg text-xs mx-1 bg-purple-100 dark:bg-purple-900/60 text-[#7C3AED] dark:text-purple-200 border border-purple-200/60 dark:border-purple-800/50">Ngày Nghỉ Phục Hồi</span> 
                 để không làm đứt chuỗi Streak và luôn giữ vững động lực!
               </div>
             </div>
@@ -424,6 +464,23 @@ export async function renderGamificationPage() {
   if (mountNode) {
     mountNode.innerHTML = html;
     if (window.lucide) window.lucide.createIcons();
+
+    // Level Roadmap Flowing Energy Track Navigation
+    const levelTrack = document.getElementById('level-roadmap-track');
+    document.getElementById('btn-scroll-level-left')?.addEventListener('click', () => {
+      levelTrack?.scrollBy({ left: -260, behavior: 'smooth' });
+    });
+    document.getElementById('btn-scroll-level-right')?.addEventListener('click', () => {
+      levelTrack?.scrollBy({ left: 260, behavior: 'smooth' });
+    });
+
+    // Auto-scroll to active current level node & XP pin
+    const activeXpPin = levelTrack?.querySelector('.animate-ping') || levelTrack?.querySelector('.pulse-glow');
+    if (activeXpPin) {
+      setTimeout(() => {
+        activeXpPin.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }, 350);
+    }
 
     // Desktop: Toggle remaining 10+ badges with smooth animation
     const btnExpandDesktop = document.getElementById('btn-expand-desktop-badges');

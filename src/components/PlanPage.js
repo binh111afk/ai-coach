@@ -280,14 +280,14 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
 
                 ${isWorkout ? `
                   <div class="p-4 rounded-2xl border border-color hover:border-[var(--accent-purple)] transition" style="background: var(--primary-soft);">
-                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                      <div>
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-2">
+                      <div class="flex-1 min-w-0 pr-2">
                         <div class="text-xs font-bold" style="color: #D946EF;">${item.time} · Tập Luyện Chính</div>
-                        <h3 class="display text-lg font-semibold" style="color: var(--accent-purple);">${item.activity}</h3>
+                        <h3 class="display text-lg font-semibold leading-snug" style="color: var(--accent-purple);">${item.activity}</h3>
                       </div>
-                      <div class="flex gap-2">
-                        <span class="text-xs font-bold px-2.5 py-1 rounded-full shadow-xs" style="background: var(--bg-card); color: var(--text-main);">30 phút</span>
-                        <span class="text-xs font-bold text-white px-2.5 py-1 rounded-full shadow-xs" style="background: #EC4899;">~280 kcal</span>
+                      <div class="flex items-center gap-2 flex-shrink-0 whitespace-nowrap self-start md:self-center">
+                        <span class="text-xs font-bold px-3 py-1 rounded-full shadow-xs whitespace-nowrap flex-shrink-0" style="background: var(--bg-card); color: var(--text-main);">${item.duration || 30} phút</span>
+                        <span class="text-xs font-bold text-white px-3 py-1 rounded-full shadow-xs whitespace-nowrap flex-shrink-0" style="background: #EC4899;">~${item.estBurn || 280} kcal</span>
                       </div>
                     </div>
                     <p class="text-xs opacity-80 mb-3" style="color: var(--text-main);">${item.desc || 'Tập luyện cường độ cao ngắt quãng'}</p>
@@ -346,7 +346,7 @@ export async function renderPlanPage(onNavigateTab, onOpenAiCoach) {
             <div class="p-4 rounded-2xl border border-color" style="background: var(--primary-soft);">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-bold uppercase" style="color: var(--accent-purple);">Ngày ${selectedJourneyDay} Đang Chọn</span>
-                <span class="text-xs font-semibold" style="color: #D946EF;">${currentDayWorkout.type || 'HIIT'} · ${currentDayWorkout.estBurn} kcal</span>
+                <span class="text-xs font-semibold whitespace-nowrap flex-shrink-0" style="color: #D946EF;">${currentDayWorkout.type || 'HIIT'} · ${currentDayWorkout.estBurn} kcal</span>
               </div>
               <h3 class="display text-lg font-semibold" style="color: var(--text-main);">${currentDayWorkout.title}</h3>
               <p class="text-xs text-muted mt-1 mb-4" style="color: var(--text-muted);">Tập luyện cường độ cao ngắt quãng, thời lượng ${currentDayWorkout.duration} phút.</p>

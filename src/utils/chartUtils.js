@@ -64,7 +64,7 @@ export function renderWeightChart(canvasId, dailyLogs = [], targetWeight = 65, g
     ],
     chart: {
       type: 'area',
-      height: 270,
+      height: 280,
       fontFamily: 'Inter, sans-serif',
       toolbar: { show: false },
       animations: {
@@ -133,9 +133,7 @@ export function renderWeightChart(canvasId, dailyLogs = [], targetWeight = 65, g
       style: { fontSize: '12px', fontFamily: 'Inter' }
     },
     legend: {
-      position: 'top',
-      horizontalAlign: 'right',
-      labels: { colors: 'var(--text-main)' }
+      show: false
     }
   };
 
@@ -165,7 +163,7 @@ export function renderCalorieChart(canvasId, dailyLogs = [], targetCalorie = 200
     ],
     chart: {
       type: 'bar',
-      height: 250,
+      height: 280,
       fontFamily: 'Inter, sans-serif',
       toolbar: { show: false },
       animations: { enabled: true, easing: 'easeinout', speed: 800 }

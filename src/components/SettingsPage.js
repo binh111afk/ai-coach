@@ -1,7 +1,7 @@
 import { DataService, generate7DayMealPlan } from '../services/dataService.js';
 import { dbManager } from '../services/db.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, getLevelInfo } from '../services/gamificationService.js';
-import { CONFIG } from '../config.js';
+import { CONFIG, isVisionModel } from '../config.js';
 import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
@@ -13,6 +13,10 @@ export async function renderSettingsPage(onSaveComplete) {
 
   let currentModelId = selectedModelId;
   let newAvatarBase64 = null;
+
+  // Read saved image analysis setting (defaults to true if model has vision, false otherwise)
+  const savedImageAnalysis = await DataService.getSetting('ai_image_analysis');
+  const isImageAnalysisEnabled = savedImageAnalysis !== false && isVisionModel(currentModelId);
 
   // Process food allergies into an array of string tags
   let allergyList = profile.foodAllergies
@@ -200,23 +204,21 @@ export async function renderSettingsPage(onSaveComplete) {
       <div class="card p-6 fade-up" style="animation-delay: 0.15s; border: 1px solid rgba(124, 58, 237, 0.18) !important;">
         <h3 class="display text-xl font-semibold mb-4" style="color: var(--fg);">Cấu Hình AI Coach & Giao Diện</h3>
         
-        <!-- Model Selector Button (Click opens Popup Modal) -->
-        <div class="flex items-center justify-between p-4 bg-[var(--primary-soft)] rounded-2xl mb-4 cursor-pointer transition hover:shadow-md" id="btn-open-model-modal" style="border: 1px solid rgba(124, 58, 237, 0.16);">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--primary)] shadow-sm">
-              <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+        <!-- Model Selector V5 Glass Chip Button (Click opens Popup Modal) -->
+        <div class="v5-chip mb-4" id="btn-open-model-modal">
+          <div class="v5-left min-w-0 pr-2 overflow-hidden">
+            <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950/60 flex items-center justify-center flex-shrink-0 shadow-sm border border-purple-200/50" id="disp-active-model-icon">
+              ${renderProviderIcon(currentModelObj.id)}
             </div>
-            <div>
-              <div class="text-sm font-semibold" style="color: var(--fg);">Mô hình AI</div>
-              <div class="text-xs text-[var(--primary)] font-bold flex items-center gap-1.5" id="disp-active-model-name">
-                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> ${currentModelObj.name}
-              </div>
+            <div class="flex items-center gap-1.5 min-w-0 truncate" id="disp-active-model-name">
+              <span class="v5-title font-semibold text-sm truncate" style="color: var(--fg);">${currentModelObj.name.split(' (')[0]}</span>
+              ${currentModelObj.name.includes('(') ? `<span class="v5-sub text-xs text-[var(--muted)] truncate flex-shrink-0">· ${currentModelObj.name.split('(')[1].replace(')', '')}</span>` : ''}
             </div>
           </div>
-          <div class="flex items-center gap-1 text-xs font-bold text-[var(--primary)]">
-            <span>Bấm đổi</span>
-            <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--muted)]"></i>
-          </div>
+          <button type="button" class="v5-btn flex-shrink-0">
+            <span>Thay đổi</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
         </div>
 
         <!-- AI Toggles & Dark Mode Switcher -->
@@ -226,10 +228,10 @@ export async function renderSettingsPage(onSaveComplete) {
               <i data-lucide="scan-line" class="w-5 h-5 text-[var(--muted)]"></i>
               <div>
                 <div class="text-sm font-semibold" style="color: var(--fg);">Phân tích hình ảnh</div>
-                <div class="text-xs text-[var(--muted)]">Nhận diện calo từ ảnh chụp thức ăn</div>
+                <div class="text-xs text-[var(--muted)]">Nhận diện calo & đọc thực đơn từ ảnh chụp</div>
               </div>
             </div>
-            <div class="toggle-switch active" id="toggle-image-analysis">
+            <div class="toggle-switch ${isImageAnalysisEnabled ? 'active' : ''}" id="toggle-image-analysis">
               <div class="toggle-knob"></div>
             </div>
           </div>
@@ -308,46 +310,91 @@ export async function renderSettingsPage(onSaveComplete) {
     </div>
 
     <!-- ==================== MODEL SELECTION POPUP MODAL (Teleported to body for 100% fullscreen blur) ==================== -->
-    <div class="modal-overlay" id="model-selection-modal">
-      <div class="modal-card card p-6 w-full max-w-lg max-h-[85vh] flex flex-col" style="background: var(--bg-card); border-radius: 28px; border: 1px solid rgba(124, 58, 237, 0.25) !important; position: relative; z-index: 1;">
-        <div class="flex justify-between items-center mb-4 pb-3 flex-shrink-0" style="border-bottom: 1px solid rgba(124, 58, 237, 0.14);">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white" style="background: var(--accent-purple);">
-              <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+    <div id="modal-overlay" class="overlay hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+      
+      <!-- Khung Modal -->
+      <div class="modal-content w-full max-w-lg bg-white dark:bg-[#1E1B2E] rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border border-purple-100/50 dark:border-purple-900/40">
+        
+        <!-- Header -->
+        <div class="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="display text-2xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">Chọn AI Model</h2>
+              <p class="text-xs text-gray-400 font-medium mt-1">Tối ưu hóa trải nghiệm cá nhân hóa của bạn</p>
             </div>
-            <h3 class="display text-xl font-bold" style="color: var(--fg);">Chọn AI Model</h3>
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-[#EDE9FE] dark:bg-purple-900/50 text-[#6D28D9] dark:text-purple-300 px-2.5 py-1 rounded-full">${CONFIG.SUPPORTED_MODELS.length} Models</span>
           </div>
-          <button type="button" class="btn-ghost w-8 h-8 rounded-full flex items-center justify-center" id="btn-close-model-modal">
-            <i data-lucide="x" class="w-4 h-4"></i>
+
+          <!-- Search Bar -->
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+            <input 
+              type="text" 
+              id="model-search-input"
+              placeholder="Tìm kiếm AI Model (Gemini, DeepSeek, Kimi, Qwen...)" 
+              class="w-full bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-700/80 rounded-xl pl-11 pr-4 py-2.5 text-sm outline-none focus:border-[#7C3AED] focus:ring-4 focus:ring-purple-100 dark:focus:ring-purple-900/40 text-gray-900 dark:text-gray-100 transition-all"
+            >
+          </div>
+        </div>
+
+        <!-- List Models -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-2.5" id="model-list-container">
+          ${CONFIG.SUPPORTED_MODELS.map(m => {
+            const isChecked = m.id === currentModelId;
+            const hasVision = isVisionModel(m.id);
+            let badgeClass = "text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-300";
+            let badgeText = "Free";
+
+            if (m.name.toLowerCase().includes("pro") || m.name.toLowerCase().includes("ultra") || m.name.toLowerCase().includes("plus") || m.name.toLowerCase().includes("max")) {
+              badgeClass = "text-purple-700 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300";
+              badgeText = "Pro";
+            } else if (m.name.toLowerCase().includes("code") || m.name.toLowerCase().includes("coder")) {
+              badgeClass = "text-blue-700 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300";
+              badgeText = "Code";
+            } else if (m.name.toLowerCase().includes("reasoner") || m.name.toLowerCase().includes("reasoning") || m.name.toLowerCase().includes("thinking")) {
+              badgeClass = "text-amber-700 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300";
+              badgeText = "Logic";
+            }
+
+            const visionBadgeHtml = hasVision 
+              ? `<span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Hỗ trợ đọc & phân tích hình ảnh">Vision</span>`
+              : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400 px-1.5 py-0.5 rounded">Text</span>`;
+
+            return `
+              <label class="model-card flex items-center gap-4 p-3 border ${isChecked ? 'border-[#C4B5FD] bg-[#F5F3FF] dark:bg-[#2E1A47] dark:border-[#7C3AED] is-selected' : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#25213B]'} rounded-2xl cursor-pointer transition-all duration-200" data-model-id="${m.id}">
+                <div class="w-11 h-11 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm border border-purple-100/50 dark:border-purple-800/40">
+                  ${renderProviderIcon(m.id)}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                    <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">${m.name.split(' (')[0]}</h3>
+                    <span class="text-[10px] font-bold ${badgeClass} px-1.5 py-0.5 rounded">${badgeText}</span>
+                    ${visionBadgeHtml}
+                  </div>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${m.name.includes('(') ? m.name.split('(')[1].replace(')', '') : m.id}</p>
+                </div>
+                <div class="model-item flex items-center">
+                  <input type="radio" name="ai-model-choice" value="${m.id}" ${isChecked ? 'checked' : ''}>
+                  <div class="radio-indicator">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                </div>
+              </label>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 bg-gray-50/50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
+          <button id="close-modal-btn" type="button" class="text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition px-4 py-2.5 rounded-xl hover:bg-gray-200/50 dark:hover:bg-gray-800/50">
+            Hủy bỏ
+          </button>
+          <button id="apply-btn" type="button" class="flex-1 sm:flex-none text-sm font-bold text-white bg-[#7C3AED] hover:bg-[#6D28D9] transition px-6 py-2.5 rounded-xl shadow-md shadow-purple-200 dark:shadow-none flex items-center justify-center gap-2">
+            <i data-lucide="check-check" class="w-4 h-4"></i>
+            Áp dụng Model
           </button>
         </div>
 
-        <div class="mb-3 flex-shrink-0">
-          <input type="text" id="model-search-input" placeholder="🔍 Tìm kiếm AI Model (Gemini, DeepSeek, Nemotron...)" class="w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold" style="background: var(--bg-input); color: var(--text-main); border: 1px solid rgba(124, 58, 237, 0.25);">
-        </div>
-
-        <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="model-list-container">
-          ${CONFIG.SUPPORTED_MODELS.map(m => `
-            <div class="model-select-item flex items-center justify-between p-3 rounded-2xl ${m.id === currentModelId ? 'bg-[var(--primary-soft)] font-bold' : 'hover:bg-slate-50'} cursor-pointer transition" style="border: 1px solid ${m.id === currentModelId ? 'var(--primary)' : 'rgba(124, 58, 237, 0.14)'};" data-model-id="${m.id}">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(124, 58, 237, 0.1);">
-                  ${renderProviderIcon(m.id)}
-                </div>
-                <div class="truncate">
-                  <div class="text-xs font-semibold" style="color: var(--fg);">${m.name}</div>
-                  <div class="text-[10px] text-[var(--muted)] font-mono truncate">${m.id}</div>
-                </div>
-              </div>
-              <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="border: 2px solid ${m.id === currentModelId ? 'var(--primary)' : '#CBD5E1'}; background: ${m.id === currentModelId ? 'var(--primary)' : 'transparent'};">
-                ${m.id === currentModelId ? '<div class="w-2 h-2 rounded-full bg-white"></div>' : ''}
-              </div>
-            </div>
-          `).join('')}
-        </div>
-
-        <div class="mt-4 pt-3 flex justify-end flex-shrink-0" style="border-top: 1px solid rgba(124, 58, 237, 0.14);">
-          <button type="button" class="btn-ghost px-5 py-2 rounded-xl text-xs font-bold" id="btn-close-model-modal-bottom">Đóng</button>
-        </div>
       </div>
     </div>
   `;
@@ -358,7 +405,7 @@ export async function renderSettingsPage(onSaveComplete) {
     if (window.lucide) window.lucide.createIcons();
 
     // Teleport model selection modal to document.body to ensure 100% fullscreen backdrop-blur
-    const modelModal = document.getElementById('model-selection-modal');
+    const modelModal = document.getElementById('modal-overlay');
     if (modelModal) {
       document.body.appendChild(modelModal);
     }
@@ -440,49 +487,99 @@ export async function renderSettingsPage(onSaveComplete) {
       confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
     });
 
-    // 2. MODEL SELECTION POPUP MODAL (Teleported & full backdrop blur)
-    const openModelModal = () => modelModal?.classList.add('active');
-    const closeModelModal = () => modelModal?.classList.remove('active');
+    // 2. MODEL SELECTION POPUP MODAL LOGIC
+    let tempSelectedModelId = currentModelId;
+    const overlay = document.getElementById('modal-overlay');
+    const closeBtn = document.getElementById('close-modal-btn');
+    const applyBtn = document.getElementById('apply-btn');
+    const openBtn = document.getElementById('btn-open-model-modal');
 
-    document.getElementById('btn-open-model-modal')?.addEventListener('click', openModelModal);
-    document.getElementById('btn-close-model-modal')?.addEventListener('click', closeModelModal);
-    document.getElementById('btn-close-model-modal-bottom')?.addEventListener('click', closeModelModal);
-    modelModal?.addEventListener('click', (e) => {
-      if (e.target === modelModal) closeModelModal();
+    const updateModalSelectionUI = () => {
+      document.querySelectorAll('#model-list-container .model-card').forEach(card => {
+        const mId = card.getAttribute('data-model-id');
+        const radio = card.querySelector('input[type="radio"]');
+        if (mId === tempSelectedModelId) {
+          if (radio) radio.checked = true;
+          card.classList.add('is-selected');
+        } else {
+          if (radio) radio.checked = false;
+          card.classList.remove('is-selected');
+        }
+      });
+    };
+
+    openBtn?.addEventListener('click', () => {
+      tempSelectedModelId = currentModelId;
+      updateModalSelectionUI();
+      overlay?.classList.remove('hidden');
+      overlay?.classList.remove('overlay');
+      void overlay?.offsetWidth; 
+      overlay?.classList.add('overlay');
+    });
+
+    const closeModal = () => {
+      overlay?.classList.add('hidden');
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    overlay?.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    applyBtn?.addEventListener('click', async () => {
+      if (tempSelectedModelId) {
+        currentModelId = tempSelectedModelId;
+        await DataService.saveSetting('ninerouter_model', currentModelId);
+
+        const mObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId);
+        const dispEl = document.getElementById('disp-active-model-name');
+        const iconEl = document.getElementById('disp-active-model-icon');
+        if (mObj) {
+          if (dispEl) {
+            dispEl.innerHTML = `
+              <span class="v5-title font-semibold text-sm truncate" style="color: var(--fg);">${mObj.name.split(' (')[0]}</span>
+              ${mObj.name.includes('(') ? `<span class="v5-sub text-xs text-[var(--muted)] truncate flex-shrink-0">· ${mObj.name.split('(')[1].replace(')', '')}</span>` : ''}
+            `;
+          }
+          if (iconEl) {
+            iconEl.innerHTML = renderProviderIcon(mObj.id);
+          }
+        }
+
+        // Tự động tắt công tắc Phân tích hình ảnh nếu người dùng chọn Model thuần Văn bản (Text-only)
+        if (!isVisionModel(currentModelId)) {
+          const imageToggle = document.getElementById('toggle-image-analysis');
+          if (imageToggle && imageToggle.classList.contains('active')) {
+            imageToggle.classList.remove('active');
+            await DataService.saveSetting('ai_image_analysis', false);
+
+            await Modal.warning({
+              title: 'Tự Động Tắt Phân Tích Ảnh',
+              message: `Bạn vừa chuyển sang **"${mObj ? mObj.name.split(' (')[0] : currentModelId}"** (model thuần Văn bản).\n\nHệ thống đã tự động **tắt** công tắc Phân tích hình ảnh.`,
+              confirmText: 'Đã Hiểu'
+            });
+          }
+        }
+      }
+      closeModal();
     });
 
     // Model Search Filtering inside Popup
     document.getElementById('model-search-input')?.addEventListener('input', (e) => {
       const q = e.target.value.toLowerCase().trim();
-      document.querySelectorAll('#model-list-container .model-select-item').forEach(item => {
+      document.querySelectorAll('#model-list-container .model-card').forEach(item => {
         const text = item.textContent.toLowerCase();
         item.style.display = text.includes(q) ? 'flex' : 'none';
       });
     });
 
-    // Model item click handler inside Popup
-    document.querySelectorAll('#model-list-container .model-select-item').forEach(item => {
-      item.addEventListener('click', async () => {
-        const mId = item.getAttribute('data-model-id');
+    // Model Card click handler inside Popup
+    document.querySelectorAll('#model-list-container .model-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const mId = card.getAttribute('data-model-id');
         if (mId) {
-          currentModelId = mId;
-          await DataService.saveSetting('ninerouter_model', currentModelId);
-
-          const mObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId);
-          const dispEl = document.getElementById('disp-active-model-name');
-          if (dispEl && mObj) {
-            dispEl.innerHTML = `<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> ${mObj.name}`;
-          }
-
-          // Update active border styles in popup list
-          document.querySelectorAll('#model-list-container .model-select-item').forEach(el => {
-            el.style.borderColor = 'rgba(124, 58, 237, 0.14)';
-            el.classList.remove('bg-[var(--primary-soft)]', 'font-bold');
-          });
-          item.style.borderColor = 'var(--primary)';
-          item.classList.add('bg-[var(--primary-soft)]', 'font-bold');
-
-          closeModelModal();
+          tempSelectedModelId = mId;
+          updateModalSelectionUI();
         }
       });
     });
@@ -506,9 +603,30 @@ export async function renderSettingsPage(onSaveComplete) {
       }
     });
 
-    // Image analysis toggle
-    document.getElementById('toggle-image-analysis')?.addEventListener('click', function() {
-      this.classList.toggle('active');
+    // Image analysis toggle logic with Vision check & Modal component warning
+    const imageAnalysisToggle = document.getElementById('toggle-image-analysis');
+    imageAnalysisToggle?.addEventListener('click', async function() {
+      const isTurningOn = !this.classList.contains('active');
+
+      if (isTurningOn) {
+        if (!isVisionModel(currentModelId)) {
+          const mObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId);
+          const mName = mObj ? mObj.name.split(' (')[0] : currentModelId;
+
+          await Modal.warning({
+            title: 'Model Không Hỗ Trợ Vision!',
+            message: `Mô hình AI hiện tại **"${mName}"** là dòng AI chuyên xử lý Văn bản (Text / Code) nên không thể phân tích hình ảnh.\n\nVui lòng bấm nút **[Thay đổi]** ở phần Model AI để chọn các model có nhãn 📸 **Vision** (như **Gemini 3.6 Flash**, **Kimi 2.5** hoặc **Qwen 3.5 Plus**) trước khi bật tính năng này!`,
+            confirmText: 'Đã Hiểu'
+          });
+          return;
+        }
+
+        this.classList.add('active');
+        await DataService.saveSetting('ai_image_analysis', true);
+      } else {
+        this.classList.remove('active');
+        await DataService.saveSetting('ai_image_analysis', false);
+      }
     });
 
     // 4. ALLERGY TAGS INTERACTIVE LOGIC
