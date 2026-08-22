@@ -31,20 +31,45 @@ function getSavedTab() {
 let currentTab = getSavedTab();
 let prevTab = currentTab;
 
+import { renderLandingPage } from './components/LandingPage.js';
 import { showStreakOverlay } from './components/StreakOverlay.js';
+
+function restoreAppShell() {
+  const appContainer = document.getElementById('app');
+  if (appContainer && !document.getElementById('view-mount')) {
+    appContainer.innerHTML = `
+      <header id="navbar-mount"></header>
+      <main class="main-container">
+        <div id="view-mount" class="content-area"></div>
+      </main>
+      <div id="modal-mount"></div>
+    `;
+  }
+}
 
 async function initApp() {
   await DataService.preloadAllData();
 
   const profile = await DataService.getUserProfile();
 
-  // Check if onboarding is needed
+  // If user is not onboarded, show Landing Page showcase first
   if (!profile.isOnboarded) {
-    renderOnboarding(async () => {
-      await refreshAllViews();
+    renderLandingPage({
+      onStartOnboarding: () => {
+        renderOnboarding(async () => {
+          restoreAppShell();
+          await initApp();
+        });
+      },
+      onLoginSuccess: async () => {
+        restoreAppShell();
+        await initApp();
+      }
     });
     return;
   }
+
+  restoreAppShell();
 
   // Ensure currentTab is persisted in localStorage & URL hash
   localStorage.setItem('active_tab', currentTab);

@@ -1180,6 +1180,14 @@ export const DataService = {
     return CONFIG.NINEROUTER_API_KEY || '';
   },
 
+  async getXkiroApiKey() {
+    return CONFIG.XKIRO_API_KEY || '';
+  },
+
+  async getXkiroBaseUrl() {
+    return CONFIG.XKIRO_BASE_URL || '';
+  },
+
   async getSelectedModel() {
     const model = await this.getSetting('ninerouter_model');
     return model || CONFIG.DEFAULT_MODEL;

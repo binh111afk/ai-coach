@@ -17,7 +17,9 @@ export function renderOnboarding(onComplete) {
     targetDays: 60,
     activityLevel: 'moderate',
     foodAllergies: 'Hải sản, Gluten',
-    preferredWorkoutTimes: ['Thứ 2, 4, 6 (18:00 - 19:00)']
+    preferredWorkoutTimes: ['Thứ 2, 4, 6 (18:00 - 19:00)'],
+    workoutType: 'home',
+    homeEquipment: ''
   };
 
   const selectedAllergies = new Set(['hải sản', 'gluten']);
@@ -25,6 +27,7 @@ export function renderOnboarding(onComplete) {
   let customWorkoutTimeInputVal = '';
   let currentStep = 1;
   let validationError = '';
+  let dismissedSafetyWarning = false;
 
   const headers = {
     1: { icon: 'user-plus', title: 'Thông Tin Cá Nhân', desc: 'Tự nhập chỉ số cá nhân. AI sẽ dựa vào đó để lập kế hoạch.' },
@@ -160,6 +163,31 @@ export function renderOnboarding(onComplete) {
 
       return `
         <div class="flex-1 space-y-5 mt-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+          <!-- Section 1: Location & Equipment -->
+          <div>
+            <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2 block">Địa Điểm & Dụng Cụ Tập Luyện</label>
+            <div class="grid grid-cols-2 gap-3 mb-2">
+              <button type="button" id="btn-workout-loc-gym" class="chip w-full justify-center !py-3.5 ${formData.workoutType === 'gym' ? 'active' : ''}">
+                <i data-lucide="building-2" class="w-4 h-4"></i> Phòng Gym
+              </button>
+              <button type="button" id="btn-workout-loc-home" class="chip w-full justify-center !py-3.5 ${formData.workoutType === 'home' ? 'active' : ''}">
+                <i data-lucide="home" class="w-4 h-4"></i> Tập Tại Nhà
+              </button>
+            </div>
+
+            <!-- Home Equipment Input with Smooth Expand Animation -->
+            <div id="home-equipment-container" class="transition-all duration-300 overflow-hidden ${formData.workoutType === 'home' ? 'max-h-40 opacity-100 mt-2 mb-3' : 'max-h-0 opacity-0 pointer-events-none mb-0'}">
+              <div class="p-3 bg-[#F5F3FF] border border-[#EDE9FE] rounded-2xl space-y-2">
+                <label class="text-xs font-bold text-[#7C3AED] flex items-center gap-1.5">
+                  <i data-lucide="wrench" class="w-4 h-4"></i> Dụng cụ tập sẵn có tại nhà:
+                </label>
+                <input type="text" id="ob-input-home-equipment" value="${formData.homeEquipment || ''}" placeholder="Ví dụ: Thảm yoga, Dây kháng lực, Tạ đơn 5kg..." class="ui-input text-xs sm:text-sm !py-2.5 bg-white">
+                <p class="text-[11px] text-purple-600 font-medium">💡 AI sẽ thiết kế các bài tập vừa sức và tối ưu cho dụng cụ bạn khai báo.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Dị ứng / Kiêng khem -->
           <div>
             <label class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2.5 block">Dị ứng / Kiêng khem</label>
             <div class="flex flex-wrap gap-2 mb-3">
@@ -182,6 +210,7 @@ export function renderOnboarding(onComplete) {
             </div>
           </div>
 
+          <!-- Section 3: Khung Giờ Tập -->
           <div>
             <div class="flex items-center justify-between mb-2">
               <label class="text-gray-500 text-xs font-bold uppercase tracking-wider block">Khung Giờ Tập</label>
@@ -264,6 +293,19 @@ export function renderOnboarding(onComplete) {
               <span class="font-bold text-gray-800">${targetD} ngày</span>
             </div>
 
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2 text-gray-500 flex-shrink-0"><i data-lucide="map-pin" class="w-4 h-4 text-[#7C3AED]"></i> Địa điểm & Dụng cụ</div>
+              <div class="font-bold text-gray-800 text-right text-xs">
+                ${formData.workoutType === 'gym'
+                  ? '<span class="flex items-center gap-1 text-[#7C3AED] justify-end"><i data-lucide="building-2" class="w-3.5 h-3.5"></i> Phòng Gym đầy đủ</span>'
+                  : `<div class="flex flex-col items-end">
+                       <span class="flex items-center gap-1 text-[#7C3AED] justify-end"><i data-lucide="home" class="w-3.5 h-3.5"></i> Tập Tại Nhà</span>
+                       <span class="text-[10px] text-gray-500 font-normal truncate max-w-[160px] sm:max-w-[200px] block">${formData.homeEquipment || 'Tay không (Bodyweight)'}</span>
+                     </div>`
+                }
+              </div>
+            </div>
+
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2 text-gray-500"><i data-lucide="dumbbell" class="w-4 h-4 text-[#7C3AED]"></i> Giờ tập</div>
               <span class="font-bold text-gray-800 text-right text-xs max-w-[180px] sm:max-w-[210px] truncate">${formData.preferredWorkoutTimes.join(', ') || 'Chưa chọn'}</span>
@@ -282,15 +324,42 @@ export function renderOnboarding(onComplete) {
 
           <!-- Safety Rate Warning (if too fast) -->
           ${isTooFast ? `
-            <div class="bg-red-50 border border-red-200 p-3.5 rounded-2xl text-xs text-red-800 space-y-1.5">
-              <div class="font-bold flex items-center gap-1.5 text-red-600 text-sm">
-                <i data-lucide="alert-triangle" class="w-4 h-4"></i> Nhắc Nhở An Toàn Sức Khỏe AI
+            <div class="glass-card p-4 sm:p-5 rounded-3xl relative overflow-hidden my-2.5">
+              <!-- Quầng sáng nền -->
+              <div class="absolute -top-10 -right-10 w-36 h-36 bg-fuchsia-200 rounded-full filter blur-[50px] opacity-60 pointer-events-none"></div>
+              
+              <div class="relative z-10 space-y-3">
+                <!-- Phần Header -->
+                <div class="flex items-start gap-3">
+                  <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#D946EF] to-[#EC4899] flex items-center justify-center shadow-md shadow-pink-200 flex-shrink-0">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 text-white"></i>
+                  </div>
+                  <div>
+                    <h3 class="display text-base font-bold text-gray-900 leading-tight">Nhắc Nhở An Toàn Sức Khỏe AI</h3>
+                    <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Mục tiêu giảm <span class="font-bold text-gray-800">${diffKg.toFixed(1)} kg trong ${targetD} ngày</span> là khá nhanh, dễ gây mệt mỏi cho cơ thể.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Gợi ý của AI -->
+                <div class="bg-gradient-to-r from-[#F5F3FF] to-[#FCE7F3] p-3 rounded-2xl border border-purple-100 flex items-center gap-2.5">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-[#7C3AED] flex-shrink-0"></i>
+                  <p class="text-xs font-medium text-gray-700">
+                    Khuyến nghị: <span class="font-bold text-[#7C3AED]">${recommendedDays} ngày</span> để giảm an toàn (tốc độ ~0.5kg/tuần).
+                  </p>
+                </div>
+
+                <!-- Các nút bấm -->
+                <div class="flex gap-2 pt-1">
+                  <button type="button" id="btn-keep-original-days" class="flex-1 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-xs hover:bg-gray-50 transition flex items-center justify-center gap-1">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i> Giữ nguyên ${targetD} ngày
+                  </button>
+                  <button type="button" id="btn-apply-recommended-days" class="flex-1 btn-gradient py-2.5 rounded-2xl text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md">
+                    Áp dụng ${recommendedDays} ngày <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
               </div>
-              <p>Mục tiêu giảm <b>${diffKg.toFixed(1)} kg</b> trong <b>${targetD} ngày</b> là khá nhanh, dễ mệt mỏi!</p>
-              <p>💡 <b>Khuyên dùng: ${recommendedDays} ngày</b> (để giảm an toàn ~0.5kg/tuần).</p>
-              <button type="button" id="btn-apply-recommended-days" class="w-full py-2 bg-white border border-red-300 text-red-600 font-bold rounded-xl hover:bg-red-100 transition shadow-xs mt-1">
-                ⚡ Áp dụng ngay ${recommendedDays} ngày
-              </button>
             </div>
           ` : ''}
 
@@ -353,6 +422,14 @@ export function renderOnboarding(onComplete) {
         }
         .display { font-family: 'Fraunces', serif; }
         
+        .glass-card {
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(244, 114, 182, 0.35);
+          box-shadow: 0 15px 35px -10px rgba(124, 58, 237, 0.12);
+        }
+        
         .btn-gradient {
           background: linear-gradient(135deg, var(--primary), var(--accent));
           box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.4);
@@ -393,16 +470,38 @@ export function renderOnboarding(onComplete) {
 
         .onboarding-overlay {
           position: fixed; inset: 0;
-          background: rgba(15, 23, 42, 0.65);
-          backdrop-filter: blur(8px);
+          background-color: #F4F4F8;
+          background-image: 
+            linear-gradient(rgba(124, 58, 237, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(124, 58, 237, 0.05) 1px, transparent 1px);
+          background-size: 32px 32px;
           z-index: 999999;
           display: flex; align-items: center; justify-content: center;
-          padding: 1rem; overflow-y: auto;
+          padding: 1rem; overflow-y: auto; overflow-x: hidden;
+        }
+
+        @keyframes floatOrb {
+          0%, 100% { transform: translate(0, 0); }
+          33% { transform: translate(40px, -50px); }
+          66% { transform: translate(-30px, 40px); }
+        }
+        .orb {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(80px);
+          animation: floatOrb 15s infinite ease-in-out;
+          opacity: 0.55;
+          pointer-events: none;
         }
       </style>
 
       <div class="onboarding-overlay" id="onboarding-modal">
-        <div class="bg-white p-5 sm:p-7 rounded-3xl shadow-2xl border border-gray-100/90 w-full max-w-md max-h-[90vh] flex flex-col my-auto transition-all overflow-visible relative">
+        <!-- Ambient background pastel orbs -->
+        <div class="orb w-96 h-96 bg-[#A78BFA] top-0 left-0"></div>
+        <div class="orb w-[500px] h-[500px] bg-[#F472B6] bottom-0 right-0" style="animation-delay: -5s;"></div>
+        <div class="orb w-80 h-80 bg-[#93C5FD] top-1/2 left-1/4" style="animation-delay: -10s;"></div>
+
+        <div class="bg-white/95 backdrop-blur-md p-5 sm:p-7 rounded-3xl shadow-2xl shadow-purple-500/10 border border-gray-100/90 w-full max-w-md max-h-[90vh] flex flex-col my-auto transition-all overflow-visible relative z-10">
           
           <!-- Step Progress -->
           <div class="flex gap-2 mb-5 flex-shrink-0">${stepBars}</div>
@@ -480,6 +579,21 @@ export function renderOnboarding(onComplete) {
       formData.targetDays = parseInt(e.target.value) || null;
     });
 
+    // Workout Location toggles
+    document.getElementById('btn-workout-loc-gym')?.addEventListener('click', () => {
+      formData.workoutType = 'gym';
+      render();
+    });
+    document.getElementById('btn-workout-loc-home')?.addEventListener('click', () => {
+      formData.workoutType = 'home';
+      render();
+    });
+
+    // Home Equipment input sync
+    document.getElementById('ob-input-home-equipment')?.addEventListener('input', (e) => {
+      formData.homeEquipment = e.target.value;
+    });
+
     // Allergy chips
     document.querySelectorAll('.btn-allergy-preset').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -548,13 +662,19 @@ export function renderOnboarding(onComplete) {
       openAddWorkoutTimeModal();
     });
 
-    // Step 4 auto-apply safety recommendation
+    // Step 4 auto-apply & keep safety recommendation
     document.getElementById('btn-apply-recommended-days')?.addEventListener('click', () => {
       const currentW = formData.currentWeight || 70;
       const targetW = formData.targetWeight || 65;
       const diffKg = currentW - targetW;
       const recommendedDays = Math.max(30, Math.ceil((diffKg * 7700) / 500));
       formData.targetDays = recommendedDays;
+      dismissedSafetyWarning = false;
+      render();
+    });
+
+    document.getElementById('btn-keep-original-days')?.addEventListener('click', () => {
+      dismissedSafetyWarning = true;
       render();
     });
 
@@ -695,7 +815,7 @@ export function renderOnboarding(onComplete) {
   }
 
   async function finishOnboarding() {
-    const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
+    const selectedModel = (await DataService.getSelectedModel()) || 'deepseek/deepseek-v4-pro';
 
     const targetDays = formData.targetDays || 60;
     const currentWeight = formData.currentWeight || 70;
@@ -797,7 +917,7 @@ export function renderOnboarding(onComplete) {
           100% { background-position: 200% 0; }
         }
         .shimmer-bar-light {
-          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.8) 20%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.8) 80%, transparent 100%);
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.15) 80%, transparent 100%);
           background-size: 200% 100%;
           animation: shimmer-light 2s infinite linear;
         }
@@ -949,6 +1069,8 @@ export function renderOnboarding(onComplete) {
       profile.activityLevel = formData.activityLevel;
       profile.foodAllergies = formData.foodAllergies || '';
       profile.preferredWorkoutTimes = formData.preferredWorkoutTimes;
+      profile.workoutType = formData.workoutType || 'home';
+      profile.homeEquipment = formData.workoutType === 'home' ? (formData.homeEquipment || 'Tay không (Bodyweight)') : 'Dụng cụ Gym đầy đủ';
       profile.isOnboarded = true;
       await DataService.saveUserProfile(profile);
 
@@ -970,6 +1092,8 @@ export function renderOnboarding(onComplete) {
       goal.targetDays = formData.targetDays;
       goal.currentJourneyDay = 1;
       goal.preferredWorkoutTimes = formData.preferredWorkoutTimes;
+      goal.workoutType = profile.workoutType;
+      goal.homeEquipment = profile.homeEquipment;
       goal.journeyLevels = journeyGamification.levels;
       goal.journeyBadges = journeyGamification.badges;
       await DataService.saveUserGoal(goal);
@@ -995,15 +1119,15 @@ export function renderOnboarding(onComplete) {
 
       if (!weeklyMealPlan || !weeklyWorkoutRoutine) {
         weeklyMealPlan = generate7DayMealPlan(100000, today, profile.foodAllergies);
-        weeklyWorkoutRoutine = generate7DayWorkoutRoutine('home', 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg');
+        weeklyWorkoutRoutine = generate7DayWorkoutRoutine(profile.workoutType, profile.homeEquipment);
       }
 
       if (!journeyPhases || journeyPhases.length === 0) {
         journeyPhases = generateFullJourneyPhases(
           formData.targetDays,
           100000,
-          'home',
-          'Thảm yoga, Dây kháng lực, Tạ đơn 5kg',
+          profile.workoutType,
+          profile.homeEquipment,
           profile.foodAllergies || '',
           formData.preferredWorkoutTimes
         );
@@ -1040,8 +1164,8 @@ export function renderOnboarding(onComplete) {
       const plan = {
         id: 'current_plan',
         dailyBudgetVnd: 100000,
-        workoutType: 'home',
-        homeEquipment: 'Thảm yoga, Dây kháng lực, Tạ đơn 5kg',
+        workoutType: profile.workoutType,
+        homeEquipment: profile.homeEquipment,
         createdAt: today,
         targetDays: formData.targetDays,
         preferredWorkoutTimes: formData.preferredWorkoutTimes,

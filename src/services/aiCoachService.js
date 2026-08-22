@@ -345,126 +345,136 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
   /**
    * Send message to 9router AI API directly on local or configured base URL
    */
+  /**
+   * Send message to AI (9Router primary, XKiro fallback, Smart Local Parser last fallback)
+   */
   async sendMessage(userMessage, conversationHistory = [], attachments = []) {
-    const apiKey = await DataService.getNinerouterApiKey();
+    const ninerouterKey = await DataService.getNinerouterApiKey();
+    const xkiroKey = await DataService.getXkiroApiKey();
     const selectedModel = await DataService.getSelectedModel();
 
-    // Fallback to Smart Local Parser if API Key is missing in .env
-    if (!apiKey) {
-      console.warn("9router API key missing in .env. Using Smart Local Parser Fallback.");
-      return await this.smartLocalFallback(userMessage, attachments);
+    const systemPrompt = await this.getSystemPrompt();
+    const messagesPayload = [
+      { role: "system", content: systemPrompt }
+    ];
+
+    conversationHistory.forEach(m => {
+      messagesPayload.push({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.content
+      });
+    });
+
+    const lastMsg = conversationHistory[conversationHistory.length - 1];
+    if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== userMessage) {
+      messagesPayload.push({ role: "user", content: userMessage });
     }
 
-    try {
-      const systemPrompt = await this.getSystemPrompt();
-      const messagesPayload = [
-        { role: "system", content: systemPrompt }
-      ];
-
-      conversationHistory.forEach(m => {
-        messagesPayload.push({
-          role: m.role === 'user' ? 'user' : 'assistant',
-          content: m.content
+    // Helper to send request to OpenAI-compatible endpoint
+    const tryApiCall = async (endpoint, apiKey, providerName, targetModel) => {
+      if (!apiKey || !endpoint) return null;
+      let finalEndpoint = endpoint;
+      if (!finalEndpoint.includes('/chat/completions')) {
+        finalEndpoint = finalEndpoint.replace(/\/+$/, '') + '/chat/completions';
+      }
+      const modelToUse = targetModel || selectedModel || CONFIG.DEFAULT_MODEL;
+      console.log(`📡 [${providerName}] Sending chat request (${finalEndpoint}) with model ${modelToUse}...`);
+      try {
+        const response = await fetch(finalEndpoint, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "HTTP-Referer": typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai',
+            "X-Title": CONFIG.APP_NAME,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: messagesPayload,
+            stream: false,
+            temperature: 0.7,
+            max_tokens: 3500
+          })
         });
-      });
 
-      const lastMsg = conversationHistory[conversationHistory.length - 1];
-      if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== userMessage) {
-        messagesPayload.push({ role: "user", content: userMessage });
-      }
+        if (!response.ok) {
+          console.warn(`❌ [${providerName}] HTTP Error Status:`, response.status);
+          return null;
+        }
 
-      const endpoint = getApiEndpoint();
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "HTTP-Referer": window.location.origin,
-          "X-Title": CONFIG.APP_NAME,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: messagesPayload,
-          stream: false,
-          temperature: 0.7,
-          max_tokens: 3500
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `API Error Status ${response.status}`);
-      }
-
-      let aiContent = '';
-      const rawText = await response.text();
-      if (rawText.trim().startsWith('data:')) {
-        const lines = rawText.split('\n');
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          const chunk = line.slice(5).trim();
-          if (chunk === '[DONE]') break;
+        const rawText = await response.text();
+        let aiContent = '';
+        if (rawText.trim().startsWith('data:')) {
+          const lines = rawText.split('\n');
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue;
+            const chunk = line.slice(5).trim();
+            if (chunk === '[DONE]') break;
+            try {
+              const chunkObj = JSON.parse(chunk);
+              aiContent += chunkObj.choices?.[0]?.delta?.content || chunkObj.choices?.[0]?.message?.content || '';
+            } catch { /* skip */ }
+          }
+        } else {
           try {
-            const chunkObj = JSON.parse(chunk);
-            aiContent += chunkObj.choices?.[0]?.delta?.content || chunkObj.choices?.[0]?.message?.content || '';
-          } catch { /* skip */ }
+            const data = JSON.parse(rawText);
+            aiContent = data.choices?.[0]?.message?.content || data.choices?.[0]?.delta?.content || '';
+          } catch {
+            aiContent = rawText;
+          }
         }
-      } else {
-        try {
-          const data = JSON.parse(rawText);
-          aiContent = data.choices?.[0]?.message?.content || data.choices?.[0]?.delta?.content || "Xin lỗi, tôi không thể xử lý câu trả lời lúc me này.";
-        } catch (e) {
-          console.warn('Raw response text parse warn:', e);
-          aiContent = rawText;
-        }
+        return aiContent ? aiContent : null;
+      } catch (err) {
+        console.warn(`❌ [${providerName}] fetch error:`, err.message);
+        return null;
       }
+    };
 
-      // Parse potential proposedChange JSON from AI text response (with intelligent fallback)
-      let { textResponse, proposedChange } = await this.extractProposedChange(aiContent, userMessage);
+    // 1. Try 9Router AI (default: gemini/gemini-3.7-flash)
+    const ninerouterModel = selectedModel || CONFIG.NINEROUTER_MODEL || 'gemini/gemini-3.7-flash';
+    let aiContent = await tryApiCall(getApiEndpoint(), ninerouterKey, '9Router AI', ninerouterModel);
 
-      // If user uploaded an actual image file, attach its exact Base64 dataUrl into photo proposedChange payload
-      const attachedImg = Array.isArray(attachments) ? attachments.find(f => f.dataUrl || f.url) : null;
-      if (attachedImg && proposedChange && (proposedChange.type === 'LOG_PROGRESS_PHOTO' || proposedChange.type === 'UPLOAD_PHOTO' || proposedChange.type === 'UPDATE_PHOTO_TAG')) {
-        proposedChange.payload = proposedChange.payload || {};
-        proposedChange.payload.photoUrl = attachedImg.dataUrl || attachedImg.url;
-      }
+    // 2. Fallback to XKiro AI if 9Router failed (default: deepseek/deepseek-v4-pro)
+    if (!aiContent) {
+      console.warn("⚠️ 9Router AI unavailable. Falling back to XKiro AI...");
+      const xkiroModel = CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
+      aiContent = await tryApiCall(CONFIG.XKIRO_BASE_URL, xkiroKey, 'XKiro AI', xkiroModel);
+    }
 
-      return {
-        role: "assistant",
-        content: textResponse,
-        proposedChange: proposedChange || null
-      };
-
-    } catch (err) {
-      console.error("9router API Error:", err);
+    // 3. If both failed, use Smart Local Fallback
+    if (!aiContent) {
+      console.warn("⚠️ Both 9Router and XKiro failed. Using Smart Local Parser Fallback.");
       const fallbackResult = await this.smartLocalFallback(userMessage, attachments);
-      fallbackResult.content = `*(Lưu ý: Không thể gọi 9router API [${err.message}]. Hệ thống chuyển sang AI Parser nội bộ)*\n\n` + fallbackResult.content;
+      fallbackResult.content = `*(Lưu ý: Không thể gọi AI API. Hệ thống chuyển sang AI Parser nội bộ)*\n\n` + fallbackResult.content;
       return fallbackResult;
     }
+
+    // Parse potential proposedChange JSON from AI text response
+    let { textResponse, proposedChange } = await this.extractProposedChange(aiContent, userMessage);
+
+    const attachedImg = Array.isArray(attachments) ? attachments.find(f => f.dataUrl || f.url) : null;
+    if (attachedImg && proposedChange && (proposedChange.type === 'LOG_PROGRESS_PHOTO' || proposedChange.type === 'UPLOAD_PHOTO' || proposedChange.type === 'UPDATE_PHOTO_TAG')) {
+      proposedChange.payload = proposedChange.payload || {};
+      proposedChange.payload.photoUrl = attachedImg.dataUrl || attachedImg.url;
+    }
+
+    return {
+      role: "assistant",
+      content: textResponse,
+      proposedChange: proposedChange || null
+    };
   },
 
   /**
-   * Generate full N-day journey plan (meal + workout) split into phases via 9router AI.
-   * Each phase = 28-day block (4 weeks). AI generates up to 4 phases in one call.
+   * Generate full N-day journey plan (meal + workout) split into phases via AI.
+   * Primary: 9Router AI | Fallback: XKiro AI | Last Fallback: Local Generator
    */
-  async generateFullJourneyPlan(profileData, goalData) {
+  async generateFullJourneyPlan(profileData, goalData, modelOverride = null) {
     const totalDays = goalData.totalJourneyDays || goalData.targetDays || 60;
     const numPhases = Math.min(4, Math.ceil(totalDays / 28));
+    const selectedModel = modelOverride || (await DataService.getSelectedModel()) || 'deepseek/deepseek-v4-pro';
 
-    console.log(`🚀 [AI Journey Plan] Starting: ${totalDays} days → ${numPhases} phases`);
-
-    const apiKey = await DataService.getNinerouterApiKey();
-    const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
-
-    console.log('🔑 [AI Journey Plan] Key exists:', !!apiKey, '| Model:', selectedModel);
-
-    if (!apiKey) {
-      console.warn('⚠️ 9router API Key missing. Switching to local generator.');
-      return null;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    console.log(`🚀 [AI Journey Plan] Starting: ${totalDays} days → ${numPhases} phases | Model: ${selectedModel}`);
 
     const phaseDescriptions = [
       'Phase 1 (Ngày 1-28): Giai đoạn Thích Nghi — calo thấp hơn target ~10%, bài tập nhẹ để cơ thể làm quen',
@@ -487,120 +497,142 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         ? profileData.preferredWorkoutTimes.join(', ')
         : '17:30 - 18:30 (Mặc định)';
 
-    const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.\nHãy sinh kế hoạch TOÀN BỘ hành trình ${totalDays} ngày gồm ${numPhases} giai đoạn (phase) cho người dùng:\n- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm\n- Cân nặng hiện tại: ${profileData.currentWeight}kg → mục tiêu: ${goalData.targetWeight}kg\n- Mục tiêu calo/ngày: ${calorieTarget} kcal\n- Macro: Protein ${proteinTarget}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g\n- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}${allergyRule}\n- Khung giờ tập luyện người dùng chọn: ${prefWorkoutTimesStr}\n\nYÊU CẦU TỪNG PHASE:\n${phaseDescriptions}\n\nQUY TẮC:\n1. Mỗi phase có weeklyMealPlan 7 ngày (day1→day7) với 4 bữa/ngày (Breakfast, Lunch, Dinner, Snack), NỘI DUNG KHÁC NHAU HOÀN TOÀN giữa các phase.\n2. Mỗi phase có weeklyWorkoutRoutine 7 bài (kể cả 1-2 ngày nghỉ phục hồi), khác nhau giữa các phase.\n3. Calo mỗi ngày phải gần đúng mục tiêu (±100 kcal).\n4. Thực đơn phải đa dạng, không lặp ngày giống nhau trong cùng 1 phase.\n5. Tên món ăn phải là tiếng Việt cụ thể và thực tế.\n6. TUYỆT ĐỐI không dùng thực phẩm bị kiêng/dị ứng: ${profileData.foodAllergies || 'Không có'}.\n7. Mỗi phase phải có dailyChecklist (5-7 việc cần làm mỗi ngày, phù hợp cường độ phase đó, cụ thể hoá với mục tiêu ${calorieTarget} kcal, ${proteinTarget}g protein, ${waterTarget}ml nước, né ${allergyDisplay}).\n8. Mỗi phase phải có dailySchedule là lịch trình mốc thời gian trong ngày. QUY TẮC BẮT BUỘC: Hoạt động tập luyện (category: "workout") BẮT BUỘC phải đặt mốc giờ khớp đúng với khung giờ người dùng đã chọn (${prefWorkoutTimesStr}), dạng array gồm { "time": "07:30", "activity": "Ten hoat dong", "category": "meal"|"workout"|"habit", "icon": "coffee"|"dumbbell"|"sun"|"moon"|"droplet"|"apple"|"utensils", "desc": "Mo ta chi tiet" }.\n\nTrả về ĐÚNG JSON object duy nhất:`;
+    const workoutTypeVal = goalData.workoutType || profileData.workoutType || 'home';
+    const homeEquipVal = goalData.homeEquipment || profileData.homeEquipment || 'Tay không (Bodyweight)';
+    const workoutLocationStr = workoutTypeVal === 'gym'
+      ? 'Tập ở phòng Gym chuyên nghiệp (đầy đủ máy móc, tạ đơn, tạ đòn, khung gánh, cáp kéo...)'
+      : `Tập tại nhà (Home Workout). Dụng cụ tập hiện có: ${homeEquipVal}`;
 
-    try {
-      const endpoint = getApiEndpoint();
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': CONFIG.APP_NAME,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-          max_tokens: 6000
-        })
-      });
-      clearTimeout(timeoutId);
+    const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.\nHãy sinh kế hoạch TOÀN BỘ hành trình ${totalDays} ngày gồm ${numPhases} giai đoạn (phase) cho người dùng:\n- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm\n- Cân nặng hiện tại: ${profileData.currentWeight}kg → mục tiêu: ${goalData.targetWeight}kg\n- Mục tiêu calo/ngày: ${calorieTarget} kcal\n- Macro: Protein ${proteinTarget}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g\n- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}${allergyRule}\n- Địa điểm & Dụng cụ tập luyện: ${workoutLocationStr}\n- Khung giờ tập luyện người dùng chọn: ${prefWorkoutTimesStr}\n\nYÊU CẦU TỪNG PHASE:\n${phaseDescriptions}\n\nQUY TẮC:\n1. Mỗi phase có weeklyMealPlan 7 ngày (day1→day7) với 4 bữa/ngày (Breakfast, Lunch, Dinner, Snack), NỘI DUNG KHÁC NHAU HOÀN TOÀN giữa các phase.\n2. Mỗi phase có weeklyWorkoutRoutine 7 bài (kể cả 1-2 ngày nghỉ phục hồi), khác nhau giữa các phase.\n3. BÀI TẬP BẮT BUỘC PHẢI PHÙ HỢP VỚI ĐỊA ĐIỂM VÀ DỤNG CỤ TẬP (${workoutLocationStr}). Nếu là Tập Tại Nhà, CHỈ ĐỀ XUẤT bài tập Bodyweight hoặc bài tập đúng với dụng cụ người dùng có!\n4. Calo mỗi ngày phải gần đúng mục tiêu (±100 kcal).\n5. Thực đơn phải đa dạng, không lặp ngày giống nhau trong cùng 1 phase.\n6. Tên món ăn phải là tiếng Việt cụ thể và thực tế.\n7. TUYỆT ĐỐI không dùng thực phẩm bị kiêng/dị ứng: ${profileData.foodAllergies || 'Không có'}.\n8. Mỗi phase phải có dailyChecklist (5-7 việc cần làm mỗi ngày, phù hợp cường độ phase đó, cụ thể hoá với mục tiêu ${calorieTarget} kcal, ${proteinTarget}g protein, ${waterTarget}ml nước, né ${allergyDisplay}).\n9. Mỗi phase phải có dailySchedule là lịch trình mốc thời gian trong ngày. QUY TẮC BẮT BUỘC: Hoạt động tập luyện (category: "workout") BẮT BUỘC phải đặt mốc giờ khớp đúng với khung giờ người dùng đã chọn (${prefWorkoutTimesStr}), dạng array gồm { "time": "07:30", "activity": "Ten hoat dong", "category": "meal"|"workout"|"habit", "icon": "coffee"|"dumbbell"|"sun"|"moon"|"droplet"|"apple"|"utensils", "desc": "Mo ta chi tiet" }.\n\nTrả về ĐÚNG JSON object duy nhất:`;
 
-      if (!response.ok) {
-        console.warn('❌ [AI Journey Plan] API error:', response.status);
-        return null;
+    const callApiForPlan = async (baseUrl, apiKey, providerName, targetModel) => {
+      if (!apiKey || !baseUrl) return null;
+      let endpoint = baseUrl;
+      if (!endpoint.includes('/chat/completions')) {
+        endpoint = endpoint.replace(/\/+$/, '') + '/chat/completions';
       }
+      const modelToUse = targetModel || selectedModel || CONFIG.DEFAULT_MODEL;
+      console.log(`📡 [AI Journey Plan] Trying ${providerName} (${endpoint}) with model ${modelToUse}...`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      // Handle both plain JSON and SSE streaming ("data: {...}" lines)
-      let content = '';
-      const rawText = await response.text();
-      if (rawText.trim().startsWith('data:')) {
-        // SSE format: aggregate all data lines
-        const lines = rawText.split('\n');
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          const chunk = line.slice(5).trim();
-          if (chunk === '[DONE]') break;
-          try {
-            const chunkObj = JSON.parse(chunk);
-            content += chunkObj.choices?.[0]?.delta?.content || chunkObj.choices?.[0]?.message?.content || '';
-          } catch { /* skip malformed chunks */ }
-        }
-      } else {
-        // Plain JSON format
-        try {
-          const data = JSON.parse(rawText);
-          content = data.choices?.[0]?.message?.content || '';
-        } catch {
-          console.warn('⚠️ [AI Journey Plan] Could not parse API response as JSON:', rawText.slice(0, 200));
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai',
+            'X-Title': CONFIG.APP_NAME,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.7,
+            max_tokens: 6000
+          })
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          console.warn(`❌ [AI Journey Plan] ${providerName} status error:`, response.status);
           return null;
         }
-      }
 
-      const jsonMatch = content.match(/```(?:json|JSON)?\s*([\s\S]*?)\s*```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : content.match(/\{[\s\S]*\}/)?.[0];
+        let content = '';
+        const rawText = await response.text();
+        if (rawText.trim().startsWith('data:')) {
+          const lines = rawText.split('\n');
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue;
+            const chunk = line.slice(5).trim();
+            if (chunk === '[DONE]') break;
+            try {
+              const chunkObj = JSON.parse(chunk);
+              content += chunkObj.choices?.[0]?.delta?.content || chunkObj.choices?.[0]?.message?.content || '';
+            } catch { /* skip */ }
+          }
+        } else {
+          try {
+            const data = JSON.parse(rawText);
+            content = data.choices?.[0]?.message?.content || '';
+          } catch {
+            return null;
+          }
+        }
 
-      if (!jsonStr) {
-        console.warn('⚠️ [AI Journey Plan] No JSON in response');
+        const jsonMatch = content.match(/```(?:json|JSON)?\s*([\s\S]*?)\s*```/);
+        const jsonStr = jsonMatch ? jsonMatch[1] : content.match(/\{[\s\S]*\}/)?.[0];
+        if (!jsonStr) return null;
+
+        const parsed = JSON.parse(jsonStr);
+        if (parsed && Array.isArray(parsed.journeyPhases) && parsed.journeyPhases.length > 0) {
+          console.log(`✅ [AI Journey Plan] Successfully generated plan via ${providerName}!`);
+          return parsed;
+        }
+        return null;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.warn(`❌ [AI Journey Plan] ${providerName} error:`, err.message);
         return null;
       }
+    };
 
-      const parsed = JSON.parse(jsonStr);
-      const phases = parsed.journeyPhases;
+    // 1. Primary: Try 9Router AI (default model: gemini/gemini-3.7-flash)
+    const ninerouterPlanModel = modelOverride || (await DataService.getSelectedModel()) || CONFIG.NINEROUTER_MODEL || 'gemini/gemini-3.7-flash';
+    let parsed = await callApiForPlan(getApiEndpoint(), CONFIG.NINEROUTER_API_KEY, '9Router AI', ninerouterPlanModel);
 
-      if (!Array.isArray(phases) || phases.length === 0) {
-        console.warn('⚠️ [AI Journey Plan] journeyPhases missing or empty');
-        return null;
-      }
+    // 2. Fallback: Try XKiro AI if 9Router failed (default model: deepseek/deepseek-v4-pro)
+    if (!parsed) {
+      console.warn('⚠️ [AI Journey Plan] 9Router AI failed or unavailable. Switching to XKiro AI fallback...');
+      const xkiroPlanModel = CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
+      parsed = await callApiForPlan(CONFIG.XKIRO_BASE_URL, CONFIG.XKIRO_API_KEY, 'XKiro AI', xkiroPlanModel);
+    }
 
-      // Normalize the weeklyMealPlan keys to day1..day7 and validate meals structure
-      const normalizedPhases = phases.map(phase => {
-        const mealPlan = phase.weeklyMealPlan || {};
-        const dayKeys = Object.keys(mealPlan).sort();
-        const normalizedMealPlan = {};
-        dayKeys.forEach((key, idx) => {
-          normalizedMealPlan[`day${idx + 1}`] = mealPlan[key];
-        });
-        return { ...phase, weeklyMealPlan: normalizedMealPlan };
-      });
-
-      // Use the first phase as the current weeklyMealPlan (backward compat) — convert day1..day7 to dateKeys
-      const firstPhase = normalizedPhases[0];
-      const today = new Date().toISOString().split('T')[0];
-      const dateKeyedMealPlan = {};
-      const dayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
-      Object.values(firstPhase.weeklyMealPlan).forEach((dayData, idx) => {
-        const d = new Date(today);
-        d.setDate(d.getDate() + idx);
-        const dateStr = d.toISOString().split('T')[0];
-        const dayName = dayLabels[idx];
-        dateKeyedMealPlan[dateStr] = {
-          date: dateStr,
-          dayName: dayData.dayName || dayName,
-          formattedDate: new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d),
-          breakfast: dayData.breakfast || null,
-          lunch: dayData.lunch || null,
-          dinner: dayData.dinner || null,
-          snack: dayData.snack || null
-        };
-      });
-
-      console.log(`✅ [AI Journey Plan] Generated ${normalizedPhases.length} phases for ${totalDays} days.`);
-      return {
-        weeklyMealPlan: dateKeyedMealPlan,
-        weeklyWorkoutRoutine: firstPhase.weeklyWorkoutRoutine || [],
-        dailySchedule: firstPhase.dailySchedule || null,
-        journeyPhases: normalizedPhases
-      };
-
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.warn('❌ [AI Journey Plan] Error:', err.message);
+    // 3. If both failed, return null to trigger smart local fallback
+    if (!parsed) {
+      console.warn('⚠️ [AI Journey Plan] Both 9Router and XKiro AI failed. Switching to local plan generator fallback.');
       return null;
     }
+
+    const phases = parsed.journeyPhases;
+    const normalizedPhases = phases.map(phase => {
+      const mealPlan = phase.weeklyMealPlan || {};
+      const dayKeys = Object.keys(mealPlan).sort();
+      const normalizedMealPlan = {};
+      dayKeys.forEach((key, idx) => {
+        normalizedMealPlan[`day${idx + 1}`] = mealPlan[key];
+      });
+      return { ...phase, weeklyMealPlan: normalizedMealPlan };
+    });
+
+    const firstPhase = normalizedPhases[0];
+    const today = new Date().toISOString().split('T')[0];
+    const dateKeyedMealPlan = {};
+    const dayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    Object.values(firstPhase.weeklyMealPlan).forEach((dayData, idx) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + idx);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayName = dayLabels[idx];
+      dateKeyedMealPlan[dateStr] = {
+        date: dateStr,
+        dayName: dayData.dayName || dayName,
+        formattedDate: new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d),
+        breakfast: dayData.breakfast || null,
+        lunch: dayData.lunch || null,
+        dinner: dayData.dinner || null,
+        snack: dayData.snack || null
+      };
+    });
+
+    return {
+      weeklyMealPlan: dateKeyedMealPlan,
+      weeklyWorkoutRoutine: firstPhase.weeklyWorkoutRoutine || [],
+      dailySchedule: firstPhase.dailySchedule || null,
+      journeyPhases: normalizedPhases
+    };
   },
 
   /**
