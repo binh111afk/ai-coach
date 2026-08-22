@@ -318,21 +318,15 @@ export function renderAuthPage({ initialView = 'loginView', onStartOnboarding, o
             <p class="text-gray-500 text-sm mb-7">Đăng nhập để tiếp tục hành trình hình thể cùng AI Coach.</p>
 
             <form id="form-login" class="space-y-4">
-              <!-- Helper Demo Account Badge -->
-              <div class="p-2.5 rounded-xl bg-purple-50 border border-purple-100 text-xs font-medium text-purple-900 flex items-center gap-2 mb-3 shadow-2xs">
-                <i data-lucide="key" class="w-4 h-4 text-[#7C3AED] flex-shrink-0"></i>
-                <span>Tài khoản dùng thử: <b class="text-[#7C3AED]">admin</b> | Mật khẩu: <b class="text-[#7C3AED]">1234</b></span>
-              </div>
-
               <!-- Input Account / Email -->
               <div class="relative">
                 <i data-lucide="user" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="text" id="login-email" required placeholder="Tài khoản hoặc Email" value="admin" class="auth-ui-input">
+                <input type="text" id="login-email" required placeholder="Tài khoản hoặc Email" value="" class="auth-ui-input">
               </div>
               <!-- Input Password -->
               <div class="relative">
                 <i data-lucide="lock" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="password" id="login-password" required placeholder="Mật khẩu" value="1234" class="auth-ui-input pr-12">
+                <input type="password" id="login-password" required placeholder="Mật khẩu" value="" class="auth-ui-input pr-12">
                 <button type="button" id="btn-toggle-login-pwd" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1">
                   <i data-lucide="eye-off" id="icon-login-pwd" class="w-5 h-5"></i>
                 </button>
