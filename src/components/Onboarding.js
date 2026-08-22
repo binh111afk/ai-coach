@@ -5,7 +5,24 @@ import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import confetti from 'canvas-confetti';
 
 export function renderOnboarding(onComplete) {
-  const mountNode = document.getElementById('modal-mount');
+  document.body.removeAttribute('style');
+  document.documentElement.removeAttribute('style');
+  document.body.classList.remove('lp-active');
+
+  let mountNode = document.getElementById('modal-mount');
+  if (!mountNode) {
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+      appContainer.innerHTML = `
+        <header id="navbar-mount"></header>
+        <main class="main-container">
+          <div id="view-mount" class="content-area"></div>
+        </main>
+        <div id="modal-mount"></div>
+      `;
+      mountNode = document.getElementById('modal-mount');
+    }
+  }
   if (!mountNode) return;
 
   const formData = {

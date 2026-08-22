@@ -35,6 +35,9 @@ import { renderLandingPage } from './components/LandingPage.js';
 import { showStreakOverlay } from './components/StreakOverlay.js';
 
 function restoreAppShell() {
+  document.body.removeAttribute('style');
+  document.documentElement.removeAttribute('style');
+  document.body.classList.remove('lp-active');
   const appContainer = document.getElementById('app');
   if (appContainer && !document.getElementById('view-mount')) {
     appContainer.innerHTML = `
@@ -56,14 +59,24 @@ async function initApp() {
   if (!profile.isOnboarded) {
     renderLandingPage({
       onStartOnboarding: () => {
+        restoreAppShell();
         renderOnboarding(async () => {
           restoreAppShell();
           await initApp();
         });
       },
       onLoginSuccess: async () => {
-        restoreAppShell();
-        await initApp();
+        const p = await DataService.getUserProfile();
+        if (!p.isOnboarded) {
+          restoreAppShell();
+          renderOnboarding(async () => {
+            restoreAppShell();
+            await initApp();
+          });
+        } else {
+          restoreAppShell();
+          await initApp();
+        }
       }
     });
     return;
