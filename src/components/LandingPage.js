@@ -682,8 +682,8 @@ function bindLandingPageEvents({ onStartOnboarding, onLoginSuccess }) {
       <div class="flex ${isAI ? 'justify-start' : 'justify-end'} animate-fade-in">
         <div class="flex gap-3 max-w-[88%] ${isAI ? 'flex-row' : 'flex-row-reverse'} items-start">
           ${isAI ? `
-            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex items-center justify-center shadow-md text-white flex-shrink-0">
-              <i data-lucide="sparkles" class="w-5 h-5"></i>
+            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img src="/nova-ai-logo.svg" class="w-10 h-10 object-contain drop-shadow-md" alt="Nova AI Avatar">
             </div>
           ` : `
             <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-fuchsia-500 text-white flex items-center justify-center font-serif text-xs font-bold shadow-md flex-shrink-0">

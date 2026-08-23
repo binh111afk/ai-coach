@@ -343,8 +343,8 @@ export async function renderMealTracker(onOpenAiCoach) {
             <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-[#D946EF]/20 blur-3xl"></div>
             <div class="absolute -left-8 -bottom-12 w-32 h-32 rounded-full bg-[#8B5CF6]/15 blur-3xl"></div>
             <div class="relative flex items-start gap-4">
-              <div class="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0">
-                <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+              <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center p-0.5 flex-shrink-0 shadow-sm border border-white/25 overflow-hidden">
+                <img src="/nova-ai-logo.svg" class="w-full h-full object-contain scale-110" alt="Nova AI Avatar">
               </div>
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-1">

@@ -58,8 +58,8 @@ export async function renderAiSummaryWidget(containerId = 'dashboard-ai-summary-
       <!-- Phần Header -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-white dark:bg-[#25213B] flex items-center justify-center shadow-md ai-core flex-shrink-0">
-            <i data-lucide="sparkles" class="w-5 h-5 text-[#7C3AED]"></i>
+          <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#25213B] flex items-center justify-center p-0.5 shadow-md border border-purple-100 dark:border-purple-900/50 flex-shrink-0 overflow-hidden">
+            <img src="/nova-ai-logo.svg" class="w-full h-full object-contain scale-110" alt="Nova AI Avatar">
           </div>
           <div>
             <p class="text-[10px] font-bold uppercase tracking-widest text-muted" style="color: var(--text-muted);">AI Coach</p>

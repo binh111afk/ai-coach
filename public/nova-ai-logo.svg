@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Left upper facet: white -> soft pink -->
+    <linearGradient id="leftFacet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="58%" stop-color="#F9EAF6"/>
+      <stop offset="100%" stop-color="#E94DB8"/>
+    </linearGradient>
+
+    <!-- Lower-left facet -->
+    <linearGradient id="magentaFacet" x1="0%" y1="45%" x2="100%" y2="55%">
+      <stop offset="0%" stop-color="#E000A8"/>
+      <stop offset="100%" stop-color="#A900D0"/>
+    </linearGradient>
+
+    <!-- Lower-right facet -->
+    <linearGradient id="blueFacet" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#168ED8"/>
+      <stop offset="100%" stop-color="#13B8F2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Upper white facet -->
+  <path
+    d="M256 136 L256 269 L376 322 Z"
+    fill="#FFFFFF"/>
+
+  <!-- Upper-left facet -->
+  <path
+    d="M256 136 L136 322 L256 269 Z"
+    fill="url(#leftFacet)"/>
+
+  <!-- Lower-left facet -->
+  <path
+    d="M136 322 L256 269 L256 376 Z"
+    fill="url(#magentaFacet)"/>
+
+  <!-- Lower-right facet -->
+  <path
+    d="M256 269 L376 322 L256 376 Z"
+    fill="url(#blueFacet)"/>
+</svg>

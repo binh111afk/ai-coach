@@ -207,8 +207,8 @@ function showThinkingIndicator() {
   thinkingDiv.className = 'flex items-start gap-2.5 mb-3';
 
   thinkingDiv.innerHTML = `
-    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex-shrink-0 flex items-center justify-center text-white shadow-sm">
-      <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+    <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-transparent border-none shadow-none" style="background: transparent !important;">
+      <img src="/nova-ai-logo.svg" class="w-10 h-10 object-contain drop-shadow-md" style="background: transparent !important;" alt="Nova AI Avatar">
     </div>
     <div class="msg-bubble" style="padding: 8px 14px; border-radius: 16px 16px 16px 4px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(217, 70, 239, 0.08)); border: 1.5px solid rgba(124, 58, 237, 0.18); max-width: fit-content;">
       <div class="thinking-content">
@@ -247,8 +247,8 @@ async function refreshChatMessages(onStateUpdated) {
 
     container.innerHTML = `
       <div class="flex items-start gap-2.5 my-auto">
-        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex-shrink-0 flex items-center justify-center mt-1 text-white shadow-sm">
-          <i data-lucide="bot" class="w-4 h-4"></i>
+        <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 overflow-hidden">
+          <img src="/nova-ai-logo.svg" class="w-10 h-10 object-contain drop-shadow-md" alt="Nova AI Avatar">
         </div>
         <div class="ai-bubble rounded-2xl rounded-tl-sm p-3.5 max-w-[88%] shadow-sm">
           <p class="text-sm leading-relaxed mb-3" style="color: var(--text-main);">
@@ -305,8 +305,8 @@ async function refreshChatMessages(onStateUpdated) {
     } else {
       return `
         <div class="flex items-start gap-2.5">
-          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#D946EF] flex-shrink-0 flex items-center justify-center mt-1 text-white shadow-sm">
-            <i data-lucide="bot" class="w-4 h-4"></i>
+          <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 overflow-hidden">
+            <img src="/nova-ai-logo.svg" class="w-10 h-10 object-contain drop-shadow-md" alt="Nova AI Avatar">
           </div>
           <div class="ai-bubble rounded-2xl rounded-tl-sm p-3.5 max-w-[88%] shadow-sm">
             <div class="chat-markdown-body text-sm leading-relaxed" style="line-height: 1.55;">${parseMarkdown(m.content)}</div>

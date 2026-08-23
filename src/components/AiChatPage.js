@@ -832,8 +832,8 @@ async function showPageThinkingIndicator(container, promptText = '', attachments
   thinkingDiv.id = 'page-ai-thinking';
   thinkingDiv.className = 'msg ai thinking';
   thinkingDiv.innerHTML = `
-    <div class="msg-avatar" style="background: transparent; border: none; box-shadow: none; display: flex; align-items: center; justify-content: center;">
-      ${renderProviderIcon(currentModelId)}
+    <div class="msg-avatar" style="background: transparent !important; border: none !important; box-shadow: none !important; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; padding: 0;">
+      <img src="/nova-ai-logo.svg" class="w-14 h-14 md:w-16 md:h-16 object-contain flex-shrink-0" style="background: transparent !important; border: none !important; filter: drop-shadow(0 4px 12px rgba(124, 58, 237, 0.25));" alt="Nova AI Avatar">
     </div>
     <div class="msg-bubble">
       <div class="thinking-content">
@@ -1045,8 +1045,8 @@ async function refreshMessages(container, sessionId, onStateUpdated, animateLast
       const isAnimatedTarget = animateLast && idx === lastIdx;
       return `
         <div class="msg ai slide-up">
-          <div class="msg-avatar" style="background: transparent; border: none; box-shadow: none; display: flex; align-items: center; justify-content: center;">
-            ${renderProviderIcon(msgModel)}
+          <div class="msg-avatar" style="background: transparent !important; border: none !important; box-shadow: none !important; width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; padding: 0;">
+            <img src="/nova-ai-logo.svg" class="w-14 h-14 md:w-16 md:h-16 object-contain flex-shrink-0" style="background: transparent !important; border: none !important; filter: drop-shadow(0 4px 12px rgba(124, 58, 237, 0.25));" alt="Nova AI Avatar">
           </div>
           <div style="flex: 1; max-width: 680px;">
             <div class="msg-bubble" id="${isAnimatedTarget ? 'page-typewrite-bubble' : ''}">
