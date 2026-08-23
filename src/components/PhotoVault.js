@@ -94,8 +94,8 @@ export async function renderPhotoVault() {
           }).join('')}
 
           <!-- Upload Placeholder -->
-          <div id="btn-placeholder-upload" class="border-2 border-dashed border-color rounded-2xl flex flex-col items-center justify-center aspect-[3/4] hover:bg-[var(--bg-subtle)] cursor-pointer transition group fade-up" style="border-color: var(--border-color); animation-delay: 0.35s">
-            <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition" style="background: rgba(124, 58, 237, 0.12); color: var(--accent-purple);">
+          <div id="btn-placeholder-upload" class="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center aspect-[3/4] hover:border-[var(--accent-purple)] cursor-pointer transition-all duration-300 group fade-up shadow-sm hover:shadow-md" style="background: var(--bg-card, #FFFFFF); border-color: var(--border-color); animation-delay: 0.35s">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition duration-300" style="background: rgba(124, 58, 237, 0.12); color: var(--accent-purple);">
               <i data-lucide="plus" class="w-6 h-6"></i>
             </div>
             <span class="text-xs font-semibold text-muted text-center px-4" style="color: var(--text-muted);">Upload ảnh mới</span>
