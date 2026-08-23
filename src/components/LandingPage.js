@@ -42,20 +42,33 @@ export function renderLandingPage({ onStartOnboarding, onLoginSuccess }) {
       }
 
       /* Buttons */
-      .lp-btn-gradient {
-        background: linear-gradient(135deg, var(--primary), var(--accent));
-        box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.4);
-        transition: all 0.3s;
+      .btn-v2, .lp-btn-gradient {
+        background: linear-gradient(135deg, #7C3AED, #D946EF);
+        color: white;
         position: relative;
         overflow: hidden;
+        transition: all 0.3s ease;
       }
-      .lp-btn-gradient:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -4px rgba(124, 58, 237, 0.5); }
-      .lp-btn-gradient::before {
-        content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-        transition: 0.6s;
+      /* Tia sáng chéo lướt qua */
+      .btn-v2::before, .lp-btn-gradient::before {
+        content: '';
+        position: absolute;
+        top: 0; 
+        left: -150%;
+        width: 50%; 
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+        transform: skewX(-20deg);
+        transition: left 0.6s ease;
       }
-      .lp-btn-gradient:hover::before { left: 100%; }
+      .btn-v2:hover::before, .lp-btn-gradient:hover::before { 
+        left: 150%;
+      }
+      /* Hiệu ứng nâng nhẹ & tỏa sáng */
+      .btn-v2:hover, .lp-btn-gradient:hover {
+        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15), 0 15px 30px -5px rgba(217, 70, 239, 0.5);
+        transform: translateY(-2px);
+      }
 
       .lp-btn-ghost {
         border: 1px solid rgba(124, 58, 237, 0.2);
@@ -494,7 +507,7 @@ export function renderLandingPage({ onStartOnboarding, onLoginSuccess }) {
         <div class="max-w-4xl mx-auto text-center relative z-10 lp-reveal">
           <h2 class="display text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-6">Sẵn Sàng Thay Đổi Vóc Dáng Của Bạn Ngay Hôm Nay?</h2>
           <p class="text-gray-500 text-base sm:text-lg mb-8">Khởi tạo kế hoạch chỉ trong 2 phút. Miễn phí trải nghiệm, không cần thẻ tín dụng.</p>
-          <button type="button" id="lp-bottom-cta-btn" class="lp-btn-gradient text-white font-bold px-8 sm:px-10 py-4 sm:py-5 rounded-2xl text-base sm:text-lg flex items-center gap-3 mx-auto shadow-xl">
+          <button type="button" id="lp-bottom-cta-btn" class="btn-v2 text-white font-bold px-8 sm:px-10 py-4 sm:py-5 rounded-2xl text-base sm:text-lg flex items-center gap-3 mx-auto shadow-xl">
             Tạo Tài Khoản & Bắt Đầu Ngay <i data-lucide="rocket" class="w-6 h-6"></i>
           </button>
         </div>
