@@ -370,10 +370,10 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       messagesPayload.push({ role: "user", content: userMessage });
     }
 
-    // Helper to send request to OpenAI-compatible endpoint
-    const tryApiCall = async (endpoint, apiKey, providerName, targetModel) => {
+    // Helper to send request to OpenAI-compatible endpoint or Vercel Serverless Proxy
+    const tryApiCall = async (endpoint, apiKey, providerName, targetModel, providerHint) => {
       if (!endpoint) return null;
-      // For Serverless proxy /api/chat, client-side API key is not required
+      // For Serverless proxy /api/chat, client-side API key is NOT required
       if (endpoint !== '/api/chat' && !apiKey) return null;
 
       let finalEndpoint = endpoint;
@@ -392,16 +392,21 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
           headers["X-Title"] = CONFIG.APP_NAME;
         }
 
+        const bodyData = {
+          model: modelToUse,
+          messages: messagesPayload,
+          stream: false,
+          temperature: 0.7,
+          max_tokens: 3500
+        };
+        if (providerHint) {
+          bodyData.provider = providerHint;
+        }
+
         const response = await fetch(finalEndpoint, {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            model: modelToUse,
-            messages: messagesPayload,
-            stream: false,
-            temperature: 0.7,
-            max_tokens: 3500
-          })
+          body: JSON.stringify(bodyData)
         });
 
         if (!response.ok) {
@@ -425,7 +430,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         } else {
           try {
             const data = JSON.parse(rawText);
-            aiContent = data.choices?.[0]?.message?.content || data.choices?.[0]?.delta?.content || '';
+            aiContent = data.choices?.[0]?.message?.content || data.choices?.[0]?.delta?.content || (typeof data === 'string' ? data : JSON.stringify(data));
           } catch {
             aiContent = rawText;
           }
@@ -437,15 +442,27 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       }
     };
 
-    // 1. Try 9Router AI (default: gemini/gemini-3.7-flash)
+    // 1. Try Vercel Serverless Proxy /api/chat with 9Router
     const ninerouterModel = selectedModel || CONFIG.NINEROUTER_MODEL || 'gemini/gemini-3.7-flash';
-    let aiContent = await tryApiCall(getApiEndpoint(), ninerouterKey, '9Router AI', ninerouterModel);
+    let aiContent = await tryApiCall('/api/chat', null, 'Vercel Proxy (9Router)', ninerouterModel, 'ninerouter');
 
-    // 2. Fallback to XKiro AI if 9Router failed (default: deepseek/deepseek-v4-pro)
+    // 2. Direct 9Router attempt if proxy not used or failed
+    if (!aiContent && ninerouterKey) {
+      aiContent = await tryApiCall(getApiEndpoint(), ninerouterKey, 'Direct 9Router AI', ninerouterModel);
+    }
+
+    // 3. Try Vercel Serverless Proxy /api/chat with XKiro
     if (!aiContent) {
-      console.warn("⚠️ 9Router AI unavailable. Falling back to XKiro AI...");
+      console.warn("⚠️ 9Router AI unavailable. Falling back to XKiro AI via Serverless Proxy...");
       const xkiroModel = CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
-      aiContent = await tryApiCall(CONFIG.XKIRO_BASE_URL, xkiroKey, 'XKiro AI', xkiroModel);
+      aiContent = await tryApiCall('/api/chat', null, 'Vercel Proxy (XKiro)', xkiroModel, 'xkiro');
+    }
+
+    // 4. Direct XKiro attempt if client key exists
+    if (!aiContent && xkiroKey) {
+      console.warn("⚠️ Falling back to Direct XKiro AI...");
+      const xkiroModel = CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
+      aiContent = await tryApiCall(CONFIG.XKIRO_BASE_URL, xkiroKey, 'Direct XKiro AI', xkiroModel);
     }
 
     // 3. If both failed, use Smart Local Fallback
