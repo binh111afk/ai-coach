@@ -2,16 +2,16 @@
 export const CONFIG = {
   APP_NAME: "FitCoach AI Tracker",
   VERSION: "1.0.0",
-  // 9Router AI API configuration read securely from .env
-  NINEROUTER_API_KEY: import.meta.env.VITE_NINEROUTER_API_KEY || "sk-f040bde5ab80cf9c-nut82e-f2995b77",
-  NINEROUTER_BASE_URL: import.meta.env.VITE_NINEROUTER_BASE_URL || "https://r7nnd8p.abc-tunnel.us/v1/chat/completions",
+  // 9Router AI API configuration read securely from .env (supports with or without VITE_ prefix)
+  NINEROUTER_API_KEY: import.meta.env.NINEROUTER_API_KEY || import.meta.env.VITE_NINEROUTER_API_KEY || "sk-f040bde5ab80cf9c-nut82e-f2995b77",
+  NINEROUTER_BASE_URL: import.meta.env.NINEROUTER_BASE_URL || import.meta.env.VITE_NINEROUTER_BASE_URL || "https://r7nnd8p.abc-tunnel.us/v1/chat/completions",
   
   // XKiro AI API configuration read securely from .env
-  XKIRO_API_KEY: import.meta.env.VITE_XKIRO_API_KEY || "sk-xt-b00e4223f69f814c9f97bb458b3f6c5b6a3a2485a8095166",
-  XKIRO_BASE_URL: import.meta.env.VITE_XKIRO_BASE_URL || "https://api.xkiro.com/v1/chat/completions",
-  NINEROUTER_MODEL: import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.7-flash",
-  XKIRO_MODEL: import.meta.env.VITE_XKIRO_MODEL || "deepseek/deepseek-v4-pro",
-  DEFAULT_MODEL: import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.7-flash",
+  XKIRO_API_KEY: import.meta.env.XKIRO_API_KEY || import.meta.env.VITE_XKIRO_API_KEY || "sk-xt-b00e4223f69f814c9f97bb458b3f6c5b6a3a2485a8095166",
+  XKIRO_BASE_URL: import.meta.env.XKIRO_BASE_URL || import.meta.env.VITE_XKIRO_BASE_URL || "https://api.xkiro.com/v1/chat/completions",
+  NINEROUTER_MODEL: import.meta.env.NINEROUTER_MODEL || import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.7-flash",
+  XKIRO_MODEL: import.meta.env.XKIRO_MODEL || import.meta.env.VITE_XKIRO_MODEL || "deepseek/deepseek-v4-pro",
+  DEFAULT_MODEL: import.meta.env.NINEROUTER_MODEL || import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.7-flash",
   SUPPORTED_MODELS: [
     // 1. Mistral AI
     { id: "mistralai/mistral-large-2512", name: "Mistral Large 2512 (Mistral AI)" },
