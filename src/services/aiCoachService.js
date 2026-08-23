@@ -454,14 +454,14 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
     // 3. Try Vercel Serverless Proxy /api/chat with XKiro
     if (!aiContent) {
       console.warn("⚠️ 9Router AI unavailable. Falling back to XKiro AI via Serverless Proxy...");
-      const xkiroModel = CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
+      const xkiroModel = selectedModel || CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
       aiContent = await tryApiCall('/api/chat', null, 'Vercel Proxy (XKiro)', xkiroModel, 'xkiro');
     }
 
     // 4. Direct XKiro attempt if client key exists
     if (!aiContent && xkiroKey) {
       console.warn("⚠️ Falling back to Direct XKiro AI...");
-      const xkiroModel = CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
+      const xkiroModel = selectedModel || CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
       aiContent = await tryApiCall(CONFIG.XKIRO_BASE_URL, xkiroKey, 'Direct XKiro AI', xkiroModel);
     }
 
