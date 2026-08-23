@@ -372,22 +372,29 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
     // Helper to send request to OpenAI-compatible endpoint
     const tryApiCall = async (endpoint, apiKey, providerName, targetModel) => {
-      if (!apiKey || !endpoint) return null;
+      if (!endpoint) return null;
+      // For Serverless proxy /api/chat, client-side API key is not required
+      if (endpoint !== '/api/chat' && !apiKey) return null;
+
       let finalEndpoint = endpoint;
-      if (!finalEndpoint.includes('/chat/completions')) {
+      if (finalEndpoint !== '/api/chat' && !finalEndpoint.includes('/chat/completions')) {
         finalEndpoint = finalEndpoint.replace(/\/+$/, '') + '/chat/completions';
       }
       const modelToUse = targetModel || selectedModel || CONFIG.DEFAULT_MODEL;
       console.log(`📡 [${providerName}] Sending chat request (${finalEndpoint}) with model ${modelToUse}...`);
       try {
+        const headers = {
+          "Content-Type": "application/json"
+        };
+        if (apiKey && finalEndpoint !== '/api/chat') {
+          headers["Authorization"] = `Bearer ${apiKey}`;
+          headers["HTTP-Referer"] = typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai';
+          headers["X-Title"] = CONFIG.APP_NAME;
+        }
+
         const response = await fetch(finalEndpoint, {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai',
-            "X-Title": CONFIG.APP_NAME,
-            "Content-Type": "application/json"
-          },
+          headers,
           body: JSON.stringify({
             model: modelToUse,
             messages: messagesPayload,

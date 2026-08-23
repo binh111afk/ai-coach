@@ -1,49 +1,46 @@
-// Vercel Serverless Function Proxy for AI Chat requests
 export default async function handler(req, res) {
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
-
+  // Handle CORS preflight if needed
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: { message: 'Method Not Allowed' } });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const apiKey = process.env.VITE_NINEROUTER_API_KEY || process.env.NINEROUTER_API_KEY || 'sk-f040bde5ab80cf9c-nut82e-f2995b77';
-    let baseUrl = process.env.VITE_NINEROUTER_BASE_URL || process.env.NINEROUTER_BASE_URL || 'https://openrouter.ai/api/v1/chat/completions';
+    const { messages, model, temperature, provider } = req.body || {};
 
-    // If configured URL is localhost, fallback to OpenRouter HTTPS for production Vercel
-    if (!baseUrl || baseUrl.includes('localhost')) {
-      baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    // Retrieve server-side hidden API Keys (fallback to VITE_ keys if testing locally)
+    let apiKey = process.env.NINEROUTER_API_KEY || process.env.VITE_NINEROUTER_API_KEY;
+    let baseUrl = process.env.NINEROUTER_BASE_URL || process.env.VITE_NINEROUTER_BASE_URL || 'https://r7nnd8p.abc-tunnel.us/v1/chat/completions';
+
+    if (provider === 'xkiro' || (model && (model.includes('deepseek') || model.includes('xkiro')))) {
+      apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY || apiKey;
+      baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
     }
 
-    const authHeader = req.headers.authorization || `Bearer ${apiKey}`;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Serverless Proxy Error: API Key is missing on Vercel environment variables.' });
+    }
 
-    const response = await fetch(baseUrl, {
+    const aiResponse = await fetch(baseUrl, {
       method: 'POST',
       headers: {
-        'Authorization': authHeader,
-        'HTTP-Referer': req.headers['http-referer'] || 'https://vercel.app',
-        'X-Title': 'FitCoach AI',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
       },
-      body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+      body: JSON.stringify({
+        model: model || 'gemini/gemini-3.7-flash',
+        messages: messages || [],
+        temperature: temperature ?? 0.7
+      })
     });
 
-    const data = await response.json();
-    return res.status(response.status).json(data);
-  } catch (err) {
-    console.error('API Proxy Error:', err);
-    return res.status(500).json({ error: { message: err.message || 'Serverless Proxy Error' } });
+    const data = await aiResponse.json();
+    return res.status(aiResponse.status).json(data);
+  } catch (error) {
+    console.error('Serverless proxy error:', error);
+    return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }
