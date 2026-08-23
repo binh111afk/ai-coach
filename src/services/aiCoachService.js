@@ -48,12 +48,16 @@ export const AiCoachService = {
 - Xưng "Tôi" và gọi người dùng là "Bạn". Đưa ra những lời khen ngợi chân thành, lời khuyên hào hứng và thúc đẩy tinh thần chiến binh!`;
     }
 
+    const currentJourneyDay = DataService.calculateCurrentJourneyDay ? DataService.calculateCurrentJourneyDay(goal.startDate) : (goal.currentJourneyDay || 1);
+    const totalJourneyDays = goal.totalJourneyDays || goal.targetDays || 60;
+
     return `Bạn là AI Coach - "Bộ não" cố vấn sức khỏe, giảm cân, tập luyện và dinh dưỡng thông minh hàng đầu.
 Nhiệm vụ của bạn là lắng nghe, hỗ trợ, phân tích thực đơn, đề xuất điều chỉnh mục tiêu và hướng dẫn người dùng.
 ${toneInstruction}
 
 [THÔNG TIN NGƯỜI DÙNG HỆ THỐNG]
 - Tên: ${profile.name} (${profile.gender === 'male' ? 'Nam' : 'Nữ'}, ${profile.age} tuổi, ${profile.height} cm)
+- 🚩 Ngày trong hành trình hôm nay: Ngày ${currentJourneyDay}/${totalJourneyDays} (BẮT BUỘC dùng đúng con số "Ngày ${currentJourneyDay}" này khi chào hỏi hoặc nói về mốc hành trình hôm nay, TUYỆT ĐỐI KHÔNG tự bịa số ngày ngẫu nhiên khác như Ngày 16 hay Ngày 20).
 - Cân nặng hiện tại: ${profile.currentWeight} kg | Mục tiêu: ${goal.targetWeight} kg
 - Chỉ số: BMR = ${goal.bmr} kcal | TDEE = ${goal.tdee} kcal
 - Chỉ tiêu Calo/ngày hiện tại: ${goal.dailyCalorieTarget} kcal
