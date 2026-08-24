@@ -1,4 +1,4 @@
-const ninerouterKey = "sk-f040bde5ab80cf9c-nut82e-f2995b77";
+const ninerouterKey = "";
 const ninerouterUrl = "http://localhost:20128/v1/chat/completions";
 
 const modelsToTest = [

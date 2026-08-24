@@ -1,5 +1,5 @@
 const modelscopeKey = "ms-fc2cfe61-4490-4e07-8e04-333e9c17362d";
-const ninerouterKey = "sk-f040bde5ab80cf9c-nut82e-f2995b77";
+const ninerouterKey = "";
 
 const modelscopeUrl = "https://api-inference.modelscope.cn/v1/chat/completions";
 const ninerouterUrl = "http://localhost:20128/v1/chat/completions";

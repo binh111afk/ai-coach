@@ -1,5 +1,5 @@
 const url = 'https://r7nnd8p.abc-tunnel.us/v1/chat/completions';
-const apiKey = 'sk-f040bde5ab80cf9c-nut82e-f2995b77';
+const apiKey = '';
 
 async function testTunnel() {
   console.log('Connecting to Tunnel:', url);

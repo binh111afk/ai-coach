@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 
 // Read API Key from .env
 const envPath = path.resolve(__dirname, '../.env');
-let apiKey = 'sk-f040bde5ab80cf9c-nut82e-f2995b77';
+let apiKey = '';
 if (fs.existsSync(envPath)) {
   const content = fs.readFileSync(envPath, 'utf8');
   const match = content.match(/VITE_NINEROUTER_API_KEY=(.+)/);

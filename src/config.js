@@ -2,12 +2,12 @@
 export const CONFIG = {
   APP_NAME: "FitCoach AI Tracker",
   VERSION: "1.0.0",
-  // 9Router AI API configuration read securely from .env (supports with or without VITE_ prefix)
-  NINEROUTER_API_KEY: import.meta.env.NINEROUTER_API_KEY || import.meta.env.VITE_NINEROUTER_API_KEY || "sk-f040bde5ab80cf9c-nut82e-f2995b77",
+  // 9Router & XKiro AI configuration (Serverless Proxy /api/chat will handle secrets on backend)
+  NINEROUTER_API_KEY: import.meta.env.NINEROUTER_API_KEY || import.meta.env.VITE_NINEROUTER_API_KEY || "",
   NINEROUTER_BASE_URL: import.meta.env.NINEROUTER_BASE_URL || import.meta.env.VITE_NINEROUTER_BASE_URL || "https://r7nnd8p.abc-tunnel.us/v1/chat/completions",
   
-  // XKiro AI API configuration read securely from .env
-  XKIRO_API_KEY: import.meta.env.XKIRO_API_KEY || import.meta.env.VITE_XKIRO_API_KEY || "sk-xt-b00e4223f69f814c9f97bb458b3f6c5b6a3a2485a8095166",
+  // XKiro AI API configuration
+  XKIRO_API_KEY: import.meta.env.XKIRO_API_KEY || import.meta.env.VITE_XKIRO_API_KEY || "",
   XKIRO_BASE_URL: import.meta.env.XKIRO_BASE_URL || import.meta.env.VITE_XKIRO_BASE_URL || "https://api.xkiro.com/v1/chat/completions",
   NINEROUTER_MODEL: import.meta.env.NINEROUTER_MODEL || import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.7-flash",
   XKIRO_MODEL: import.meta.env.XKIRO_MODEL || import.meta.env.VITE_XKIRO_MODEL || "deepseek/deepseek-v4-pro",
@@ -32,8 +32,12 @@ export const CONFIG = {
     { id: "minimax/minimax-m2.1-highspeed", name: "MiniMax M2.1 HighSpeed (MiniMax)" },
     { id: "minimax/minimax-m2", name: "MiniMax M2 (MiniMax)" },
 
-    // 3. DeepSeek
-    { id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro (Default Onboarding)" },
+    // 3. DeepSeek & Stealth
+    { id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro (XKiro AI)" },
+    { id: "deepseek/deepseek-chat", name: "DeepSeek Chat (XKiro AI)" },
+    { id: "stealth/ox-alpha-free", name: "Ox Alpha Free (Stealth XKiro AI)" },
+    { id: "gpt-4o", name: "GPT-4o (OpenAI / XKiro)" },
+    { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet (Anthropic / XKiro)" },
     { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash (DeepSeek)" },
     { id: "deepseek/deepseek-v3.2", name: "DeepSeek V3.2 (DeepSeek)" },
     { id: "deepseek/deepseek-chat-v3.1", name: "DeepSeek Chat V3.1 (DeepSeek)" },

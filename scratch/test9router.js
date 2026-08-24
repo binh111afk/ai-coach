@@ -1,6 +1,6 @@
 async function test9router() {
   const url = 'https://r7nnd8p.abc-tunnel.us/v1/chat/completions';
-  const apiKey = 'sk-f040bde5ab80cf9c-nut82e-f2995b77';
+  const apiKey = '';
   const model = 'deepseek/deepseek-v4-pro';
 
   console.log(`Testing 9router at ${url} with model ${model}...`);
