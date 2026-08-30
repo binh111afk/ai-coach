@@ -7,8 +7,8 @@ import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 
-// Trạng thái Nguồn AI (giữ qua các lần re-render trang cài đặt): provider đang chọn tạm, key đang gõ, kết quả test
-const providerKeyTestState = { status: 'idle', message: '', key: '', providerId: null };
+// Trạng thái khung API Key (giữ qua các lần re-render trang cài đặt): key đang gõ, kết quả test
+const providerKeyTestState = { status: 'idle', message: '', key: '' };
 
 export async function renderSettingsPage(onSaveComplete, opts = {}) {
   const profile = await DataService.getUserProfile();
@@ -18,23 +18,15 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
   let currentModelId = selectedModelId;
   let newAvatarBase64 = null;
 
-  // Nguồn AI — chỉ cho chọn Google AI Studio (Gemini). XKiro là nguồn do app cung cấp (không hiện ở đây).
-  // keepState: re-render nội bộ (bấm card/test/restore) giữ lựa chọn tạm; mount mới thì đọc lại từ DB
-  let currentProviderId;
-  if (opts.keepState && providerKeyTestState.providerId) {
-    currentProviderId = providerKeyTestState.providerId;
-  } else {
-    currentProviderId = await DataService.getSelectedProvider();
-    providerKeyTestState.providerId = currentProviderId;
-  }
-  const selectableProviders = CONFIG.AI_PROVIDERS.filter(p => p.id !== 'xkiro');
-  const providerApiKey = await DataService.getProviderApiKey(currentProviderId);
+  // Khung Nguồn AI: chỉ còn ô nhập API key (dành cho Google AI Studio — Gemini) + thanh token XKiro.
+  // Provider không còn là lựa chọn riêng — được suy ra tự động từ model đang chọn.
   const aiQuota = await DataService.getAiQuotaStatus();
-  const isUsingXkiro = currentProviderId === 'xkiro';
   const keyTestState = providerKeyTestState;
-  // Key đang hiển thị: ưu tiên key người dùng đang gõ (giữ qua re-render), sau đó tới key đã lưu
-  if (keyTestState.key === '' && providerApiKey) keyTestState.key = providerApiKey;
-  const displayApiKey = keyTestState.key || providerApiKey;
+  // Key đang hiển thị: mount mới đọc lại key đã lưu, còn keepState (re-render nội bộ) thì giữ key đang gõ
+  if (!opts.keepState) keyTestState.key = '';
+  const geminiApiKey = await DataService.getProviderApiKey('gemini');
+  if (keyTestState.key === '' && geminiApiKey) keyTestState.key = geminiApiKey;
+  const displayApiKey = keyTestState.key || geminiApiKey;
   const keyTestOk = keyTestState.status === 'ok' && !!displayApiKey;
 
   // Danh sách model chọn là TĨNH trong config: model XKiro (tính token) + model Gemini (cần API key riêng)
@@ -255,33 +247,18 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
           .kt-dot { display: inline-block; animation: ktDotBounce 1.1s infinite; }
         </style>
         <div class="mb-4 p-4 rounded-2xl" style="border: 1px solid rgba(124, 58, 237, 0.16); background: var(--primary-soft, rgba(124, 58, 237, 0.05));">
-          <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">Nguồn AI (Provider)</label>
-          ${isUsingXkiro ? '<p class="text-[11px] font-semibold text-emerald-600 mt-1">Đang dùng XKiro — nguồn do app cung cấp (giới hạn 50.000 token/ngày). Chọn nguồn bên dưới để dùng key riêng không giới hạn.</p>' : ''}
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2" id="provider-cards-container">
-            ${selectableProviders.map(p => `
-              <label class="flex items-center gap-2 p-2.5 rounded-xl cursor-pointer border-2 transition ${p.id === currentProviderId ? 'border-[#7C3AED] bg-white dark:bg-gray-800/60' : 'border-transparent bg-white/60 dark:bg-gray-800/30'}" data-provider-option="${p.id}">
-                <input type="radio" name="provider-option" value="${p.id}" class="hidden" ${p.id === currentProviderId ? 'checked' : ''}>
-                <i data-lucide="${p.icon}" class="w-4 h-4 text-[var(--primary)] flex-shrink-0"></i>
-                <span class="text-xs font-bold truncate" style="color: var(--fg);">${p.name.replace(' (Gemini)', '')}</span>
-              </label>
-            `).join('')}
-          </div>
           <div class="mt-3">
-            <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">API Key (tùy chọn — ưu tiên key của bạn)</label>
+            <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">API Key Google AI Studio (tùy chọn — dùng cho model Gemini)</label>
             <div class="mt-1.5 flex items-center gap-2 p-3 bg-white dark:bg-gray-800/60 rounded-xl transition" style="border: 1px solid rgba(124, 58, 237, 0.16);" id="provider-key-input-row">
               <i data-lucide="key-round" class="w-5 h-5 text-[var(--muted)] flex-shrink-0"></i>
-              <input type="password" id="input-provider-api-key" autocomplete="off" value="${displayApiKey}" placeholder="Dán API key của provider đang chọn..." class="flex-1 min-w-0 bg-transparent border-none focus:outline-none font-semibold text-sm" style="color: var(--fg); padding-right: 0.5rem;">
+              <input type="password" id="input-provider-api-key" autocomplete="off" value="${displayApiKey}" placeholder="Dán API key Gemini của bạn..." class="flex-1 min-w-0 bg-transparent border-none focus:outline-none font-semibold text-sm" style="color: var(--fg); padding-right: 0.5rem;">
               ${keyTestOk
                 ? '<span class="text-emerald-500 flex-shrink-0" id="provider-key-tick" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
                 : `<button type="button" id="btn-test-provider-key" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${keyTestState.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${keyTestState.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
             </div>
-            <p id="provider-key-status" class="text-[11px] font-semibold mt-1.5 ${keyTestOk ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...' : `${keyTestOk ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực key và nạp model khả dụng vào danh sách chọn Model.'}`}</p>
-            <p class="text-[10px] text-[var(--muted)] mt-1">Chỉ lưu trên thiết bị này. Để trống để dùng key cấu hình sẵn trên server (Vercel).</p>
+            <p id="provider-key-status" class="text-[11px] font-semibold mt-1.5 ${keyTestOk ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ Đang kiểm tra kết nối tới Google AI Studio, vui lòng đợi vài giây...' : `${keyTestOk ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để mở khóa các model Gemini (lấy key miễn phí tại aistudio.google.com).'}`}</p>
+            <p class="text-[10px] text-[var(--muted)] mt-1">Chỉ lưu trên thiết bị này. Model XKiro mặc định không cần key.</p>
           </div>
-          ${!isUsingXkiro ? `
-          <button type="button" id="btn-restore-provider" class="mt-3 w-full py-2.5 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition flex items-center justify-center gap-1.5 shadow-sm">
-            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
-          </button>` : ''}
           <!-- Thanh token XKiro luôn luôn hiện — model Gemini (key riêng) không tính vào hạn mức này -->
           <div class="mt-3">
             <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1">
@@ -642,7 +619,6 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
           providerKeyTestState.status = 'ok';
           providerKeyTestState.key = key;
           providerKeyTestState.message = 'Kết nối thành công! API key Gemini hợp lệ — đã mở khóa các model Gemini.';
-          providerKeyTestState.providerId = 'gemini';
         }
 
         currentModelId = candidateModelId;
@@ -808,33 +784,7 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
       }
     });
 
-    // 4.5 NGUỒN AI: chọn provider + nhập API key + kiểm tra key
-    document.querySelectorAll('[data-provider-option]').forEach(card => {
-      card.addEventListener('click', async () => {
-        const pid = card.getAttribute('data-provider-option');
-        if (pid === providerKeyTestState.providerId) return;
-        // Tô active ngay lập tức (optimistic), không chờ IndexedDB
-        providerKeyTestState.providerId = pid;
-        currentProviderId = pid;
-        document.querySelectorAll('[data-provider-option]').forEach(c => {
-          const isActive = c.getAttribute('data-provider-option') === pid;
-          c.classList.toggle('border-[#7C3AED]', isActive);
-          c.classList.toggle('bg-white', isActive);
-          c.classList.toggle('border-transparent', !isActive);
-        });
-        // Reset kết quả test & nạp key đã lưu của provider mới vào ô nhập (không cần re-render, danh sách model là tĩnh)
-        providerKeyTestState.status = 'idle';
-        providerKeyTestState.message = '';
-        providerKeyTestState.key = (await DataService.getProviderApiKey(pid)) || '';
-        const keyInput = document.getElementById('input-provider-api-key');
-        if (keyInput) keyInput.value = providerKeyTestState.key;
-        const statusEl = document.getElementById('provider-key-status');
-        if (statusEl) {
-          statusEl.className = 'text-[11px] font-semibold mt-1.5 text-[var(--muted)]';
-          statusEl.textContent = 'Nhập key rồi bấm "Kiểm tra" để xác thực & nạp model khả dụng. Model mới sẽ xuất hiện trong mục chọn Model.';
-        }
-      });
-    });
+    // 4.5 API KEY GEMINI: nhập key + kiểm tra key (model Gemini cần key riêng)
 
     // Giữ key người dùng đang gõ + gỡ tick xanh khi key thay đổi (sửa trực tiếp DOM, không re-render)
     document.getElementById('input-provider-api-key')?.addEventListener('input', (e) => {
@@ -873,22 +823,20 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
       providerKeyTestState.status = 'testing';
       if (statusEl) {
         statusEl.className = 'text-[11px] font-semibold mt-1.5 text-[var(--primary)]';
-        statusEl.textContent = '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...';
+        statusEl.textContent = '⏳ Đang kiểm tra kết nối tới Google AI Studio, vui lòng đợi vài giây...';
       }
       const btn = document.getElementById('btn-test-provider-key');
       if (btn) {
         btn.classList.add('opacity-70', 'pointer-events-none', 'animate-pulse');
         btn.innerHTML = 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>';
       }
-      AiCoachService.validateProviderKey(currentProviderId, key).then(async (result) => {
+      AiCoachService.validateProviderKey('gemini', key).then(async (result) => {
         if (result.valid) {
           providerKeyTestState.status = 'ok';
           providerKeyTestState.key = key;
           // Lưu key ngay khi xác thực thành công → mở khóa model Gemini trong danh sách Model
-          await DataService.setProviderApiKey(currentProviderId, key);
-          providerKeyTestState.message = currentProviderId === 'gemini'
-            ? 'Kết nối thành công! API key Gemini hợp lệ — bạn đã có thể chọn các model Gemini trong danh sách Model (không tính token XKiro).'
-            : 'Kết nối thành công! API key hợp lệ.';
+          await DataService.setProviderApiKey('gemini', key);
+          providerKeyTestState.message = 'Kết nối thành công! API key Gemini hợp lệ — bạn đã có thể chọn các model Gemini trong danh sách Model (không tính token XKiro).';
           // Re-render để cập nhật badge "Cần key" trên các model Gemini + tick xanh
           renderSettingsPage(onSaveComplete, { keepState: true });
         } else {
@@ -907,16 +855,6 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
       });
     });
 
-    document.getElementById('btn-restore-provider')?.addEventListener('click', async () => {
-      // Khôi phục về nguồn AI do app cung cấp (XKiro) + model mặc định
-      providerKeyTestState.status = 'idle';
-      providerKeyTestState.message = '';
-      providerKeyTestState.key = '';
-      providerKeyTestState.providerId = 'xkiro';
-      await DataService.setSelectedProvider('xkiro');
-      renderSettingsPage(onSaveComplete, { keepState: true });
-    });
-
     // 5. MAIN SAVE SETTINGS BUTTON & RESET DATA BUTTON AT BOTTOM
     document.getElementById('btn-main-save-settings')?.addEventListener('click', async () => {
       const budgetInput = document.getElementById('input-daily-budget');
@@ -925,12 +863,9 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
       profile.foodAllergies = allergyList.join(', ');
       await DataService.saveUserProfile(profile);
 
-      // Lưu Nguồn AI: chỉ áp dụng cho Google AI Studio (XKiro là nguồn do app cung cấp, không đổi từ đây)
-      if (currentProviderId !== 'xkiro') {
-        await DataService.setSelectedProvider(currentProviderId);
-        const providerKeyInput = document.getElementById('input-provider-api-key');
-        if (providerKeyInput) await DataService.setProviderApiKey(currentProviderId, providerKeyInput.value.trim());
-      }
+      // Lưu API key Gemini từ khung Nguồn AI (key XKiro là nguồn do app cung cấp, không nhập từ đây)
+      const geminiKeyInput = document.getElementById('input-provider-api-key');
+      if (geminiKeyInput) await DataService.setProviderApiKey('gemini', geminiKeyInput.value.trim());
 
       // Recalculate User Goal math based on updated physical parameters
       const goal = await DataService.getUserGoal();

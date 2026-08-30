@@ -307,7 +307,7 @@ export async function renderAiChatPage(onStateUpdated) {
       const top3Ids = [
         "deepseek/deepseek-v4-pro",
         "gemini-2.5-flash",
-        "gpt-4o"
+        "deepseek/deepseek-chat"
       ];
 
       const top3Models = CONFIG.SUPPORTED_MODELS.filter(m => top3Ids.includes(m.id));

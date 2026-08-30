@@ -18,12 +18,9 @@ export const CONFIG = {
   // ===================== DANH SÁCH MODEL TĨNH =====================
   // Model XKiro (nguồn do app cung cấp — tính token)
   SUPPORTED_MODELS: [
-    // DeepSeek & Stealth (qua XKiro)
+    // DeepSeek (qua XKiro)
     { id: "deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro (XKiro AI)" },
     { id: "deepseek/deepseek-chat", name: "DeepSeek Chat (XKiro AI)" },
-    { id: "stealth/ox-alpha-free", name: "Ox Alpha Free (Stealth XKiro AI)" },
-    { id: "gpt-4o", name: "GPT-4o (OpenAI / XKiro)" },
-    { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet (Anthropic / XKiro)" },
     { id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash (XKiro)" },
     { id: "deepseek/deepseek-v3.2", name: "DeepSeek V3.2 (XKiro)" },
     { id: "deepseek/deepseek-chat-v3.1", name: "DeepSeek Chat V3.1 (XKiro)" },
@@ -47,8 +44,8 @@ export const CONFIG = {
       id: 'xkiro',
       name: 'XKiro',
       icon: 'zap',
-      desc: 'DeepSeek, GPT-4o, Claude qua XKiro — nguồn do app cung cấp',
-      models: ['deepseek/deepseek-v4-pro', 'gpt-4o', 'claude-3-5-sonnet', 'deepseek/deepseek-v4-flash', 'deepseek/deepseek-chat'],
+      desc: 'DeepSeek qua XKiro — nguồn do app cung cấp',
+      models: ['deepseek/deepseek-v4-pro', 'deepseek/deepseek-v4-flash', 'deepseek/deepseek-chat', 'deepseek/deepseek-v3.2', 'deepseek/deepseek-chat-v3.1'],
       defaultModel: 'deepseek/deepseek-v4-pro'
     },
     {
@@ -81,8 +78,6 @@ const MODEL_DISPLAY_NAMES = {
   'gemini-2.5-flash': 'Gemini 2.5 Flash (Cân bằng, khuyên dùng)',
   'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite (Nhẹ & nhanh)',
   'gemini-2.0-flash': 'Gemini 2.0 Flash',
-  'gpt-4o': 'GPT-4o (OpenAI)',
-  'claude-3-5-sonnet': 'Claude 3.5 Sonnet (Anthropic)',
   'deepseek/deepseek-v4-pro': 'DeepSeek V4 Pro',
   'deepseek/deepseek-v4-flash': 'DeepSeek V4 Flash (nhanh)',
   'deepseek/deepseek-chat': 'DeepSeek Chat'
