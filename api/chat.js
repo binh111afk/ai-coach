@@ -9,42 +9,59 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, model, temperature, provider } = req.body || {};
+    const { messages, model, temperature, provider, apiKey: clientApiKey } = req.body || {};
 
     let apiKey = '';
     let baseUrl = '';
 
-    // Determine whether to call XKiro or 9Router
-    const isXkiro = provider === 'xkiro' || (model && (model.includes('deepseek') || model.includes('xkiro')));
-
-    if (isXkiro) {
-      apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
-      baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
+    // Client tự nhập API key (lưu local trên máy người dùng) → ưu tiên dùng key này
+    if (clientApiKey && typeof clientApiKey === 'string' && clientApiKey.length > 10) {
+      apiKey = clientApiKey;
     }
 
-    // Fallback to 9Router if not XKiro or if XKiro key is missing
-    if (!apiKey) {
-      apiKey = process.env.NINEROUTER_API_KEY || process.env.VITE_NINEROUTER_API_KEY;
+    const isGemini = provider === 'gemini' || (!provider && model && model.startsWith('gemini-') && !model.includes('/'));
+    const isXkiro = provider === 'xkiro' || (!provider && model && (model.includes('deepseek') || model.includes('xkiro')));
+
+    if (isGemini) {
+      baseUrl = process.env.GEMINI_BASE_URL || process.env.VITE_GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+      if (!apiKey) {
+        apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+      }
+    } else if (isXkiro) {
+      baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
+      if (!apiKey) {
+        apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
+      }
+    } else {
       baseUrl = process.env.NINEROUTER_BASE_URL || process.env.VITE_NINEROUTER_BASE_URL || 'https://r7nnd8p.abc-tunnel.us/v1/chat/completions';
+      if (!apiKey) {
+        apiKey = process.env.NINEROUTER_API_KEY || process.env.VITE_NINEROUTER_API_KEY;
+      }
     }
 
-    // If 9Router key was selected but missing, fallback to XKiro key if available
-    if (!apiKey) {
-      apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
-      baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
+    // Fallback chain giữa các provider (chỉ khi client không cung cấp key riêng)
+    if (!apiKey && !clientApiKey) {
+      if (isGemini) {
+        apiKey = process.env.NINEROUTER_API_KEY || process.env.VITE_NINEROUTER_API_KEY;
+        baseUrl = process.env.NINEROUTER_BASE_URL || process.env.VITE_NINEROUTER_BASE_URL || 'https://r7nnd8p.abc-tunnel.us/v1/chat/completions';
+      } else {
+        apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
+        baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
+      }
     }
 
     if (!apiKey) {
       console.error('[Vercel Serverless Proxy] Missing API keys');
-      return res.status(500).json({ error: 'Serverless Proxy Error: Neither NINEROUTER_API_KEY nor XKIRO_API_KEY is configured on Vercel Environment Variables.' });
+      return res.status(500).json({ error: 'Serverless Proxy Error: No API key configured. Vui lòng nhập API key của bạn trong Cài đặt / Onboarding, hoặc cấu hình env trên Vercel.' });
     }
 
     if (!baseUrl.includes('/chat/completions')) {
       baseUrl = baseUrl.replace(/\/+$/, '') + '/chat/completions';
     }
 
-    const modelToUse = model || (isXkiro ? 'deepseek/deepseek-v4-pro' : 'gemini/gemini-3.7-flash');
-    console.log(`[Vercel Serverless Proxy] Dispatching request to ${baseUrl} with model ${modelToUse}...`);
+    const defaultModel = isGemini ? 'gemini-2.5-flash' : (isXkiro ? 'deepseek/deepseek-v4-pro' : 'gemini/gemini-3.7-flash');
+    const modelToUse = model || defaultModel;
+    console.log(`[Vercel Serverless Proxy] Dispatching request to ${baseUrl} (${provider || 'auto'}) with model ${modelToUse}...`);
 
     const aiResponse = await fetch(baseUrl, {
       method: 'POST',

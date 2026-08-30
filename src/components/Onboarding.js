@@ -1,5 +1,6 @@
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases, sanitizeMealItem } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
+import { CONFIG } from '../config.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import confetti from 'canvas-confetti';
@@ -46,11 +47,22 @@ export function renderOnboarding(onComplete) {
   let validationError = '';
   let dismissedSafetyWarning = false;
 
+  // Bước 5: Lựa chọn Nguồn AI (9Router / XKiro / Google AI Studio)
+  const aiProviderChoice = { provider: 'ninerouter', model: '', apiKey: '' };
+  const aiKeyTest = { status: 'idle', message: '', models: null };
+  (async () => {
+    aiProviderChoice.provider = await DataService.getSelectedProvider();
+    aiProviderChoice.model = (await DataService.getSelectedModel()) || '';
+    aiProviderChoice.apiKey = (await DataService.getProviderApiKey(aiProviderChoice.provider)) || '';
+    aiKeyTest.models = await DataService.getAvailableModels(aiProviderChoice.provider);
+  })();
+
   const headers = {
     1: { icon: 'user-plus', title: 'Thông Tin Cá Nhân', desc: 'Tự nhập chỉ số cá nhân. AI sẽ dựa vào đó để lập kế hoạch.' },
     2: { icon: 'target', title: 'Mục Tiêu Của Bạn', desc: 'Chúng ta sẽ cùng nhau đạt được mốc sức khỏe này!' },
     3: { icon: 'utensils', title: 'Sở Thích & Lịch Tập', desc: 'Tùy chỉnh thực đơn né dị ứng và khung giờ tập luyện.' },
-    4: { icon: 'sparkles', title: 'Tổng Kết Hành Trình', desc: 'Kiểm tra lại chỉ số & xác nhận kế hoạch với AI Coach.' }
+    4: { icon: 'sparkles', title: 'Tổng Kết Hành Trình', desc: 'Kiểm tra lại chỉ số & xác nhận kế hoạch với AI Coach.' },
+    5: { icon: 'cpu', title: 'Chọn Nguồn AI', desc: 'Chọn nhà cung cấp AI & nhập API key của bạn (tùy chọn).' }
   };
 
   const allergyPresets = [
@@ -419,6 +431,84 @@ export function renderOnboarding(onComplete) {
         </div>
       `;
     }
+
+    if (step === 5) {
+      const providers = CONFIG.AI_PROVIDERS;
+      const activeProvider = providers.find(p => p.id === aiProviderChoice.provider) || providers[0];
+      const modelSource = (Array.isArray(aiKeyTest.models) && aiKeyTest.models.length > 0)
+        ? aiKeyTest.models
+        : activeProvider.models;
+      if (aiProviderChoice.model && !modelSource.includes(aiProviderChoice.model)) {
+        aiProviderChoice.model = modelSource[0] || activeProvider.defaultModel;
+      }
+      const modelOptions = modelSource
+        .map(m => `<option value="${m}" ${aiProviderChoice.model === m ? 'selected' : ''}>${m}</option>`)
+        .join('');
+
+      const testStatusMeta = {
+        idle: { cls: 'text-gray-400', icon: '' },
+        testing: { cls: 'text-[#7C3AED]', icon: '⏳ ' },
+        ok: { cls: 'text-emerald-600', icon: '✅ ' },
+        error: { cls: 'text-red-500', icon: '❌ ' }
+      }[aiKeyTest.status] || { cls: 'text-gray-400', icon: '' };
+      const testStatusText = aiKeyTest.message
+        || 'Nhập key rồi bấm kiểm tra để xác thực & nạp model khả dụng. Để trống nếu dùng key cấu hình sẵn trên server.';
+
+      return `
+        <div class="flex-1 space-y-3 mt-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+          <!-- Quota Banner -->
+          <div class="relative bg-gradient-to-r from-[#7C3AED] to-[#D946EF] p-4 rounded-2xl text-white overflow-hidden shadow-lg shadow-purple-500/20">
+            <div class="relative z-10">
+              <span class="text-xs font-bold uppercase tracking-wider opacity-85">Nguồn AI Coach</span>
+              <p class="text-xs mt-1.5 opacity-90 leading-relaxed">
+                3 nhà cung cấp chạy song song — AI tự chuyển dự phòng khi nguồn chính gặp sự cố. Nguồn <b>XKiro</b> do app cung cấp,
+                giới hạn <b>${(CONFIG.DAILY_TOKEN_LIMIT || 50000).toLocaleString('vi-VN')} token/ngày</b> (tự làm mới vào ngày mai);
+                chọn <b>9Router</b> hoặc <b>Google AI Studio</b> với key riêng của bạn thì không giới hạn.
+              </p>
+            </div>
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xs pointer-events-none"></div>
+          </div>
+
+          ${providers.map(p => `
+            <label class="flex items-start gap-3 p-3.5 border-2 rounded-2xl cursor-pointer transition ${aiProviderChoice.provider === p.id ? 'border-[#7C3AED] bg-[#F5F3FF]' : 'border-gray-200 bg-white hover:border-purple-200'}" data-provider-card="${p.id}">
+              <input type="radio" name="ai-provider-choice" value="${p.id}" class="hidden" ${aiProviderChoice.provider === p.id ? 'checked' : ''}>
+              <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0"><i data-lucide="${p.icon}" class="w-5 h-5 text-[#7C3AED]"></i></div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 class="font-bold text-sm text-gray-900">${p.name}</h3>
+                  ${p.id === 'xkiro' ? '<span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">App cung cấp</span>' : ''}
+                  ${p.isVision ? '<span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">Vision</span>' : ''}
+                  ${aiProviderChoice.provider === p.id ? '<i data-lucide="check-circle-2" class="w-4 h-4 text-[#7C3AED] ml-auto"></i>' : ''}
+                </div>
+                <p class="text-xs text-gray-500 mt-0.5">${p.desc}</p>
+              </div>
+            </label>
+          `).join('')}
+
+          <!-- Model & API Key -->
+          <div class="bg-[#F9FAFB] border border-gray-100 rounded-2xl p-3.5 space-y-3">
+            <div>
+              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Model (${activeProvider.name})${Array.isArray(aiKeyTest.models) && aiKeyTest.models.length > 0 ? ` — ${aiKeyTest.models.length} model khả dụng` : ''}</label>
+              <select id="ob-provider-model" class="ui-input">${modelOptions}</select>
+            </div>
+            <div>
+              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">API Key</label>
+              <div class="relative">
+                <input type="password" id="ob-provider-key" autocomplete="off" value="${aiProviderChoice.apiKey}" placeholder="${activeProvider.keyHint}" class="ui-input" style="padding-right: ${aiKeyTest.status === 'ok' ? '3rem' : '6rem'};">
+                ${aiKeyTest.status === 'ok'
+                  ? '<span class="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
+                  : `<button type="button" id="ob-test-key" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${aiKeyTest.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${aiKeyTest.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
+              </div>
+            </div>
+            <button type="button" id="ob-restore-provider" class="w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-bold text-xs hover:bg-gray-50 transition flex items-center justify-center gap-1.5">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
+            </button>
+            <p class="text-[11px] font-semibold leading-relaxed ${testStatusMeta.cls}">${testStatusMeta.icon}${testStatusText}</p>
+            ${activeProvider.id === 'gemini' ? '<p class="text-[10px] text-gray-400 leading-relaxed">Lấy key miễn phí tại aistudio.google.com → "Get API key". Key chỉ lưu trên thiết bị của bạn.</p>' : '<p class="text-[10px] text-gray-400 leading-relaxed">Key bạn nhập chỉ lưu trên thiết bị của bạn.</p>'}
+          </div>
+        </div>
+      `;
+    }
   }
 
   function renderWrapper() {
@@ -426,12 +516,14 @@ export function renderOnboarding(onComplete) {
     const stepContent = getStepContent(currentStep);
     
     let stepBars = '';
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 5; i++) {
       stepBars += `<div class="h-1.5 flex-1 rounded-full ${i <= currentStep ? 'bg-[#7C3AED]' : 'bg-gray-200'} transition-all duration-300"></div>`;
     }
 
     return `
       <style>
+        @keyframes ktDotBounce { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+        .kt-dot { display: inline-block; animation: ktDotBounce 1.1s infinite; }
         :root {
           --primary: #7C3AED;
           --accent: #D946EF;
@@ -551,8 +643,8 @@ export function renderOnboarding(onComplete) {
               </button>
             ` : ''}
             <button type="button" id="btn-onboarding-next" class="btn-gradient flex-1 py-3.5 sm:py-4 rounded-2xl flex items-center justify-center gap-2 text-sm sm:text-base">
-              ${currentStep === 4 ? 'Bắt Đầu Hành Trình!' : 'Tiếp Theo'} 
-              <i data-lucide="${currentStep !== 4 ? 'arrow-right' : 'rocket'}" class="w-5 h-5"></i>
+              ${currentStep === 5 ? 'Bắt Đầu Hành Trình!' : 'Tiếp Theo'} 
+              <i data-lucide="${currentStep !== 5 ? 'arrow-right' : 'rocket'}" class="w-5 h-5"></i>
             </button>
           </div>
 
@@ -739,8 +831,75 @@ export function renderOnboarding(onComplete) {
       }
 
       if (currentStep === 4) {
+        currentStep = 5;
+        render();
+        return;
+      }
+
+      if (currentStep === 5) {
         finishOnboarding();
       }
+    });
+
+    // Step 5: Chọn Nguồn AI — provider card, model, API key
+    document.querySelectorAll('[data-provider-card]').forEach(card => {
+      card.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const pid = card.getAttribute('data-provider-card');
+        if (aiProviderChoice.provider !== pid) {
+          aiProviderChoice.provider = pid;
+          const meta = CONFIG.AI_PROVIDERS.find(p => p.id === pid);
+          aiProviderChoice.model = meta ? meta.defaultModel : '';
+          aiProviderChoice.apiKey = (await DataService.getProviderApiKey(pid)) || '';
+          // Reset kết quả test & nạp lại model khả dụng đã lưu của provider mới
+          aiKeyTest.status = 'idle';
+          aiKeyTest.message = '';
+          aiKeyTest.models = await DataService.getAvailableModels(pid);
+          render();
+        }
+      });
+    });
+    document.getElementById('ob-provider-model')?.addEventListener('change', (e) => {
+      aiProviderChoice.model = e.target.value;
+    });
+    document.getElementById('ob-provider-key')?.addEventListener('input', (e) => {
+      aiProviderChoice.apiKey = e.target.value.trim();
+    });
+    document.getElementById('ob-test-key')?.addEventListener('click', async () => {
+      if (!aiProviderChoice.apiKey && aiProviderChoice.provider !== 'xkiro') {
+        aiKeyTest.status = 'error';
+        aiKeyTest.message = 'Vui lòng nhập API key trước khi kiểm tra (hoặc chọn XKiro để dùng key do app cung cấp).';
+        render();
+        return;
+      }
+      aiKeyTest.status = 'testing';
+      aiKeyTest.message = '';
+      render();
+      const result = await AiCoachService.validateProviderKey(aiProviderChoice.provider, aiProviderChoice.apiKey);
+      if (result.valid) {
+        aiKeyTest.status = 'ok';
+        aiKeyTest.models = result.models;
+        aiKeyTest.message = `Kết nối thành công! Đã nạp ${result.models.length} model khả dụng từ ${aiProviderChoice.provider === 'gemini' ? 'Google AI Studio' : 'nhà cung cấp'}.`;
+        await DataService.setAvailableModels(aiProviderChoice.provider, result.models);
+        if (!result.models.includes(aiProviderChoice.model)) {
+          aiProviderChoice.model = result.models[0] || '';
+        }
+      } else {
+        aiKeyTest.status = 'error';
+        aiKeyTest.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
+      }
+      render();
+    });
+    document.getElementById('ob-restore-provider')?.addEventListener('click', async () => {
+      // Khôi phục về nguồn AI do app cung cấp (XKiro) + model mặc định
+      aiProviderChoice.provider = 'xkiro';
+      const meta = CONFIG.AI_PROVIDERS.find(p => p.id === 'xkiro');
+      aiProviderChoice.model = meta ? meta.defaultModel : '';
+      aiProviderChoice.apiKey = (await DataService.getProviderApiKey('xkiro')) || '';
+      aiKeyTest.status = 'idle';
+      aiKeyTest.message = '';
+      aiKeyTest.models = null;
+      render();
     });
   }
 
@@ -832,6 +991,18 @@ export function renderOnboarding(onComplete) {
   }
 
   async function finishOnboarding() {
+    // Lưu lựa chọn Nguồn AI từ bước 5 (provider, model, API key người dùng tự nhập)
+    if (aiProviderChoice.provider) {
+      await DataService.setSelectedProvider(aiProviderChoice.provider);
+      const providerMeta = CONFIG.AI_PROVIDERS.find(p => p.id === aiProviderChoice.provider);
+      if (aiProviderChoice.model && providerMeta && providerMeta.models.includes(aiProviderChoice.model)) {
+        await DataService.setSelectedModel(aiProviderChoice.model);
+      }
+      if (aiProviderChoice.apiKey) {
+        await DataService.setProviderApiKey(aiProviderChoice.provider, aiProviderChoice.apiKey);
+      }
+    }
+
     const selectedModel = (await DataService.getSelectedModel()) || 'deepseek/deepseek-v4-pro';
 
     const targetDays = formData.targetDays || 60;

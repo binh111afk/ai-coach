@@ -1,10 +1,14 @@
 import { DataService, generate7DayMealPlan } from '../services/dataService.js';
+import { AiCoachService } from '../services/aiCoachService.js';
 import { dbManager } from '../services/db.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, getLevelInfo } from '../services/gamificationService.js';
 import { CONFIG, isVisionModel } from '../config.js';
 import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
+
+// Trạng thái kiểm tra key Nguồn AI (giữ qua các lần re-render trang cài đặt)
+const providerKeyTestState = { status: 'idle', message: '' };
 
 export async function renderSettingsPage(onSaveComplete) {
   const profile = await DataService.getUserProfile();
@@ -13,6 +17,20 @@ export async function renderSettingsPage(onSaveComplete) {
 
   let currentModelId = selectedModelId;
   let newAvatarBase64 = null;
+
+  // Nguồn AI — chỉ cho chọn 9Router / Google AI Studio. XKiro là nguồn do app cung cấp (không hiện ở đây).
+  let currentProviderId = await DataService.getSelectedProvider();
+  const selectableProviders = CONFIG.AI_PROVIDERS.filter(p => p.id !== 'xkiro');
+  const providerApiKey = await DataService.getProviderApiKey(currentProviderId);
+  const aiQuota = await DataService.getAiQuotaStatus();
+  const availableModels = currentProviderId !== 'xkiro' ? await DataService.getAvailableModels(currentProviderId) : null;
+  const keyTestState = providerKeyTestState;
+
+  // Gộp model khả dụng đã xác thực (VD: model Gemini nạp từ key AI Studio) vào danh sách chọn model
+  const extraModelObjs = (availableModels || [])
+    .filter(id => !CONFIG.SUPPORTED_MODELS.some(m => m.id === id))
+    .map(id => ({ id, name: `${id} (Google AI Studio)`, isVision: true }));
+  const modelChoices = [...CONFIG.SUPPORTED_MODELS, ...extraModelObjs];
 
   // Read saved image analysis setting (defaults to true if model has vision, false otherwise)
   const savedImageAnalysis = await DataService.getSetting('ai_image_analysis');
@@ -28,7 +46,7 @@ export async function renderSettingsPage(onSaveComplete) {
   const tdeeVal = Math.round(calculateTDEE(bmrVal, profile.activityLevel || 1.2));
 
   // Find active model object
-  const currentModelObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId) || CONFIG.SUPPORTED_MODELS[0];
+  const currentModelObj = modelChoices.find(m => m.id === currentModelId) || CONFIG.SUPPORTED_MODELS[0];
   const isDarkMode = document.body.classList.contains('dark');
 
   // AI Tone Dropdown Options
@@ -221,6 +239,50 @@ export async function renderSettingsPage(onSaveComplete) {
           </button>
         </div>
 
+        <!-- Nguồn AI: Provider / API Key / Hạn mức token ngày -->
+        <style>
+          @keyframes ktDotBounce { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+          .kt-dot { display: inline-block; animation: ktDotBounce 1.1s infinite; }
+        </style>
+        <div class="mb-4 p-4 rounded-2xl" style="border: 1px solid rgba(124, 58, 237, 0.16); background: var(--primary-soft, rgba(124, 58, 237, 0.05));">
+          <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">Nguồn AI (Provider)</label>
+          ${currentProviderId === 'xkiro' ? '<p class="text-[11px] font-semibold text-emerald-600 mt-1">Đang dùng XKiro — nguồn do app cung cấp (giới hạn 50.000 token/ngày). Chọn nguồn bên dưới để dùng key riêng không giới hạn.</p>' : ''}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2" id="provider-cards-container">
+            ${selectableProviders.map(p => `
+              <label class="flex items-center gap-2 p-2.5 rounded-xl cursor-pointer border-2 transition ${p.id === currentProviderId ? 'border-[#7C3AED] bg-white dark:bg-gray-800/60' : 'border-transparent bg-white/60 dark:bg-gray-800/30'}" data-provider-option="${p.id}">
+                <input type="radio" name="provider-option" value="${p.id}" class="hidden" ${p.id === currentProviderId ? 'checked' : ''}>
+                <i data-lucide="${p.icon}" class="w-4 h-4 text-[var(--primary)] flex-shrink-0"></i>
+                <span class="text-xs font-bold truncate" style="color: var(--fg);">${p.name.replace(' (Gemini)', '')}</span>
+              </label>
+            `).join('')}
+          </div>
+          <div class="mt-3">
+            <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">API Key (tùy chọn — ưu tiên key của bạn)</label>
+            <div class="mt-1.5 flex items-center gap-2 p-3 bg-white dark:bg-gray-800/60 rounded-xl transition" style="border: 1px solid rgba(124, 58, 237, 0.16);">
+              <i data-lucide="key-round" class="w-5 h-5 text-[var(--muted)] flex-shrink-0"></i>
+              <input type="password" id="input-provider-api-key" autocomplete="off" value="${providerApiKey}" placeholder="Dán API key của provider đang chọn..." class="flex-1 min-w-0 bg-transparent border-none focus:outline-none font-semibold text-sm" style="color: var(--fg); padding-right: 0.5rem;">
+              ${keyTestState.status === 'ok'
+                ? '<span class="text-emerald-500 flex-shrink-0" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
+                : `<button type="button" id="btn-test-provider-key" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${keyTestState.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${keyTestState.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
+            </div>
+            ${currentProviderId !== 'xkiro' ? `
+            <button type="button" id="btn-restore-provider" class="mt-2 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 dark:text-gray-300 font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-800/50 transition flex items-center justify-center gap-1.5">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
+            </button>` : ''}
+            <p class="text-[11px] font-semibold mt-1.5 ${keyTestState.status === 'ok' ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ ' : keyTestState.status === 'ok' ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực & nạp model khả dụng. Model mới sẽ xuất hiện trong mục chọn Model.'}</p>
+            <p class="text-[10px] text-[var(--muted)] mt-1">Chỉ lưu trên thiết bị này. Để trống để dùng key cấu hình sẵn trên server (Vercel).</p>
+          </div>
+          <div class="mt-3">
+            <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1">
+              <span>Token AI hôm nay (áp dụng nguồn XKiro)</span>
+              <span>${aiQuota.used.toLocaleString('vi-VN')} / ${aiQuota.limit.toLocaleString('vi-VN')}</span>
+            </div>
+            <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: rgba(124, 58, 237, 0.12);">
+              <div class="h-full rounded-full bg-gradient-to-r from-[#7C3AED] to-[#D946EF]" style="width: ${Math.min(100, Math.round((aiQuota.used / aiQuota.limit) * 100))}%;"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- AI Toggles & Dark Mode Switcher -->
         <div class="space-y-1">
           <div class="flex items-center justify-between py-3">
@@ -322,7 +384,7 @@ export async function renderSettingsPage(onSaveComplete) {
               <h2 class="display text-2xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">Chọn AI Model</h2>
               <p class="text-xs text-gray-400 font-medium mt-1">Tối ưu hóa trải nghiệm cá nhân hóa của bạn</p>
             </div>
-            <span class="text-[10px] font-bold uppercase tracking-wider bg-[#EDE9FE] dark:bg-purple-900/50 text-[#6D28D9] dark:text-purple-300 px-2.5 py-1 rounded-full">${CONFIG.SUPPORTED_MODELS.length} Models</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-[#EDE9FE] dark:bg-purple-900/50 text-[#6D28D9] dark:text-purple-300 px-2.5 py-1 rounded-full">${modelChoices.length} Models</span>
           </div>
 
           <!-- Search Bar -->
@@ -339,7 +401,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
         <!-- List Models -->
         <div class="flex-1 overflow-y-auto p-4 space-y-2.5" id="model-list-container">
-          ${CONFIG.SUPPORTED_MODELS.map(m => {
+          ${modelChoices.map(m => {
             const isChecked = m.id === currentModelId;
             const hasVision = isVisionModel(m.id);
             let badgeClass = "text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-300";
@@ -405,6 +467,8 @@ export async function renderSettingsPage(onSaveComplete) {
     if (window.lucide) window.lucide.createIcons();
 
     // Teleport model selection modal to document.body to ensure 100% fullscreen backdrop-blur
+    // (dọn các modal cũ còn dính trên body trước khi gắn modal mới, tránh chồng lớp khi re-render)
+    document.body.querySelectorAll(':scope > #modal-overlay').forEach(el => el.remove());
     const modelModal = document.getElementById('modal-overlay');
     if (modelModal) {
       document.body.appendChild(modelModal);
@@ -531,7 +595,7 @@ export async function renderSettingsPage(onSaveComplete) {
         currentModelId = tempSelectedModelId;
         await DataService.saveSetting('ninerouter_model', currentModelId);
 
-        const mObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId);
+        const mObj = modelChoices.find(m => m.id === currentModelId);
         const dispEl = document.getElementById('disp-active-model-name');
         const iconEl = document.getElementById('disp-active-model-icon');
         if (mObj) {
@@ -610,7 +674,7 @@ export async function renderSettingsPage(onSaveComplete) {
 
       if (isTurningOn) {
         if (!isVisionModel(currentModelId)) {
-          const mObj = CONFIG.SUPPORTED_MODELS.find(m => m.id === currentModelId);
+          const mObj = modelChoices.find(m => m.id === currentModelId);
           const mName = mObj ? mObj.name.split(' (')[0] : currentModelId;
 
           await Modal.warning({
@@ -682,6 +746,56 @@ export async function renderSettingsPage(onSaveComplete) {
       }
     });
 
+    // 4.5 NGUỒN AI: chọn provider + nhập API key + kiểm tra key & nạp model
+    document.querySelectorAll('[data-provider-option]').forEach(card => {
+      card.addEventListener('click', async () => {
+        const pid = card.getAttribute('data-provider-option');
+        if (pid === currentProviderId) return;
+        currentProviderId = pid;
+        document.querySelectorAll('[data-provider-option]').forEach(c => {
+          const isActive = c.getAttribute('data-provider-option') === pid;
+          c.classList.toggle('border-[#7C3AED]', isActive);
+          c.classList.toggle('bg-white', isActive);
+          c.classList.toggle('border-transparent', !isActive);
+        });
+        // Nạp key đã lưu của provider mới chọn vào ô nhập
+        const keyInput = document.getElementById('input-provider-api-key');
+        if (keyInput) keyInput.value = (await DataService.getProviderApiKey(pid)) || '';
+      });
+    });
+
+    document.getElementById('btn-test-provider-key')?.addEventListener('click', async () => {
+      const keyInput = document.getElementById('input-provider-api-key');
+      const key = (keyInput?.value || '').trim();
+      if (!key) {
+        providerKeyTestState.status = 'error';
+        providerKeyTestState.message = 'Vui lòng nhập API key trước khi kiểm tra.';
+        renderSettingsPage(onSaveComplete);
+        return;
+      }
+      providerKeyTestState.status = 'testing';
+      providerKeyTestState.message = '';
+      renderSettingsPage(onSaveComplete);
+      const result = await AiCoachService.validateProviderKey(currentProviderId, key);
+      if (result.valid) {
+        providerKeyTestState.status = 'ok';
+        providerKeyTestState.message = `Kết nối thành công! Đã nạp ${result.models.length} model khả dụng — bấm nút chọn Model để xem danh sách mới.`;
+        await DataService.setAvailableModels(currentProviderId, result.models);
+      } else {
+        providerKeyTestState.status = 'error';
+        providerKeyTestState.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
+      }
+      renderSettingsPage(onSaveComplete);
+    });
+
+    document.getElementById('btn-restore-provider')?.addEventListener('click', async () => {
+      // Khôi phục về nguồn AI do app cung cấp (XKiro) + model mặc định
+      providerKeyTestState.status = 'idle';
+      providerKeyTestState.message = '';
+      await DataService.setSelectedProvider('xkiro');
+      renderSettingsPage(onSaveComplete);
+    });
+
     // 5. MAIN SAVE SETTINGS BUTTON & RESET DATA BUTTON AT BOTTOM
     document.getElementById('btn-main-save-settings')?.addEventListener('click', async () => {
       const budgetInput = document.getElementById('input-daily-budget');
@@ -689,6 +803,13 @@ export async function renderSettingsPage(onSaveComplete) {
 
       profile.foodAllergies = allergyList.join(', ');
       await DataService.saveUserProfile(profile);
+
+      // Lưu Nguồn AI: chỉ áp dụng cho 9Router / Google AI Studio (XKiro là nguồn do app cung cấp, không đổi từ đây)
+      if (currentProviderId !== 'xkiro') {
+        await DataService.setSelectedProvider(currentProviderId);
+        const providerKeyInput = document.getElementById('input-provider-api-key');
+        if (providerKeyInput) await DataService.setProviderApiKey(currentProviderId, providerKeyInput.value.trim());
+      }
 
       // Recalculate User Goal math based on updated physical parameters
       const goal = await DataService.getUserGoal();

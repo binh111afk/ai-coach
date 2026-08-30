@@ -1195,6 +1195,80 @@ export const DataService = {
 
   async setSelectedModel(model) {
     await this.saveSetting('ninerouter_model', model);
+  },
+
+  // ---------------- AI PROVIDER & DAILY TOKEN QUOTA ----------------
+  async getSelectedProvider() {
+    const p = await this.getSetting('ai_provider');
+    const valid = CONFIG.AI_PROVIDERS.some(x => x.id === p);
+    return valid ? p : 'ninerouter';
+  },
+
+  async setSelectedProvider(providerId) {
+    await this.saveSetting('ai_provider', providerId);
+    // Đồng bộ model mặc định của provider mới nếu model hiện tại không thuộc provider đó
+    const provider = CONFIG.AI_PROVIDERS.find(x => x.id === providerId);
+    const currentModel = await this.getSelectedModel();
+    if (provider && !provider.models.includes(currentModel)) {
+      await this.setSelectedModel(provider.defaultModel);
+    }
+  },
+
+  async getProviderApiKey(providerId) {
+    if (!providerId) return '';
+    // Ưu tiên key người dùng tự nhập (lưu trên thiết bị), sau đó tới key env build-time
+    const stored = await this.getSetting(`api_key_${providerId}`);
+    if (stored && String(stored).trim()) return String(stored).trim();
+    if (providerId === 'gemini') return CONFIG.GEMINI_API_KEY || '';
+    if (providerId === 'xkiro') return CONFIG.XKIRO_API_KEY || '';
+    return CONFIG.NINEROUTER_API_KEY || '';
+  },
+
+  async setProviderApiKey(providerId, key) {
+    await this.saveSetting(`api_key_${providerId}`, (key || '').trim());
+  },
+
+  // Danh sách model khả dụng đã xác thực theo provider (nạp từ API khi test key)
+  async getAvailableModels(providerId) {
+    if (!providerId) return null;
+    const stored = await this.getSetting(`available_models_${providerId}`);
+    return Array.isArray(stored) && stored.length > 0 ? stored : null;
+  },
+
+  async setAvailableModels(providerId, models) {
+    if (!providerId || !Array.isArray(models) || models.length === 0) return;
+    await this.saveSetting(`available_models_${providerId}`, models);
+  },
+
+  async getAiUsageToday() {
+    const dateKey = this.getTodayString ? this.getTodayString() : new Date().toISOString().split('T')[0];
+    const usage = await this.getSetting(`ai_usage_${dateKey}`);
+    return usage && typeof usage.used === 'number' ? usage : { date: dateKey, used: 0, calls: 0 };
+  },
+
+  async recordAiUsage(tokens) {
+    if (!tokens || tokens <= 0) return;
+    const dateKey = this.getTodayString ? this.getTodayString() : new Date().toISOString().split('T')[0];
+    const usage = await this.getAiUsageToday();
+    const next = {
+      date: dateKey,
+      used: (usage.used || 0) + Math.round(tokens),
+      calls: (usage.calls || 0) + 1
+    };
+    await this.saveSetting(`ai_usage_${dateKey}`, next);
+    return next;
+  },
+
+  async getAiQuotaStatus() {
+    const usage = await this.getAiUsageToday();
+    const limit = CONFIG.DAILY_TOKEN_LIMIT || 50000;
+    return {
+      used: usage.used || 0,
+      calls: usage.calls || 0,
+      limit,
+      remaining: Math.max(0, limit - (usage.used || 0)),
+      exceeded: (usage.used || 0) >= limit
+    };
   }
 };
 

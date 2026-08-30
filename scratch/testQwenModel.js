@@ -1,4 +1,4 @@
-const apiKey = "ms-fc2cfe61-4490-4e07-8e04-333e9c17362d";
+const apiKey = process.env.MODELSCOPE_API_KEY || "";
 const baseUrl = "https://api-inference.modelscope.cn/v1/chat/completions";
 
 const qwenModels = [

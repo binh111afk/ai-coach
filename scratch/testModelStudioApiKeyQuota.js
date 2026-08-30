@@ -1,4 +1,4 @@
-const apiKey = "ms-fc2cfe61-4490-4e07-8e04-333e9c17362d";
+const apiKey = process.env.MODELSCOPE_API_KEY || "";
 
 async function checkApiKeyQuota() {
   console.log("Testing API Key directly against DashScope & ModelScope endpoints for quota info...");

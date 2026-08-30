@@ -9,6 +9,12 @@ export const CONFIG = {
   // XKiro AI API configuration
   XKIRO_API_KEY: import.meta.env.XKIRO_API_KEY || import.meta.env.VITE_XKIRO_API_KEY || "",
   XKIRO_BASE_URL: import.meta.env.XKIRO_BASE_URL || import.meta.env.VITE_XKIRO_BASE_URL || "https://api.xkiro.com/v1/chat/completions",
+
+  // Google AI Studio (Gemini) configuration — endpoint OpenAI-compatible, key do người dùng tự nhập hoặc env server
+  GEMINI_API_KEY: import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || "",
+  GEMINI_BASE_URL: import.meta.env.GEMINI_BASE_URL || import.meta.env.VITE_GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+  GEMINI_MODEL: import.meta.env.GEMINI_MODEL || import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash",
+
   NINEROUTER_MODEL: import.meta.env.NINEROUTER_MODEL || import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.7-flash",
   XKIRO_MODEL: import.meta.env.XKIRO_MODEL || import.meta.env.VITE_XKIRO_MODEL || "deepseek/deepseek-v4-pro",
   DEFAULT_MODEL: import.meta.env.NINEROUTER_MODEL || import.meta.env.VITE_NINEROUTER_MODEL || "gemini/gemini-3.7-flash",
@@ -53,6 +59,39 @@ export const CONFIG = {
   ],
   // Fallback mode if API Key is not set or network fails
   SMART_LOCAL_FALLBACK: true,
+  // Hạn mức token AI mỗi người dùng mỗi ngày (reset sang ngày mới)
+  DAILY_TOKEN_LIMIT: Number(import.meta.env.VITE_DAILY_TOKEN_LIMIT || 50000),
+  // Danh sách provider AI chạy song song — người dùng chọn 1 làm mặc định
+  AI_PROVIDERS: [
+    {
+      id: 'ninerouter',
+      name: '9Router',
+      icon: 'router',
+      desc: 'Router đa model (Mistral, Qwen, MiniMax...)',
+      models: ['gemini/gemini-3.7-flash', 'deepseek/deepseek-v3.2', 'qwen/qwen3.7-max', 'mistralai/mistral-large-2512', 'minimax/minimax-m2.5'],
+      defaultModel: 'gemini/gemini-3.7-flash',
+      keyHint: 'API key 9Router (nếu tự gọi trực tiếp)'
+    },
+    {
+      id: 'xkiro',
+      name: 'XKiro',
+      icon: 'zap',
+      desc: 'DeepSeek, GPT-4o, Claude qua XKiro',
+      models: ['deepseek/deepseek-v4-pro', 'deepseek/deepseek-v4-flash', 'gpt-4o', 'claude-3-5-sonnet'],
+      defaultModel: 'deepseek/deepseek-v4-pro',
+      keyHint: 'API key XKiro (nếu tự gọi trực tiếp)'
+    },
+    {
+      id: 'gemini',
+      name: 'Google AI Studio (Gemini)',
+      icon: 'sparkles',
+      desc: 'Gemini API miễn phí lấy từ Google AI Studio',
+      models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+      defaultModel: 'gemini-2.5-flash',
+      keyHint: 'API key từ aistudio.google.com (miễn phí)',
+      isVision: true
+    }
+  ],
   // Gamification Constants
   XP_RULES: {
     MEAL_TARGET: 30,       // Hit calorie target (+/- 10%)

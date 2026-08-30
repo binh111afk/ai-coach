@@ -11,7 +11,174 @@ function getApiEndpoint() {
   return configured;
 }
 
+const AiCoachServiceHelpers = {
+  /** Ước lượng số token khi API không trả về usage (tiếng Việt ~3.5 ký tự/token) */
+  estimateTokens(text = '') {
+    if (!text) return 0;
+    return Math.ceil(String(text).length / 3.5);
+  },
+
+  /** Hạn mức token ngày chỉ áp dụng cho XKiro — nguồn do app cung cấp. Key riêng của người dùng thì không giới hạn. */
+  async isQuotaEnforced() {
+    return (await DataService.getSelectedProvider()) === 'xkiro';
+  },
+
+  /**
+   * Kiểm tra API key có hợp lệ & kết nối thành công không, đồng thời nạp danh sách model khả dụng.
+   * Ưu tiên proxy /api/models (chống CORS), fallback gọi trực tiếp khi chạy dev.
+   * Trả về { valid, models, error }.
+   */
+  async validateProviderKey(providerId, apiKey) {
+    const attempt = async (useProxy) => {
+      if (useProxy) {
+        return fetch('/api/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: providerId, apiKey: apiKey || '' })
+        });
+      }
+      if (!apiKey) return null;
+      if (providerId === 'gemini') {
+        // Endpoint native ListModels với key dạng query — GET đơn giản, không bị chặn CORS preflight từ trình duyệt
+        return fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=${encodeURIComponent(apiKey)}`);
+      }
+      const base = providerId === 'xkiro' ? CONFIG.XKIRO_BASE_URL : CONFIG.NINEROUTER_BASE_URL;
+      const modelsUrl = base.replace('/chat/completions', '/models');
+      return fetch(modelsUrl, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+    };
+
+    for (const useProxy of [true, false]) {
+      try {
+        const res = await attempt(useProxy);
+        if (!res) continue;
+        const data = await res.json().catch(() => null);
+        if (!data) continue;
+        if (data.ok && Array.isArray(data.models)) {
+          return { valid: true, models: data.models, error: null };
+        }
+        // Proxy trả về lỗi có thông điệp rõ ràng
+        if (data.ok === false && data.message) {
+          return { valid: false, models: [], error: data.message };
+        }
+        // Kết quả trực tiếp từ nhà cung cấp (định dạng OpenAI hoặc Gemini native)
+        const parsed = AiCoachServiceHelpers.parseModelsList(data, providerId);
+        if (parsed.length > 0) {
+          return { valid: true, models: parsed, error: null };
+        }
+        if (data.error?.message || data.message) {
+          const status = data.error?.status || data.error?.code;
+          const msg = data.error?.message || data.message;
+          return { valid: false, models: [], error: (status === 401 || status === 403 || /api key not valid|permission/i.test(msg)) ? 'API key không hợp lệ hoặc không có quyền truy cập.' : msg };
+        }
+      } catch { /* thử kênh kế tiếp */ }
+    }
+    return { valid: false, models: [], error: 'Không kết nối được nhà cung cấp. Vui lòng kiểm tra mạng hoặc key rồi thử lại.' };
+  },
+
+  /** Parse danh sách model từ 2 định dạng: OpenAI-compat ({data:[{id}]}) và Gemini native ({models:[{name, supportedGenerationMethods}]}) */
+  parseModelsList(data, providerId) {
+    let models = [];
+    if (Array.isArray(data?.data)) {
+      models = data.data.map(m => m.id).filter(Boolean).map(id => String(id).replace(/^models\//, ''));
+    } else if (Array.isArray(data?.models)) {
+      models = data.models
+        .filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent'))
+        .map(m => m.name).filter(Boolean).map(id => String(id).replace(/^models\//, ''));
+    }
+    if (providerId === 'gemini') {
+      const exclude = /embedding|aqa|imagen|veo|tts|audio|live|gemma|learnlm|robotics/i;
+      models = models.filter(id => /^gemini/i.test(id) && !exclude.test(id));
+    }
+    return [...new Set(models)].sort();
+  },
+
+  /** Cấu hình provider đang được chọn (model, key người dùng nhập, baseUrl) */
+  async getActiveProviderConfig() {
+    const providerId = await DataService.getSelectedProvider();
+    return this.getActiveProviderConfigForId(providerId);
+  },
+
+  /** Cấu hình một provider cụ thể theo id (model, key, baseUrl) */
+  async getActiveProviderConfigForId(providerId) {
+    const meta = CONFIG.AI_PROVIDERS.find(p => p.id === providerId);
+    if (!meta) return null;
+    const selectedModel = await DataService.getSelectedModel();
+    let model = meta.defaultModel;
+    if (meta.models.includes(selectedModel)) {
+      model = selectedModel;
+    } else if (providerId === 'gemini' && selectedModel && selectedModel.startsWith('gemini-') && !selectedModel.includes('/')) {
+      model = selectedModel;
+    } else if (providerId === 'ninerouter' && selectedModel && selectedModel.includes('/')) {
+      model = selectedModel;
+    }
+    const key = await DataService.getProviderApiKey(providerId);
+    const baseUrl = providerId === 'gemini' ? CONFIG.GEMINI_BASE_URL
+      : providerId === 'xkiro' ? CONFIG.XKIRO_BASE_URL
+      : CONFIG.NINEROUTER_BASE_URL;
+    return { id: providerId, name: meta.name, model, key, baseUrl };
+  },
+
+  /**
+   * Gọi 1 lượt chat đơn giản qua provider đang chọn: proxy serverless trước, gọi trực tiếp nếu có key.
+   * Tự kiểm tra hạn mức token ngày và tự ghi nhận usage. Trả về nội dung text hoặc null.
+   */
+  async simpleChatCompletion(messages, { temperature = 0.4, maxTokens = 1000 } = {}) {
+    const provider = await this.getActiveProviderConfig();
+    if (!provider) return null;
+
+    // Hạn mức token ngày chỉ áp dụng khi dùng XKiro (nguồn do app cung cấp)
+    if (provider.id === 'xkiro') {
+      const quota = await DataService.getAiQuotaStatus();
+      if (quota.exceeded) return null;
+    }
+
+    const callOnce = async (endpoint, useProxy) => {
+      const headers = { 'Content-Type': 'application/json' };
+      const body = { model: provider.model, messages, temperature, max_tokens: maxTokens };
+      if (useProxy) {
+        body.provider = provider.id;
+        if (provider.key) body.apiKey = provider.key;
+      } else {
+        if (!provider.key || !endpoint) return null;
+        if (!endpoint.includes('/chat/completions')) endpoint = endpoint.replace(/\/+$/, '') + '/chat/completions';
+        headers['Authorization'] = `Bearer ${provider.key}`;
+        headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai';
+        headers['X-Title'] = CONFIG.APP_NAME;
+      }
+      try {
+        const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        if (content && provider.id === 'xkiro') {
+          const used = data.usage?.total_tokens
+            || (this.estimateTokens(JSON.stringify(messages)) + this.estimateTokens(content));
+          await DataService.recordAiUsage(used);
+        }
+        return content || null;
+      } catch (err) {
+        console.warn('simpleChatCompletion error:', err.message);
+        return null;
+      }
+    };
+
+    // Ưu tiên proxy serverless (giấu key env, hoạt động cả vercel dev lẫn production)
+    let content = await callOnce('/api/chat', true);
+    if (!content && provider.key) {
+      content = await callOnce(provider.baseUrl, false);
+    }
+    return content;
+  }
+};
+
 export const AiCoachService = {
+  /**
+   * Kiểm tra API key & nạp model khả dụng (ủy quyền cho helper nội bộ)
+   */
+  validateProviderKey(providerId, apiKey) {
+    return AiCoachServiceHelpers.validateProviderKey(providerId, apiKey);
+  },
+
   /**
    * System Prompt for 9Router AI Coach
    */
@@ -226,48 +393,28 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
     const explicitCal = text.match(/(\d+)\s*(kcal|calo)/i);
     if (explicitCal) calories = parseInt(explicitCal[1]);
 
-    // Try AI API call if API key exists
-    const apiKey = await DataService.getNinerouterApiKey();
-    if (apiKey) {
-      try {
-        const endpoint = getApiEndpoint();
-        const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
-        const aiPrompt = `Phân tích món ăn: "${userText}". Trả về CHÍNH XÁC JSON duy nhất dạng: {"type": "Breakfast"|"Lunch"|"Dinner"|"Snack", "name": "Tên món ngắn gọn", "calories": number, "protein": number, "carb": number, "fat": number}`;
-
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: selectedModel,
-            messages: [{ role: "user", content: aiPrompt }],
-            temperature: 0.2
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const content = data.choices?.[0]?.message?.content || '';
-          const match = content.match(/\{[\s\S]*?\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            if (parsed.name && parsed.calories) {
-              return {
-                type: parsed.type || type,
-                name: parsed.name,
-                calories: parseInt(parsed.calories) || calories,
-                protein: parseInt(parsed.protein) || protein,
-                carb: parseInt(parsed.carb) || carb,
-                fat: parseInt(parsed.fat) || fat
-              };
-            }
+    // Try AI API call (provider đã chọn, tự kiểm tra hạn mức token ngày)
+    try {
+      const aiPrompt = `Phân tích món ăn: "${userText}". Trả về CHÍNH XÁC JSON duy nhất dạng: {"type": "Breakfast"|"Lunch"|"Dinner"|"Snack", "name": "Tên món ngắn gọn", "calories": number, "protein": number, "carb": number, "fat": number}`;
+      const aiContent = await AiCoachServiceHelpers.simpleChatCompletion([{ role: "user", content: aiPrompt }], { temperature: 0.2, maxTokens: 300 });
+      if (aiContent) {
+        const match = aiContent.match(/\{[\s\S]*?\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (parsed.name && parsed.calories) {
+            return {
+              type: parsed.type || type,
+              name: parsed.name,
+              calories: parseInt(parsed.calories) || calories,
+              protein: parseInt(parsed.protein) || protein,
+              carb: parseInt(parsed.carb) || carb,
+              fat: parseInt(parsed.fat) || fat
+            };
           }
         }
-      } catch (err) {
-        console.warn('AI NLP Meal Parse failed, using local parser:', err);
       }
+    } catch (err) {
+      console.warn('AI NLP Meal Parse failed, using local parser:', err);
     }
 
     return { type, name: cleanName, calories, protein, carb, fat };
@@ -302,45 +449,26 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
     const caloriesBurned = Math.round((duration / 60) * met * userWeight);
 
-    const apiKey = await DataService.getNinerouterApiKey();
-    if (apiKey) {
-      try {
-        const endpoint = getApiEndpoint();
-        const selectedModel = (await DataService.getSelectedModel()) || 'google/gemini-2.5-flash';
-        const aiPrompt = `Phân tích bài tập: "${userText}" với cân nặng ${userWeight}kg. Trả về CHÍNH XÁC JSON duy nhất dạng: {"type": "Tên bài tập", "duration": number, "caloriesBurned": number}`;
-
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: selectedModel,
-            messages: [{ role: "user", content: aiPrompt }],
-            temperature: 0.2
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const content = data.choices?.[0]?.message?.content || '';
-          const match = content.match(/\{[\s\S]*?\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            if (parsed.type && parsed.caloriesBurned) {
-              return {
-                type: parsed.type,
-                duration: parseInt(parsed.duration) || duration,
-                intensity: 'Moderate',
-                caloriesBurned: parseInt(parsed.caloriesBurned) || caloriesBurned
-              };
-            }
+    // Try AI API call (provider đã chọn, tự kiểm tra hạn mức token ngày)
+    try {
+      const aiPrompt = `Phân tích bài tập: "${userText}" với cân nặng ${userWeight}kg. Trả về CHÍNH XÁC JSON duy nhất dạng: {"type": "Tên bài tập", "duration": number, "caloriesBurned": number}`;
+      const aiContent = await AiCoachServiceHelpers.simpleChatCompletion([{ role: "user", content: aiPrompt }], { temperature: 0.2, maxTokens: 300 });
+      if (aiContent) {
+        const match = aiContent.match(/\{[\s\S]*?\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (parsed.type && parsed.caloriesBurned) {
+            return {
+              type: parsed.type,
+              duration: parseInt(parsed.duration) || duration,
+              intensity: 'Moderate',
+              caloriesBurned: parseInt(parsed.caloriesBurned) || caloriesBurned
+            };
           }
         }
-      } catch (err) {
-        console.warn('AI NLP Workout Parse failed, using local parser:', err);
       }
+    } catch (err) {
+      console.warn('AI NLP Workout Parse failed, using local parser:', err);
     }
 
     return { type: cleanName, duration, intensity: 'Moderate', caloriesBurned };
@@ -353,10 +481,6 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
    * Send message to AI (9Router primary, XKiro fallback, Smart Local Parser last fallback)
    */
   async sendMessage(userMessage, conversationHistory = [], attachments = []) {
-    const ninerouterKey = await DataService.getNinerouterApiKey();
-    const xkiroKey = await DataService.getXkiroApiKey();
-    const selectedModel = await DataService.getSelectedModel();
-
     const systemPrompt = await this.getSystemPrompt();
     const messagesPayload = [
       { role: "system", content: systemPrompt }
@@ -374,52 +498,61 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       messagesPayload.push({ role: "user", content: userMessage });
     }
 
-    // Helper to send request to OpenAI-compatible endpoint or Vercel Serverless Proxy
-    const tryApiCall = async (endpoint, apiKey, providerName, targetModel, providerHint) => {
-      if (!endpoint) return null;
-      // For Serverless proxy /api/chat, client-side API key is NOT required
-      if (endpoint !== '/api/chat' && !apiKey) return null;
-
-      let finalEndpoint = endpoint;
-      if (finalEndpoint !== '/api/chat' && !finalEndpoint.includes('/chat/completions')) {
-        finalEndpoint = finalEndpoint.replace(/\/+$/, '') + '/chat/completions';
+    // 0. Hạn mức token hàng ngày chỉ áp dụng khi dùng XKiro (nguồn do app cung cấp, mặc định 50.000 token/ngày)
+    const selectedProviderId = await DataService.getSelectedProvider();
+    if (selectedProviderId === 'xkiro') {
+      const quota = await DataService.getAiQuotaStatus();
+      if (quota.exceeded) {
+        return {
+          role: "assistant",
+          content: `🚫 **Hạn mức AI hôm nay đã hết!**\n\nBạn đã dùng **${quota.used.toLocaleString('vi-VN')}/${quota.limit.toLocaleString('vi-VN')} token** của nguồn XKiro trong ngày hôm nay. Hạn mức sẽ tự động đặt lại vào ngày mai.\n\n> 💡 **Lời khuyên AI Coach:** Bạn có thể chuyển sang nguồn không giới hạn bằng key riêng của mình (9Router hoặc Google AI Studio) trong **Cài đặt → Nguồn AI** để tiếp tục trò chuyện ngay!`,
+          proposedChange: null
+        };
       }
-      const modelToUse = targetModel || selectedModel || CONFIG.DEFAULT_MODEL;
-      console.log(`📡 [${providerName}] Sending chat request (${finalEndpoint}) with model ${modelToUse}...`);
+    }
+
+    // Helper: 1 lượt gọi OpenAI-compatible qua proxy serverless hoặc trực tiếp. Trả về { content, usage }
+    const tryApiCall = async (attempt, useProxy) => {
+      const headers = { "Content-Type": "application/json" };
+      const bodyData = {
+        model: attempt.model,
+        messages: messagesPayload,
+        stream: false,
+        temperature: 0.7,
+        max_tokens: 3500
+      };
+      let endpoint;
+      if (useProxy) {
+        endpoint = '/api/chat';
+        bodyData.provider = attempt.id;
+        if (attempt.key) bodyData.apiKey = attempt.key;
+      } else {
+        if (!attempt.key || !attempt.baseUrl) return null;
+        endpoint = attempt.baseUrl;
+        if (!endpoint.includes('/chat/completions')) {
+          endpoint = endpoint.replace(/\/+$/, '') + '/chat/completions';
+        }
+        headers["Authorization"] = `Bearer ${attempt.key}`;
+        headers["HTTP-Referer"] = typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai';
+        headers["X-Title"] = CONFIG.APP_NAME;
+      }
+
+      console.log(`📡 [${attempt.name}] Sending chat request (${endpoint}) with model ${attempt.model}...`);
       try {
-        const headers = {
-          "Content-Type": "application/json"
-        };
-        if (apiKey && finalEndpoint !== '/api/chat') {
-          headers["Authorization"] = `Bearer ${apiKey}`;
-          headers["HTTP-Referer"] = typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai';
-          headers["X-Title"] = CONFIG.APP_NAME;
-        }
-
-        const bodyData = {
-          model: modelToUse,
-          messages: messagesPayload,
-          stream: false,
-          temperature: 0.7,
-          max_tokens: 3500
-        };
-        if (providerHint) {
-          bodyData.provider = providerHint;
-        }
-
-        const response = await fetch(finalEndpoint, {
+        const response = await fetch(endpoint, {
           method: "POST",
           headers,
           body: JSON.stringify(bodyData)
         });
 
         if (!response.ok) {
-          console.warn(`❌ [${providerName}] HTTP Error Status:`, response.status);
+          console.warn(`❌ [${attempt.name}] HTTP Error Status:`, response.status);
           return null;
         }
 
         const rawText = await response.text();
         let aiContent = '';
+        let usage = null;
         if (rawText.trim().startsWith('data:')) {
           const lines = rawText.split('\n');
           for (const line of lines) {
@@ -435,46 +568,58 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
           try {
             const data = JSON.parse(rawText);
             aiContent = data.choices?.[0]?.message?.content || data.choices?.[0]?.delta?.content || (typeof data === 'string' ? data : JSON.stringify(data));
+            usage = data.usage || null;
           } catch {
             aiContent = rawText;
           }
         }
-        return aiContent ? aiContent : null;
+        return aiContent ? { content: aiContent, usage } : null;
       } catch (err) {
-        console.warn(`❌ [${providerName}] fetch error:`, err.message);
+        console.warn(`❌ [${attempt.name}] fetch error:`, err.message);
         return null;
       }
     };
 
-    // 1. Try Vercel Serverless Proxy /api/chat with 9Router
-    const ninerouterModel = selectedModel || CONFIG.NINEROUTER_MODEL || 'gemini/gemini-3.7-flash';
-    let aiContent = await tryApiCall('/api/chat', null, 'Vercel Proxy (9Router)', ninerouterModel, 'ninerouter');
+    // Thứ tự thử: provider đang chọn trước (proxy → trực tiếp nếu có key), sau đó lần lượt các provider còn lại
+    const providerOrder = [
+      selectedProviderId,
+      ...CONFIG.AI_PROVIDERS.map(p => p.id).filter(id => id !== selectedProviderId)
+    ];
 
-    // 2. Direct 9Router attempt if proxy not used or failed
-    if (!aiContent && ninerouterKey) {
-      aiContent = await tryApiCall(getApiEndpoint(), ninerouterKey, 'Direct 9Router AI', ninerouterModel);
+    const inputTokens = AiCoachServiceHelpers.estimateTokens(systemPrompt)
+      + messagesPayload.slice(1).reduce((s, m) => s + AiCoachServiceHelpers.estimateTokens(m.content), 0);
+
+    let aiContent = null;
+    let usedTokens = 0;
+    let successProviderId = null;
+    for (const pid of providerOrder) {
+      const attempt = await AiCoachServiceHelpers.getActiveProviderConfigForId(pid);
+      if (!attempt) continue;
+      // Proxy serverless trước (không cần key client), sau đó gọi trực tiếp nếu có key
+      let result = await tryApiCall(attempt, true);
+      if (!result && attempt.key) {
+        result = await tryApiCall(attempt, false);
+      }
+      if (result) {
+        aiContent = result.content;
+        usedTokens = result.usage?.total_tokens
+          || (inputTokens + AiCoachServiceHelpers.estimateTokens(aiContent));
+        successProviderId = pid;
+        break;
+      }
     }
 
-    // 3. Try Vercel Serverless Proxy /api/chat with XKiro
+    // Nếu toàn bộ provider đều thất bại, dùng Smart Local Fallback
     if (!aiContent) {
-      console.warn("⚠️ 9Router AI unavailable. Falling back to XKiro AI via Serverless Proxy...");
-      const xkiroModel = selectedModel || CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
-      aiContent = await tryApiCall('/api/chat', null, 'Vercel Proxy (XKiro)', xkiroModel, 'xkiro');
-    }
-
-    // 4. Direct XKiro attempt if client key exists
-    if (!aiContent && xkiroKey) {
-      console.warn("⚠️ Falling back to Direct XKiro AI...");
-      const xkiroModel = selectedModel || CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
-      aiContent = await tryApiCall(CONFIG.XKIRO_BASE_URL, xkiroKey, 'Direct XKiro AI', xkiroModel);
-    }
-
-    // 3. If both failed, use Smart Local Fallback
-    if (!aiContent) {
-      console.warn("⚠️ Both 9Router and XKiro failed. Using Smart Local Parser Fallback.");
+      console.warn("⚠️ All AI providers failed. Using Smart Local Parser Fallback.");
       const fallbackResult = await this.smartLocalFallback(userMessage, attachments);
       fallbackResult.content = `*(Lưu ý: Không thể gọi AI API. Hệ thống chuyển sang AI Parser nội bộ)*\n\n` + fallbackResult.content;
       return fallbackResult;
+    }
+
+    // Chỉ đếm token vào hạn mức khi thành công qua XKiro (nguồn do app cung cấp)
+    if (successProviderId === 'xkiro') {
+      await DataService.recordAiUsage(usedTokens);
     }
 
     // Parse potential proposedChange JSON from AI text response
@@ -533,11 +678,15 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
     const prompt = `Bạn là AI Coach thể hình & dinh dưỡng cao cấp.\nHãy sinh kế hoạch TOÀN BỘ hành trình ${totalDays} ngày gồm ${numPhases} giai đoạn (phase) cho người dùng:\n- Tên: ${profileData.name || 'Người dùng'}, ${profileData.gender === 'male' ? 'Nam' : 'Nữ'}, ${profileData.age} tuổi, ${profileData.height}cm\n- Cân nặng hiện tại: ${profileData.currentWeight}kg → mục tiêu: ${goalData.targetWeight}kg\n- Mục tiêu calo/ngày: ${calorieTarget} kcal\n- Macro: Protein ${proteinTarget}g, Carb ${goalData.macroTarget?.carb}g, Fat ${goalData.macroTarget?.fat}g\n- Dị ứng / Kiêng khem: ${profileData.foodAllergies || 'Không có'}${allergyRule}\n- Địa điểm & Dụng cụ tập luyện: ${workoutLocationStr}\n- Khung giờ tập luyện người dùng chọn: ${prefWorkoutTimesStr}\n\nYÊU CẦU TỪNG PHASE:\n${phaseDescriptions}\n\nQUY TẮC:\n1. Mỗi phase có weeklyMealPlan 7 ngày (day1→day7) với 4 bữa/ngày (Breakfast, Lunch, Dinner, Snack), NỘI DUNG KHÁC NHAU HOÀN TOÀN giữa các phase.\n2. Mỗi phase có weeklyWorkoutRoutine 7 bài (kể cả 1-2 ngày nghỉ phục hồi), khác nhau giữa các phase.\n3. BÀI TẬP BẮT BUỘC PHẢI PHÙ HỢP VỚI ĐỊA ĐIỂM VÀ DỤNG CỤ TẬP (${workoutLocationStr}). Nếu là Tập Tại Nhà, CHỈ ĐỀ XUẤT bài tập Bodyweight hoặc bài tập đúng với dụng cụ người dùng có!\n4. Calo mỗi ngày phải gần đúng mục tiêu (±100 kcal).\n5. Thực đơn phải đa dạng, không lặp ngày giống nhau trong cùng 1 phase.\n6. Tên món ăn phải là tiếng Việt cụ thể và thực tế.\n7. TUYỆT ĐỐI không dùng thực phẩm bị kiêng/dị ứng: ${profileData.foodAllergies || 'Không có'}.\n8. Mỗi phase phải có dailyChecklist (5-7 việc cần làm mỗi ngày, phù hợp cường độ phase đó, cụ thể hoá với mục tiêu ${calorieTarget} kcal, ${proteinTarget}g protein, ${waterTarget}ml nước, né ${allergyDisplay}).\n9. Mỗi phase phải có dailySchedule là lịch trình mốc thời gian trong ngày. QUY TẮC BẮT BUỘC: Hoạt động tập luyện (category: "workout") BẮT BUỘC phải đặt mốc giờ khớp đúng với khung giờ người dùng đã chọn (${prefWorkoutTimesStr}), dạng array gồm { "time": "07:30", "activity": "Ten hoat dong", "category": "meal"|"workout"|"habit", "icon": "coffee"|"dumbbell"|"sun"|"moon"|"droplet"|"apple"|"utensils", "desc": "Mo ta chi tiet" }.\n\nTrả về ĐÚNG JSON object duy nhất:`;
 
-    const callApiForPlan = async (baseUrl, apiKey, providerName, targetModel) => {
-      if (!apiKey || !baseUrl) return null;
+    const callApiForPlan = async (baseUrl, apiKey, providerName, targetModel, useProxy = false, providerHint = null) => {
       let endpoint = baseUrl;
-      if (!endpoint.includes('/chat/completions')) {
-        endpoint = endpoint.replace(/\/+$/, '') + '/chat/completions';
+      if (useProxy) {
+        endpoint = '/api/chat';
+      } else {
+        if (!apiKey || !baseUrl) return null;
+        if (!endpoint.includes('/chat/completions')) {
+          endpoint = endpoint.replace(/\/+$/, '') + '/chat/completions';
+        }
       }
       const modelToUse = targetModel || selectedModel || CONFIG.DEFAULT_MODEL;
       console.log(`📡 [AI Journey Plan] Trying ${providerName} (${endpoint}) with model ${modelToUse}...`);
@@ -548,7 +697,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         const response = await fetch(endpoint, {
           method: 'POST',
           signal: controller.signal,
-          headers: {
+          headers: useProxy ? { 'Content-Type': 'application/json' } : {
             'Authorization': `Bearer ${apiKey}`,
             'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://fitcoach.ai',
             'X-Title': CONFIG.APP_NAME,
@@ -558,7 +707,8 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
             model: modelToUse,
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.7,
-            max_tokens: 6000
+            max_tokens: 6000,
+            ...(useProxy ? { provider: providerHint, apiKey: apiKey || undefined } : {})
           })
         });
         clearTimeout(timeoutId);
@@ -569,6 +719,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         }
 
         let content = '';
+        let planUsageTokens = 0;
         const rawText = await response.text();
         if (rawText.trim().startsWith('data:')) {
           const lines = rawText.split('\n');
@@ -585,6 +736,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
           try {
             const data = JSON.parse(rawText);
             content = data.choices?.[0]?.message?.content || '';
+            planUsageTokens = data.usage?.total_tokens || 0;
           } catch {
             return null;
           }
@@ -596,6 +748,11 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
         const parsed = JSON.parse(jsonStr);
         if (parsed && Array.isArray(parsed.journeyPhases) && parsed.journeyPhases.length > 0) {
+          // Chỉ đếm token vào hạn mức khi chạy qua XKiro (nguồn do app cung cấp)
+          if ((providerHint || '') === 'xkiro') {
+            await DataService.recordAiUsage(planUsageTokens
+              || (AiCoachServiceHelpers.estimateTokens(prompt) + AiCoachServiceHelpers.estimateTokens(content)));
+          }
           console.log(`✅ [AI Journey Plan] Successfully generated plan via ${providerName}!`);
           return parsed;
         }
@@ -607,15 +764,36 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       }
     };
 
-    // 1. Primary: Try 9Router AI (default model: gemini/gemini-3.7-flash)
-    const ninerouterPlanModel = modelOverride || (await DataService.getSelectedModel()) || CONFIG.NINEROUTER_MODEL || 'gemini/gemini-3.7-flash';
-    let parsed = await callApiForPlan(getApiEndpoint(), CONFIG.NINEROUTER_API_KEY, '9Router AI', ninerouterPlanModel);
+    // Hạn mức token ngày trước khi sinh kế hoạch chỉ áp dụng khi dùng XKiro (prompt lớn, tiêu tốn nhiều token)
+    const primary = await AiCoachServiceHelpers.getActiveProviderConfig();
+    if (primary.id === 'xkiro') {
+      const planQuota = await DataService.getAiQuotaStatus();
+      if (planQuota.exceeded) {
+        console.warn(`⚠️ [AI Journey Plan] Hạn mức token ngày XKiro đã hết (${planQuota.used}/${planQuota.limit}). Chuyển sang bộ sinh kế hoạch nội bộ.`);
+        return null;
+      }
+    }
 
-    // 2. Fallback: Try XKiro AI if 9Router failed (default model: deepseek/deepseek-v4-pro)
+    // 1. Primary: Provider đang chọn (proxy serverless trước, rồi gọi trực tiếp nếu có key)
+    const primaryModel = modelOverride || primary.model;
+    let parsed = await callApiForPlan(primary.baseUrl, primary.key, primary.name, primaryModel, true, primary.id);
+    if (!parsed && primary.key) {
+      parsed = await callApiForPlan(primary.baseUrl, primary.key, primary.name, primaryModel);
+    }
+
+    // 2. Fallback: lần lượt các provider còn lại theo cấu hình
     if (!parsed) {
-      console.warn('⚠️ [AI Journey Plan] 9Router AI failed or unavailable. Switching to XKiro AI fallback...');
-      const xkiroPlanModel = CONFIG.XKIRO_MODEL || 'deepseek/deepseek-v4-pro';
-      parsed = await callApiForPlan(CONFIG.XKIRO_BASE_URL, CONFIG.XKIRO_API_KEY, 'XKiro AI', xkiroPlanModel);
+      for (const pid of CONFIG.AI_PROVIDERS.map(p => p.id)) {
+        if (pid === primary.id) continue;
+        const alt = await AiCoachServiceHelpers.getActiveProviderConfigForId(pid);
+        if (!alt) continue;
+        console.warn(`⚠️ [AI Journey Plan] Switching to ${alt.name} fallback...`);
+        parsed = await callApiForPlan(alt.baseUrl, alt.key, alt.name, alt.defaultModel, true, alt.id);
+        if (!parsed && alt.key) {
+          parsed = await callApiForPlan(alt.baseUrl, alt.key, alt.name, alt.defaultModel);
+        }
+        if (parsed) break;
+      }
     }
 
     // 3. If both failed, return null to trigger smart local fallback
@@ -1057,38 +1235,16 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
   async generateSessionTitle(userMessage = '', aiResponseContent = '') {
     if (!userMessage) return 'Đoạn trò chuyện AI';
     try {
-      const apiKey = await DataService.getNinerouterApiKey();
-      const endpoint = getApiEndpoint();
       const promptText = `Hãy đóng vai AI tóm tắt, đọc câu sau và đặt 1 tiêu đề ngắn gọn (từ 3 đến 5 từ tiếng Việt, không dùng dấu ngoặc kép hay từ thừa) thể hiện đúng chủ đề chính:\nNgười dùng hỏi: "${userMessage.substring(0, 150)}"\nAI trả lời: "${(aiResponseContent || '').substring(0, 150)}"`;
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "HTTP-Referer": window.location.origin,
-          "X-Title": CONFIG.APP_NAME,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: await DataService.getSelectedModel(),
-          messages: [{ role: "user", content: promptText }],
-          temperature: 0.4,
-          max_tokens: 30
-        })
-      });
+      const aiContent = await AiCoachServiceHelpers.simpleChatCompletion(
+        [{ role: "user", content: promptText }],
+        { temperature: 0.4, maxTokens: 30 }
+      );
 
-      if (response.ok) {
-        const rawText = await response.text();
-        let clean = rawText.replace(/data:\s*/g, '').replace(/\[DONE\]/g, '').trim();
-        try {
-          const parsed = JSON.parse(clean);
-          clean = parsed.choices?.[0]?.message?.content || parsed.choices?.[0]?.delta?.content || clean;
-        } catch {}
-
-        clean = clean.replace(/^Tiêu đề:\s*/i, '').replace(/["'«»\n\r]/g, '').trim();
-        if (clean && clean.length <= 40) {
-          return clean;
-        }
+      let clean = (aiContent || '').replace(/^Tiêu đề:\s*/i, '').replace(/["'«»\n\r]/g, '').trim();
+      if (clean && clean.length <= 40) {
+        return clean;
       }
     } catch (e) {
       console.warn('AI Session Title Generation warn:', e.message);

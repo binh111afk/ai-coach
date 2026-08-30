@@ -1,4 +1,4 @@
-const apiKey = "ms-cae5876f-c3d4-4e58-80d0-030cfeaf1a28";
+const apiKey = process.env.MODELSCOPE_API_KEY || "";
 const baseUrl = "https://api-inference.modelscope.cn/v1/chat/completions";
 
 async function testHeader(headerName) {
