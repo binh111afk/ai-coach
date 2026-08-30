@@ -2,7 +2,7 @@ import { DataService, generate7DayMealPlan } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { dbManager } from '../services/db.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, getLevelInfo } from '../services/gamificationService.js';
-import { CONFIG, isVisionModel } from '../config.js';
+import { CONFIG, isVisionModel, pickTopModels } from '../config.js';
 import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
@@ -30,7 +30,7 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
   const selectableProviders = CONFIG.AI_PROVIDERS.filter(p => p.id !== 'xkiro');
   const providerApiKey = await DataService.getProviderApiKey(currentProviderId);
   const aiQuota = await DataService.getAiQuotaStatus();
-  const availableModels = null;
+  const isUsingXkiro = currentProviderId === 'xkiro';
   const keyTestState = providerKeyTestState;
   // Key đang hiển thị: ưu tiên key người dùng đang gõ (giữ qua re-render), sau đó tới key đã lưu
   if (keyTestState.key === '' && providerApiKey) keyTestState.key = providerApiKey;
@@ -39,7 +39,15 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
 
   // Danh sách model chọn: model router mặc định + 5 model Gemini đại diện (tĩnh trong config)
   const extraModelObjs = CONFIG.GEMINI_MODELS.filter(m => !CONFIG.SUPPORTED_MODELS.some(s => s.id === m.id));
-  const modelChoices = [...CONFIG.SUPPORTED_MODELS, ...extraModelObjs];
+  const baseModelChoices = [...CONFIG.SUPPORTED_MODELS, ...extraModelObjs];
+
+  // Nạp model khả dụng đã xác thực từ API (lưu trong DB) — merge tối đa 5 model phổ biến
+  const storedApiModels = await DataService.getAvailableModels(currentProviderId);
+  const topApiModels = pickTopModels(storedApiModels || [], 5);
+  const apiModelObjs = topApiModels
+    .filter(id => !baseModelChoices.some(m => m.id === id))
+    .map(id => ({ id, name: id + ' (API Key)', isVision: isVisionModel(id) }));
+  const modelChoices = [...baseModelChoices, ...apiModelObjs];
 
   // Read saved image analysis setting (defaults to true if model has vision, false otherwise)
   const savedImageAnalysis = await DataService.getSetting('ai_image_analysis');
@@ -255,7 +263,7 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
         </style>
         <div class="mb-4 p-4 rounded-2xl" style="border: 1px solid rgba(124, 58, 237, 0.16); background: var(--primary-soft, rgba(124, 58, 237, 0.05));">
           <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">Nguồn AI (Provider)</label>
-          ${currentProviderId === 'xkiro' ? '<p class="text-[11px] font-semibold text-emerald-600 mt-1">Đang dùng XKiro — nguồn do app cung cấp (giới hạn 50.000 token/ngày). Chọn nguồn bên dưới để dùng key riêng không giới hạn.</p>' : ''}
+          ${isUsingXkiro ? '<p class="text-[11px] font-semibold text-emerald-600 mt-1">Đang dùng XKiro — nguồn do app cung cấp (giới hạn 50.000 token/ngày). Chọn nguồn bên dưới để dùng key riêng không giới hạn.</p>' : ''}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2" id="provider-cards-container">
             ${selectableProviders.map(p => `
               <label class="flex items-center gap-2 p-2.5 rounded-xl cursor-pointer border-2 transition ${p.id === currentProviderId ? 'border-[#7C3AED] bg-white dark:bg-gray-800/60' : 'border-transparent bg-white/60 dark:bg-gray-800/30'}" data-provider-option="${p.id}">
@@ -274,13 +282,14 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
                 ? '<span class="text-emerald-500 flex-shrink-0" id="provider-key-tick" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
                 : `<button type="button" id="btn-test-provider-key" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${keyTestState.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${keyTestState.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
             </div>
-            ${currentProviderId !== 'xkiro' ? `
-            <button type="button" id="btn-restore-provider" class="mt-2 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 dark:text-gray-300 font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-800/50 transition flex items-center justify-center gap-1.5">
-              <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
-            </button>` : ''}
-            <p id="provider-key-status" class="text-[11px] font-semibold mt-1.5 ${keyTestOk ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...' : `${keyTestOk ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực key. Model Gemini đại diện đã có sẵn trong mục chọn Model.'}`}</p>
+            <p id="provider-key-status" class="text-[11px] font-semibold mt-1.5 ${keyTestOk ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...' : `${keyTestOk ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực key và nạp model khả dụng vào danh sách chọn Model.'}`}</p>
             <p class="text-[10px] text-[var(--muted)] mt-1">Chỉ lưu trên thiết bị này. Để trống để dùng key cấu hình sẵn trên server (Vercel).</p>
           </div>
+          ${!isUsingXkiro ? `
+          <button type="button" id="btn-restore-provider" class="mt-3 w-full py-2.5 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition flex items-center justify-center gap-1.5 shadow-sm">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
+          </button>` : ''}
+          ${isUsingXkiro ? `
           <div class="mt-3">
             <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1">
               <span>Token AI hôm nay (áp dụng nguồn XKiro)</span>
@@ -289,7 +298,11 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
             <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: rgba(124, 58, 237, 0.12);">
               <div class="h-full rounded-full bg-gradient-to-r from-[#7C3AED] to-[#D946EF]" style="width: ${Math.min(100, Math.round((aiQuota.used / aiQuota.limit) * 100))}%;"></div>
             </div>
-          </div>
+          </div>` : `
+          <div class="mt-3 flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20" style="border: 1px solid rgba(16, 185, 129, 0.2);">
+            <i data-lucide="infinity" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <p class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Không giới hạn token — bạn đang dùng API key riêng.</p>
+          </div>`}
         </div>
 
         <!-- AI Toggles & Dark Mode Switcher -->
@@ -831,18 +844,11 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
         if (result.valid) {
           providerKeyTestState.status = 'ok';
           providerKeyTestState.key = key;
-          providerKeyTestState.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng) — model Gemini đã có trong mục chọn Model.`;
+          const topCount = pickTopModels(result.models, 5).length;
+          providerKeyTestState.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng, ${topCount} model phổ biến đã nạp vào danh sách chọn Model).`;
           await DataService.setAvailableModels(currentProviderId, result.models);
-          if (statusEl) {
-            statusEl.className = 'text-[11px] font-semibold mt-1.5 text-emerald-600';
-            statusEl.textContent = '✅ ' + providerKeyTestState.message;
-          }
-          document.getElementById('btn-test-provider-key')?.remove();
-          const row = document.getElementById('provider-key-input-row');
-          if (row && !document.getElementById('provider-key-tick')) {
-            row.insertAdjacentHTML('beforeend', '<span class="text-emerald-500 flex-shrink-0" id="provider-key-tick" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>');
-            if (window.lucide) window.lucide.createIcons();
-          }
+          // Re-render toàn trang Settings để model mới xuất hiện trong modal chọn Model
+          renderSettingsPage(onSaveComplete, { keepState: true });
         } else {
           providerKeyTestState.status = 'error';
           providerKeyTestState.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';

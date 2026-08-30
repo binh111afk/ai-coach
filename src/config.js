@@ -135,6 +135,24 @@ export function getModelDisplayName(modelId = '') {
 }
 
 /**
+ * Lọc tối đa `maxCount` model phổ biến nhất từ danh sách model ID trả về bởi API.
+ * Ưu tiên: flash → pro → plus → max → còn lại (theo alphabet).
+ */
+export function pickTopModels(modelIds = [], maxCount = 5) {
+  if (!Array.isArray(modelIds) || modelIds.length === 0) return [];
+  const priority = [/flash/i, /pro/i, /plus/i, /max/i];
+  const scored = modelIds.map(id => {
+    let score = priority.length;
+    for (let i = 0; i < priority.length; i++) {
+      if (priority[i].test(id)) { score = i; break; }
+    }
+    return { id, score };
+  });
+  scored.sort((a, b) => a.score - b.score || a.id.localeCompare(b.id));
+  return scored.slice(0, maxCount).map(s => s.id);
+}
+
+/**
  * Helper to check whether a model ID has Vision (multimodal image analysis) capabilities
  */
 export function isVisionModel(modelId = '') {

@@ -1,6 +1,6 @@
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases, sanitizeMealItem } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
-import { CONFIG, getModelDisplayName } from '../config.js';
+import { CONFIG, getModelDisplayName, pickTopModels } from '../config.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import confetti from 'canvas-confetti';
@@ -50,6 +50,8 @@ export function renderOnboarding(onComplete) {
   // Bước 5: Lựa chọn Nguồn AI (9Router / XKiro / Google AI Studio)
   const aiProviderChoice = { provider: 'ninerouter', model: '', apiKey: '' };
   const aiKeyTest = { status: 'idle', message: '' };
+  // Model khả dụng từ API key (nạp sau khi test key thành công)
+  let extraModelsFromApi = [];
   (async () => {
     aiProviderChoice.provider = await DataService.getSelectedProvider();
     aiProviderChoice.model = (await DataService.getSelectedModel()) || '';
@@ -434,11 +436,20 @@ export function renderOnboarding(onComplete) {
     if (step === 5) {
       const providers = CONFIG.AI_PROVIDERS;
       const activeProvider = providers.find(p => p.id === aiProviderChoice.provider) || providers[0];
-      if (aiProviderChoice.model && !activeProvider.models.includes(aiProviderChoice.model)) {
+      const isUsingXkiro = aiProviderChoice.provider === 'xkiro';
+
+      // Merge model tĩnh của provider + model đã nạp từ API key
+      const providerModels = [...activeProvider.models];
+      if (extraModelsFromApi.length > 0) {
+        extraModelsFromApi.forEach(m => {
+          if (!providerModels.includes(m)) providerModels.push(m);
+        });
+      }
+      if (aiProviderChoice.model && !providerModels.includes(aiProviderChoice.model)) {
         aiProviderChoice.model = activeProvider.defaultModel;
       }
-      const modelOptions = activeProvider.models
-        .map(m => `<option value="${m}" ${aiProviderChoice.model === m ? 'selected' : ''}>${getModelDisplayName(m)}</option>`)
+      const modelOptions = providerModels
+        .map(m => `<option value="${m}" ${aiProviderChoice.model === m ? 'selected' : ''}>${getModelDisplayName(m) || m}</option>`)
         .join('');
 
       const testStatusMeta = {
@@ -455,17 +466,26 @@ export function renderOnboarding(onComplete) {
       return `
         <div class="flex-1 space-y-3 mt-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
           <!-- Quota Banner -->
+          ${isUsingXkiro ? `
           <div class="relative bg-gradient-to-r from-[#7C3AED] to-[#D946EF] p-4 rounded-2xl text-white overflow-hidden shadow-lg shadow-purple-500/20">
             <div class="relative z-10">
-              <span class="text-xs font-bold uppercase tracking-wider opacity-85">Nguồn AI Coach</span>
+              <span class="text-xs font-bold uppercase tracking-wider opacity-85">Nguồn AI Coach — XKiro (App cung cấp)</span>
               <p class="text-xs mt-1.5 opacity-90 leading-relaxed">
-                3 nhà cung cấp chạy song song — AI tự chuyển dự phòng khi nguồn chính gặp sự cố. Nguồn <b>XKiro</b> do app cung cấp,
-                giới hạn <b>${(CONFIG.DAILY_TOKEN_LIMIT || 50000).toLocaleString('vi-VN')} token/ngày</b> (tự làm mới vào ngày mai);
-                chọn <b>9Router</b> hoặc <b>Google AI Studio</b> với key riêng của bạn thì không giới hạn.
+                Nguồn <b>XKiro</b> do app cung cấp, giới hạn <b>${(CONFIG.DAILY_TOKEN_LIMIT || 50000).toLocaleString('vi-VN')} token/ngày</b> (tự làm mới vào ngày mai).
+                Chọn <b>9Router</b> hoặc <b>Google AI Studio</b> với key riêng của bạn thì không giới hạn.
               </p>
             </div>
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xs pointer-events-none"></div>
-          </div>
+          </div>` : `
+          <div class="relative bg-gradient-to-r from-emerald-500 to-teal-500 p-4 rounded-2xl text-white overflow-hidden shadow-lg shadow-emerald-500/20">
+            <div class="relative z-10">
+              <span class="text-xs font-bold uppercase tracking-wider opacity-85">Nguồn AI Coach — ${activeProvider.name}</span>
+              <p class="text-xs mt-1.5 opacity-90 leading-relaxed">
+                <b>Không giới hạn token</b> — bạn đang dùng API key riêng. Nhập key bên dưới rồi bấm "Kiểm tra" để xác thực và nạp model.
+              </p>
+            </div>
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xs pointer-events-none"></div>
+          </div>`}
 
           ${providers.map(p => `
             <label class="flex items-start gap-3 p-3.5 border-2 rounded-2xl cursor-pointer transition ${aiProviderChoice.provider === p.id ? 'border-[#7C3AED] bg-[#F5F3FF]' : 'border-gray-200 bg-white hover:border-purple-200'}" data-provider-card="${p.id}">
@@ -486,7 +506,7 @@ export function renderOnboarding(onComplete) {
           <!-- Model & API Key -->
           <div class="bg-[#F9FAFB] border border-gray-100 rounded-2xl p-3.5 space-y-3">
             <div>
-              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Model (${activeProvider.name})</label>
+              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Model (${activeProvider.name})${extraModelsFromApi.length > 0 ? ' — đã nạp từ API' : ''}</label>
               <select id="ob-provider-model" class="ui-input">${modelOptions}</select>
             </div>
             <div>
@@ -498,9 +518,10 @@ export function renderOnboarding(onComplete) {
                   : `<button type="button" id="ob-test-key" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${aiKeyTest.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${aiKeyTest.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
               </div>
             </div>
-            <button type="button" id="ob-restore-provider" class="w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-bold text-xs hover:bg-gray-50 transition flex items-center justify-center gap-1.5">
+            ${!isUsingXkiro ? `
+            <button type="button" id="ob-restore-provider" class="w-full py-2.5 rounded-xl border-2 border-emerald-200 text-emerald-700 bg-emerald-50 font-bold text-xs hover:bg-emerald-100 transition flex items-center justify-center gap-1.5 shadow-sm">
               <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
-            </button>
+            </button>` : ''}
             <p class="text-[11px] font-semibold leading-relaxed ${testStatusMeta.cls}">${testStatusMeta.icon}${testStatusText}</p>
             ${activeProvider.id === 'gemini' ? '<p class="text-[10px] text-gray-400 leading-relaxed">Lấy key miễn phí tại aistudio.google.com → "Get API key". Key chỉ lưu trên thiết bị của bạn.</p>' : '<p class="text-[10px] text-gray-400 leading-relaxed">Key bạn nhập chỉ lưu trên thiết bị của bạn.</p>'}
           </div>
@@ -849,6 +870,7 @@ export function renderOnboarding(onComplete) {
         aiProviderChoice.provider = pid;
         const meta = CONFIG.AI_PROVIDERS.find(p => p.id === pid);
         aiProviderChoice.model = meta ? meta.defaultModel : '';
+        extraModelsFromApi = [];
         aiKeyTest.status = 'idle';
         aiKeyTest.message = '';
         render();
@@ -877,9 +899,14 @@ export function renderOnboarding(onComplete) {
       render();
       const result = await AiCoachService.validateProviderKey(aiProviderChoice.provider, aiProviderChoice.apiKey);
       if (result.valid) {
+        // Nạp 5 model phổ biến vào dropdown và lưu vào DB
+        const topModels = pickTopModels(result.models, 5);
+        extraModelsFromApi = topModels;
+        await DataService.setAvailableModels(aiProviderChoice.provider, result.models);
         aiKeyTest.status = 'ok';
-        aiKeyTest.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng). Chọn model bên trên rồi bắt đầu hành trình nhé!`;
+        aiKeyTest.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng, ${topModels.length} model phổ biến đã nạp). Chọn model bên trên rồi bắt đầu hành trình nhé!`;
       } else {
+        extraModelsFromApi = [];
         aiKeyTest.status = 'error';
         aiKeyTest.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
       }
@@ -892,6 +919,7 @@ export function renderOnboarding(onComplete) {
       const meta = CONFIG.AI_PROVIDERS.find(p => p.id === 'xkiro');
       aiProviderChoice.model = meta ? meta.defaultModel : '';
       aiProviderChoice.apiKey = '';
+      extraModelsFromApi = [];
       aiKeyTest.status = 'idle';
       aiKeyTest.message = '';
       render();
