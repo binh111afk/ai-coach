@@ -845,20 +845,24 @@ export function renderOnboarding(onComplete) {
 
     // Step 5: Chọn Nguồn AI — provider card, model, API key
     document.querySelectorAll('[data-provider-card]').forEach(card => {
-      card.addEventListener('click', async (e) => {
+      card.addEventListener('click', (e) => {
         e.preventDefault();
         const pid = card.getAttribute('data-provider-card');
-        if (aiProviderChoice.provider !== pid) {
-          aiProviderChoice.provider = pid;
-          const meta = CONFIG.AI_PROVIDERS.find(p => p.id === pid);
-          aiProviderChoice.model = meta ? meta.defaultModel : '';
+        if (aiProviderChoice.provider === pid) return;
+        // Cập nhật active ngay lập tức (optimistic), không chờ IndexedDB
+        aiProviderChoice.provider = pid;
+        const meta = CONFIG.AI_PROVIDERS.find(p => p.id === pid);
+        aiProviderChoice.model = meta ? meta.defaultModel : '';
+        aiKeyTest.status = 'idle';
+        aiKeyTest.message = '';
+        aiKeyTest.models = null;
+        render();
+        // Nạp key & model khả dụng đã lưu của provider mới rồi render lại để fill vào form
+        (async () => {
           aiProviderChoice.apiKey = (await DataService.getProviderApiKey(pid)) || '';
-          // Reset kết quả test & nạp lại model khả dụng đã lưu của provider mới
-          aiKeyTest.status = 'idle';
-          aiKeyTest.message = '';
           aiKeyTest.models = await DataService.getAvailableModels(pid);
           render();
-        }
+        })();
       });
     });
     document.getElementById('ob-provider-model')?.addEventListener('change', (e) => {
@@ -892,16 +896,23 @@ export function renderOnboarding(onComplete) {
       }
       render();
     });
-    document.getElementById('ob-restore-provider')?.addEventListener('click', async () => {
-      // Khôi phục về nguồn AI do app cung cấp (XKiro) + model mặc định
+    document.getElementById('ob-restore-provider')?.addEventListener('click', (e) => {
+      // Khôi phục ngay về nguồn AI do app cung cấp (XKiro) + model mặc định
+      e.preventDefault();
       aiProviderChoice.provider = 'xkiro';
       const meta = CONFIG.AI_PROVIDERS.find(p => p.id === 'xkiro');
       aiProviderChoice.model = meta ? meta.defaultModel : '';
-      aiProviderChoice.apiKey = (await DataService.getProviderApiKey('xkiro')) || '';
+      aiProviderChoice.apiKey = '';
       aiKeyTest.status = 'idle';
       aiKeyTest.message = '';
       aiKeyTest.models = null;
       render();
+      // Fill key đã lưu (nếu có) sau khi đọc xong
+      (async () => {
+        aiProviderChoice.apiKey = (await DataService.getProviderApiKey('xkiro')) || '';
+        const keyInput = document.getElementById('ob-provider-key');
+        if (keyInput && aiProviderChoice.apiKey) keyInput.value = aiProviderChoice.apiKey;
+      })();
     });
   }
 

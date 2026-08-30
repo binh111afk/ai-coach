@@ -761,15 +761,26 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
     document.querySelectorAll('[data-provider-option]').forEach(card => {
       card.addEventListener('click', async () => {
         const pid = card.getAttribute('data-provider-option');
-        if (pid === currentProviderId) return;
-        currentProviderId = pid;
+        if (pid === providerKeyTestState.providerId) return;
+        // Tô active ngay lập tức (optimistic), không chờ IndexedDB
         providerKeyTestState.providerId = pid;
+        currentProviderId = pid;
+        document.querySelectorAll('[data-provider-option]').forEach(c => {
+          const isActive = c.getAttribute('data-provider-option') === pid;
+          c.classList.toggle('border-[#7C3AED]', isActive);
+          c.classList.toggle('bg-white', isActive);
+          c.classList.toggle('border-transparent', !isActive);
+        });
         // Reset kết quả test, nạp key & model khả dụng đã lưu của provider mới, rồi re-render
         // (re-render để modal chọn Model tính lại danh sách theo provider vừa chọn)
         providerKeyTestState.status = 'idle';
         providerKeyTestState.message = '';
-        providerKeyTestState.key = (await DataService.getProviderApiKey(pid)) || '';
-        renderSettingsPage(onSaveComplete, { keepState: true });
+        providerKeyTestState.key = '';
+        renderSettingsPage(onSaveComplete, { keepState: true }).then(async () => {
+          providerKeyTestState.key = (await DataService.getProviderApiKey(pid)) || '';
+          const keyInput = document.getElementById('input-provider-api-key');
+          if (keyInput) keyInput.value = providerKeyTestState.key;
+        });
       });
     });
 
