@@ -61,14 +61,15 @@ export const CONFIG = {
   SMART_LOCAL_FALLBACK: true,
   // Hạn mức token AI mỗi người dùng mỗi ngày (reset sang ngày mới)
   DAILY_TOKEN_LIMIT: Number(import.meta.env.VITE_DAILY_TOKEN_LIMIT || 50000),
-  // Danh sách provider AI chạy song song — người dùng chọn 1 làm mặc định
+  // Danh sách provider AI chạy song song — người dùng chọn 1 làm mặc định.
+  // Mỗi provider khóa 5 model đại diện (không nạp động từ API nữa).
   AI_PROVIDERS: [
     {
       id: 'ninerouter',
       name: '9Router',
       icon: 'router',
       desc: 'Router đa model (Mistral, Qwen, MiniMax...)',
-      models: ['gemini/gemini-3.7-flash', 'deepseek/deepseek-v3.2', 'qwen/qwen3.7-max', 'mistralai/mistral-large-2512', 'minimax/minimax-m2.5'],
+      models: ['gemini/gemini-3.7-flash', 'gpt-4o', 'claude-3-5-sonnet', 'deepseek/deepseek-v4-pro', 'qwen/qwen3.8-max'],
       defaultModel: 'gemini/gemini-3.7-flash',
       keyHint: 'API key 9Router (nếu tự gọi trực tiếp)'
     },
@@ -77,7 +78,7 @@ export const CONFIG = {
       name: 'XKiro',
       icon: 'zap',
       desc: 'DeepSeek, GPT-4o, Claude qua XKiro',
-      models: ['deepseek/deepseek-v4-pro', 'deepseek/deepseek-v4-flash', 'gpt-4o', 'claude-3-5-sonnet'],
+      models: ['deepseek/deepseek-v4-pro', 'gpt-4o', 'claude-3-5-sonnet', 'deepseek/deepseek-v4-flash', 'deepseek/deepseek-chat'],
       defaultModel: 'deepseek/deepseek-v4-pro',
       keyHint: 'API key XKiro (nếu tự gọi trực tiếp)'
     },
@@ -86,11 +87,19 @@ export const CONFIG = {
       name: 'Google AI Studio (Gemini)',
       icon: 'sparkles',
       desc: 'Gemini API miễn phí lấy từ Google AI Studio',
-      models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+      models: ['gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
       defaultModel: 'gemini-2.5-flash',
       keyHint: 'API key từ aistudio.google.com (miễn phí)',
       isVision: true
     }
+  ],
+  // 5 model Gemini hiển thị trong modal chọn Model của trang Cài đặt
+  GEMINI_MODELS: [
+    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (Google AI Studio)', isVision: true },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Google AI Studio)', isVision: true },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Google AI Studio)', isVision: true },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite (Google AI Studio)', isVision: true },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Google AI Studio)', isVision: true }
   ],
   // Gamification Constants
   XP_RULES: {
@@ -102,6 +111,28 @@ export const CONFIG = {
     STREAK_BONUS_PER_DAY: 10 // Bonus XP per consecutive streak day
   }
 };
+
+/**
+ * Tên hiển thị thân thiện cho model (dùng ở dropdown chọn model trong Onboarding)
+ */
+const MODEL_DISPLAY_NAMES = {
+  'gemini-3.5-flash': 'Gemini 3.5 Flash (Mới nhất)',
+  'gemini-2.5-pro': 'Gemini 2.5 Pro (Suy luận mạnh)',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash (Cân bằng, khuyên dùng)',
+  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite (Nhẹ & nhanh)',
+  'gemini-2.0-flash': 'Gemini 2.0 Flash',
+  'gemini/gemini-3.7-flash': 'Gemini 3.7 Flash (mạnh nhất)',
+  'gpt-4o': 'GPT-4o (OpenAI)',
+  'claude-3-5-sonnet': 'Claude 3.5 Sonnet (Anthropic)',
+  'deepseek/deepseek-v4-pro': 'DeepSeek V4 Pro',
+  'qwen/qwen3.8-max': 'Qwen 3.8 Max (Alibaba)',
+  'deepseek/deepseek-v4-flash': 'DeepSeek V4 Flash (nhanh)',
+  'deepseek/deepseek-chat': 'DeepSeek Chat'
+};
+
+export function getModelDisplayName(modelId = '') {
+  return MODEL_DISPLAY_NAMES[modelId] || modelId;
+}
 
 /**
  * Helper to check whether a model ID has Vision (multimodal image analysis) capabilities

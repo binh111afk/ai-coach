@@ -1,6 +1,6 @@
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases, sanitizeMealItem } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
-import { CONFIG } from '../config.js';
+import { CONFIG, getModelDisplayName } from '../config.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import confetti from 'canvas-confetti';
@@ -49,12 +49,11 @@ export function renderOnboarding(onComplete) {
 
   // Bước 5: Lựa chọn Nguồn AI (9Router / XKiro / Google AI Studio)
   const aiProviderChoice = { provider: 'ninerouter', model: '', apiKey: '' };
-  const aiKeyTest = { status: 'idle', message: '', models: null };
+  const aiKeyTest = { status: 'idle', message: '' };
   (async () => {
     aiProviderChoice.provider = await DataService.getSelectedProvider();
     aiProviderChoice.model = (await DataService.getSelectedModel()) || '';
     aiProviderChoice.apiKey = (await DataService.getProviderApiKey(aiProviderChoice.provider)) || '';
-    aiKeyTest.models = await DataService.getAvailableModels(aiProviderChoice.provider);
   })();
 
   const headers = {
@@ -435,14 +434,11 @@ export function renderOnboarding(onComplete) {
     if (step === 5) {
       const providers = CONFIG.AI_PROVIDERS;
       const activeProvider = providers.find(p => p.id === aiProviderChoice.provider) || providers[0];
-      const modelSource = (Array.isArray(aiKeyTest.models) && aiKeyTest.models.length > 0)
-        ? aiKeyTest.models
-        : activeProvider.models;
-      if (aiProviderChoice.model && !modelSource.includes(aiProviderChoice.model)) {
-        aiProviderChoice.model = modelSource[0] || activeProvider.defaultModel;
+      if (aiProviderChoice.model && !activeProvider.models.includes(aiProviderChoice.model)) {
+        aiProviderChoice.model = activeProvider.defaultModel;
       }
-      const modelOptions = modelSource
-        .map(m => `<option value="${m}" ${aiProviderChoice.model === m ? 'selected' : ''}>${m}</option>`)
+      const modelOptions = activeProvider.models
+        .map(m => `<option value="${m}" ${aiProviderChoice.model === m ? 'selected' : ''}>${getModelDisplayName(m)}</option>`)
         .join('');
 
       const testStatusMeta = {
@@ -490,7 +486,7 @@ export function renderOnboarding(onComplete) {
           <!-- Model & API Key -->
           <div class="bg-[#F9FAFB] border border-gray-100 rounded-2xl p-3.5 space-y-3">
             <div>
-              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Model (${activeProvider.name})${Array.isArray(aiKeyTest.models) && aiKeyTest.models.length > 0 ? ` — ${aiKeyTest.models.length} model khả dụng` : ''}</label>
+              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Model (${activeProvider.name})</label>
               <select id="ob-provider-model" class="ui-input">${modelOptions}</select>
             </div>
             <div>
@@ -855,12 +851,10 @@ export function renderOnboarding(onComplete) {
         aiProviderChoice.model = meta ? meta.defaultModel : '';
         aiKeyTest.status = 'idle';
         aiKeyTest.message = '';
-        aiKeyTest.models = null;
         render();
-        // Nạp key & model khả dụng đã lưu của provider mới rồi render lại để fill vào form
+        // Nạp key đã lưu của provider mới rồi render lại để fill vào form
         (async () => {
           aiProviderChoice.apiKey = (await DataService.getProviderApiKey(pid)) || '';
-          aiKeyTest.models = await DataService.getAvailableModels(pid);
           render();
         })();
       });
@@ -884,12 +878,7 @@ export function renderOnboarding(onComplete) {
       const result = await AiCoachService.validateProviderKey(aiProviderChoice.provider, aiProviderChoice.apiKey);
       if (result.valid) {
         aiKeyTest.status = 'ok';
-        aiKeyTest.models = result.models;
-        aiKeyTest.message = `Kết nối thành công! Đã nạp ${result.models.length} model khả dụng từ ${aiProviderChoice.provider === 'gemini' ? 'Google AI Studio' : 'nhà cung cấp'}.`;
-        await DataService.setAvailableModels(aiProviderChoice.provider, result.models);
-        if (!result.models.includes(aiProviderChoice.model)) {
-          aiProviderChoice.model = result.models[0] || '';
-        }
+        aiKeyTest.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng). Chọn model bên trên rồi bắt đầu hành trình nhé!`;
       } else {
         aiKeyTest.status = 'error';
         aiKeyTest.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
@@ -905,7 +894,6 @@ export function renderOnboarding(onComplete) {
       aiProviderChoice.apiKey = '';
       aiKeyTest.status = 'idle';
       aiKeyTest.message = '';
-      aiKeyTest.models = null;
       render();
       // Fill key đã lưu (nếu có) sau khi đọc xong
       (async () => {

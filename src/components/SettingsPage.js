@@ -30,17 +30,15 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
   const selectableProviders = CONFIG.AI_PROVIDERS.filter(p => p.id !== 'xkiro');
   const providerApiKey = await DataService.getProviderApiKey(currentProviderId);
   const aiQuota = await DataService.getAiQuotaStatus();
-  const availableModels = currentProviderId !== 'xkiro' ? await DataService.getAvailableModels(currentProviderId) : null;
+  const availableModels = null;
   const keyTestState = providerKeyTestState;
   // Key đang hiển thị: ưu tiên key người dùng đang gõ (giữ qua re-render), sau đó tới key đã lưu
   if (keyTestState.key === '' && providerApiKey) keyTestState.key = providerApiKey;
   const displayApiKey = keyTestState.key || providerApiKey;
   const keyTestOk = keyTestState.status === 'ok' && !!displayApiKey;
 
-  // Gộp model khả dụng đã xác thực (VD: model Gemini nạp từ key AI Studio) vào danh sách chọn model
-  const extraModelObjs = (availableModels || [])
-    .filter(id => !CONFIG.SUPPORTED_MODELS.some(m => m.id === id))
-    .map(id => ({ id, name: `${id} (Google AI Studio)`, isVision: true }));
+  // Danh sách model chọn: model router mặc định + 5 model Gemini đại diện (tĩnh trong config)
+  const extraModelObjs = CONFIG.GEMINI_MODELS.filter(m => !CONFIG.SUPPORTED_MODELS.some(s => s.id === m.id));
   const modelChoices = [...CONFIG.SUPPORTED_MODELS, ...extraModelObjs];
 
   // Read saved image analysis setting (defaults to true if model has vision, false otherwise)
@@ -269,18 +267,18 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
           </div>
           <div class="mt-3">
             <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">API Key (tùy chọn — ưu tiên key của bạn)</label>
-            <div class="mt-1.5 flex items-center gap-2 p-3 bg-white dark:bg-gray-800/60 rounded-xl transition" style="border: 1px solid rgba(124, 58, 237, 0.16);">
+            <div class="mt-1.5 flex items-center gap-2 p-3 bg-white dark:bg-gray-800/60 rounded-xl transition" style="border: 1px solid rgba(124, 58, 237, 0.16);" id="provider-key-input-row">
               <i data-lucide="key-round" class="w-5 h-5 text-[var(--muted)] flex-shrink-0"></i>
               <input type="password" id="input-provider-api-key" autocomplete="off" value="${displayApiKey}" placeholder="Dán API key của provider đang chọn..." class="flex-1 min-w-0 bg-transparent border-none focus:outline-none font-semibold text-sm" style="color: var(--fg); padding-right: 0.5rem;">
               ${keyTestOk
-                ? '<span class="text-emerald-500 flex-shrink-0" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
+                ? '<span class="text-emerald-500 flex-shrink-0" id="provider-key-tick" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
                 : `<button type="button" id="btn-test-provider-key" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${keyTestState.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${keyTestState.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
             </div>
             ${currentProviderId !== 'xkiro' ? `
             <button type="button" id="btn-restore-provider" class="mt-2 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 dark:text-gray-300 font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-800/50 transition flex items-center justify-center gap-1.5">
               <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
             </button>` : ''}
-            <p class="text-[11px] font-semibold mt-1.5 ${keyTestOk ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...' : `${keyTestOk ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực & nạp model khả dụng. Model mới sẽ xuất hiện trong mục chọn Model.'}`}</p>
+            <p id="provider-key-status" class="text-[11px] font-semibold mt-1.5 ${keyTestOk ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...' : `${keyTestOk ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực key. Model Gemini đại diện đã có sẵn trong mục chọn Model.'}`}</p>
             <p class="text-[10px] text-[var(--muted)] mt-1">Chỉ lưu trên thiết bị này. Để trống để dùng key cấu hình sẵn trên server (Vercel).</p>
           </div>
           <div class="mt-3">
@@ -757,7 +755,7 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
       }
     });
 
-    // 4.5 NGUỒN AI: chọn provider + nhập API key + kiểm tra key & nạp model
+    // 4.5 NGUỒN AI: chọn provider + nhập API key + kiểm tra key
     document.querySelectorAll('[data-provider-option]').forEach(card => {
       card.addEventListener('click', async () => {
         const pid = card.getAttribute('data-provider-option');
@@ -771,50 +769,94 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
           c.classList.toggle('bg-white', isActive);
           c.classList.toggle('border-transparent', !isActive);
         });
-        // Reset kết quả test, nạp key & model khả dụng đã lưu của provider mới, rồi re-render
-        // (re-render để modal chọn Model tính lại danh sách theo provider vừa chọn)
+        // Reset kết quả test & nạp key đã lưu của provider mới vào ô nhập (không cần re-render, danh sách model là tĩnh)
         providerKeyTestState.status = 'idle';
         providerKeyTestState.message = '';
-        providerKeyTestState.key = '';
-        renderSettingsPage(onSaveComplete, { keepState: true }).then(async () => {
-          providerKeyTestState.key = (await DataService.getProviderApiKey(pid)) || '';
-          const keyInput = document.getElementById('input-provider-api-key');
-          if (keyInput) keyInput.value = providerKeyTestState.key;
-        });
+        providerKeyTestState.key = (await DataService.getProviderApiKey(pid)) || '';
+        const keyInput = document.getElementById('input-provider-api-key');
+        if (keyInput) keyInput.value = providerKeyTestState.key;
+        const statusEl = document.getElementById('provider-key-status');
+        if (statusEl) {
+          statusEl.className = 'text-[11px] font-semibold mt-1.5 text-[var(--muted)]';
+          statusEl.textContent = 'Nhập key rồi bấm "Kiểm tra" để xác thực & nạp model khả dụng. Model mới sẽ xuất hiện trong mục chọn Model.';
+        }
       });
     });
 
-    // Giữ key người dùng đang gõ qua các lần re-render + gỡ tick xanh khi key thay đổi
+    // Giữ key người dùng đang gõ + gỡ tick xanh khi key thay đổi (sửa trực tiếp DOM, không re-render)
     document.getElementById('input-provider-api-key')?.addEventListener('input', (e) => {
       providerKeyTestState.key = e.target.value;
       if (providerKeyTestState.status === 'ok') {
         providerKeyTestState.status = 'idle';
         providerKeyTestState.message = '';
+        const statusEl = document.getElementById('provider-key-status');
+        if (statusEl) {
+          statusEl.className = 'text-[11px] font-semibold mt-1.5 text-[var(--muted)]';
+          statusEl.textContent = 'Key đã thay đổi — bấm "Kiểm tra" để xác thực lại.';
+        }
+        document.getElementById('provider-key-tick')?.remove();
+        const row = document.getElementById('provider-key-input-row');
+        if (row && !document.getElementById('btn-test-provider-key')) {
+          row.insertAdjacentHTML('beforeend', '<button type="button" id="btn-test-provider-key" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition">Kiểm tra</button>');
+        }
       }
     });
 
-    document.getElementById('btn-test-provider-key')?.addEventListener('click', async () => {
+    // Nút "Kiểm tra" dùng event delegation trên hàng nhập (vì nút có thể được tạo lại động)
+    const keyInputRow = document.getElementById('provider-key-input-row');
+    keyInputRow?.addEventListener('click', (e) => {
+      if (!e.target.closest('#btn-test-provider-key')) return;
       const key = (providerKeyTestState.key || '').trim();
+      const statusEl = document.getElementById('provider-key-status');
       if (!key) {
         providerKeyTestState.status = 'error';
         providerKeyTestState.message = 'Vui lòng nhập API key trước khi kiểm tra.';
-        renderSettingsPage(onSaveComplete, { keepState: true });
+        if (statusEl) {
+          statusEl.className = 'text-[11px] font-semibold mt-1.5 text-red-500';
+          statusEl.textContent = '❌ ' + providerKeyTestState.message;
+        }
         return;
       }
       providerKeyTestState.status = 'testing';
-      providerKeyTestState.message = '';
-      renderSettingsPage(onSaveComplete, { keepState: true });
-      const result = await AiCoachService.validateProviderKey(currentProviderId, key);
-      if (result.valid) {
-        providerKeyTestState.status = 'ok';
-        providerKeyTestState.key = key;
-        providerKeyTestState.message = `Kết nối thành công! Đã nạp ${result.models.length} model khả dụng — bấm nút chọn Model để xem danh sách mới.`;
-        await DataService.setAvailableModels(currentProviderId, result.models);
-      } else {
-        providerKeyTestState.status = 'error';
-        providerKeyTestState.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
+      if (statusEl) {
+        statusEl.className = 'text-[11px] font-semibold mt-1.5 text-[var(--primary)]';
+        statusEl.textContent = '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...';
       }
-      renderSettingsPage(onSaveComplete, { keepState: true });
+      const btn = document.getElementById('btn-test-provider-key');
+      if (btn) {
+        btn.classList.add('opacity-70', 'pointer-events-none', 'animate-pulse');
+        btn.innerHTML = 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>';
+      }
+      AiCoachService.validateProviderKey(currentProviderId, key).then(async (result) => {
+        if (result.valid) {
+          providerKeyTestState.status = 'ok';
+          providerKeyTestState.key = key;
+          providerKeyTestState.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng) — model Gemini đã có trong mục chọn Model.`;
+          await DataService.setAvailableModels(currentProviderId, result.models);
+          if (statusEl) {
+            statusEl.className = 'text-[11px] font-semibold mt-1.5 text-emerald-600';
+            statusEl.textContent = '✅ ' + providerKeyTestState.message;
+          }
+          document.getElementById('btn-test-provider-key')?.remove();
+          const row = document.getElementById('provider-key-input-row');
+          if (row && !document.getElementById('provider-key-tick')) {
+            row.insertAdjacentHTML('beforeend', '<span class="text-emerald-500 flex-shrink-0" id="provider-key-tick" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>');
+            if (window.lucide) window.lucide.createIcons();
+          }
+        } else {
+          providerKeyTestState.status = 'error';
+          providerKeyTestState.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
+          if (statusEl) {
+            statusEl.className = 'text-[11px] font-semibold mt-1.5 text-red-500';
+            statusEl.textContent = '❌ ' + providerKeyTestState.message;
+          }
+          const b = document.getElementById('btn-test-provider-key');
+          if (b) {
+            b.classList.remove('opacity-70', 'pointer-events-none', 'animate-pulse');
+            b.textContent = 'Kiểm tra';
+          }
+        }
+      });
     });
 
     document.getElementById('btn-restore-provider')?.addEventListener('click', async () => {
