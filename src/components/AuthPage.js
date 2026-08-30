@@ -317,11 +317,25 @@ export function renderAuthPage({ initialView = 'loginView', onStartOnboarding, o
             <h2 class="display text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Chào Mừng Trở Lại! 👋</h2>
             <p class="text-gray-500 text-sm mb-7">Đăng nhập để tiếp tục hành trình hình thể cùng AI Coach.</p>
 
-            <form id="form-login" class="space-y-4">
+            <!-- Tài khoản test công khai — hiển thị ngay trên trang đăng nhập để người dùng vào thử -->
+            <div class="flex items-center justify-between gap-3 mb-5 p-3.5 rounded-2xl bg-[#F5F3FF] border border-purple-100">
+              <div class="text-xs leading-relaxed text-gray-700">
+                <p class="font-bold text-[#7C3AED] uppercase tracking-wider text-[10px] mb-1 flex items-center gap-1.5">
+                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i> Tài khoản demo
+                </p>
+                <p><span class="font-semibold text-gray-500">Tài khoản:</span> <b class="font-bold text-gray-900 select-all">admin</b></p>
+                <p><span class="font-semibold text-gray-500">Mật khẩu:</span> <b class="font-bold text-gray-900 select-all">1234</b></p>
+              </div>
+              <button type="button" id="btn-fill-demo-creds" class="flex-shrink-0 px-3 py-2 rounded-xl bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition shadow-sm">
+                Điền sẵn
+              </button>
+            </div>
+
+            <form id="form-login" class="space-y-4" novalidate>
               <!-- Input Account / Email -->
               <div class="relative">
                 <i data-lucide="user" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="text" id="login-email" required placeholder="Tài khoản hoặc Email" value="" class="auth-ui-input">
+                <input type="text" id="login-email" required placeholder="Tài khoản" value="" class="auth-ui-input">
               </div>
               <!-- Input Password -->
               <div class="relative">
@@ -331,6 +345,9 @@ export function renderAuthPage({ initialView = 'loginView', onStartOnboarding, o
                   <i data-lucide="eye-off" id="icon-login-pwd" class="w-5 h-5"></i>
                 </button>
               </div>
+
+              <!-- Lỗi đăng nhập -->
+              <p id="login-error" class="hidden text-xs font-bold text-red-500 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5"></p>
 
               <div class="flex items-center justify-between text-xs sm:text-sm pt-1">
                 <label class="custom-checkbox-wrapper" for="login-remember">
@@ -342,7 +359,6 @@ export function renderAuthPage({ initialView = 'loginView', onStartOnboarding, o
                   </div>
                   <span class="custom-checkbox-label font-semibold text-gray-700">Ghi nhớ đăng nhập</span>
                 </label>
-                <button type="button" id="btn-goto-forgot" class="font-bold text-[#7C3AED] hover:underline">Quên mật khẩu?</button>
               </div>
 
               <button type="submit" class="auth-btn-gradient w-full py-3.5 rounded-2xl text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 mt-2">
@@ -351,114 +367,10 @@ export function renderAuthPage({ initialView = 'loginView', onStartOnboarding, o
               </button>
             </form>
 
-            <div class="flex items-center gap-4 my-6">
-              <div class="flex-1 h-px bg-gray-100"></div>
-              <span class="text-[11px] text-gray-400 font-bold tracking-wider uppercase">HOẶC TIẾP TỤC VỚI</span>
-              <div class="flex-1 h-px bg-gray-100"></div>
-            </div>
-
-            <div>
-              <button type="button" class="btn-social-mock auth-btn-ghost w-full py-3 rounded-2xl font-bold text-xs sm:text-sm text-gray-700 flex items-center justify-center gap-2.5">
-                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M23 12.245c0-.905-.075-1.565-.236-2.25h-10.54v4.083h6.186c-.124 1.014-.797 2.542-2.294 3.569l-.021.136 3.332 2.53.23.022C21.779 18.417 23 15.593 23 12.245z" fill="#4285F4"></path><path d="M12.225 23c3.03 0 5.574-.978 7.433-2.665l-3.542-2.688c-.948.648-2.22 1.1-3.891 1.1a6.745 6.745 0 01-6.386-4.572l-.132.011-3.465 2.628-.045.124C4.043 20.531 7.835 23 12.225 23z" fill="#34A853"></path><path d="M5.84 14.175A6.65 6.65 0 015.463 12c0-.758.138-1.491.361-2.175l-.006-.147-3.508-2.67-.115.054A10.831 10.831 0 001 12c0 1.772.436 3.447 1.197 4.938l3.642-2.763z" fill="#FBBC05"></path><path d="M12.225 5.253c2.108 0 3.529.892 4.34 1.638l3.167-3.031C17.787 2.088 15.255 1 12.225 1 7.834 1 4.043 3.469 2.197 7.062l3.63 2.763a6.77 6.77 0 016.398-4.572z" fill="#EB4335"></path></svg>
-                <span>Đăng nhập bằng Google</span>
-              </button>
-            </div>
-
-            <p class="text-center text-xs sm:text-sm text-gray-500 mt-7">
-              Chưa có tài khoản? 
-              <button type="button" id="btn-goto-register" class="font-bold text-[#7C3AED] hover:underline ml-1">Đăng ký miễn phí ngay</button>
+            <p class="text-center text-[11px] text-gray-400 mt-7 leading-relaxed">
+              Hệ thống chỉ chấp nhận <b class="text-gray-600">một tài khoản admin duy nhất</b>.<br>
+              Sai tài khoản hoặc mật khẩu sẽ không thể đăng nhập.
             </p>
-          </div>
-
-          <!-- ==================== REGISTER VIEW ==================== -->
-          <div id="registerView" class="auth-view ${initialView === 'registerView' ? '' : 'hidden'}">
-            <h2 class="display text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Bắt Đầu Hành Trình Mới! 🚀</h2>
-            <p class="text-gray-500 text-sm mb-7">Tạo tài khoản để AI Coach thiết kế lộ trình cho riêng bạn.</p>
-
-            <form id="form-register" class="space-y-3.5">
-              <div class="relative">
-                <i data-lucide="user" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="text" id="reg-name" required placeholder="Họ và tên của bạn" class="auth-ui-input">
-              </div>
-              <div class="relative">
-                <i data-lucide="mail" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="email" id="reg-email" required placeholder="name@example.com" class="auth-ui-input">
-              </div>
-              <div class="relative">
-                <i data-lucide="lock" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="password" id="reg-password" required placeholder="Mật khẩu (tối thiểu 6 ký tự)" class="auth-ui-input pr-12">
-                <button type="button" id="btn-toggle-reg-pwd" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1">
-                  <i data-lucide="eye-off" id="icon-reg-pwd" class="w-5 h-5"></i>
-                </button>
-              </div>
-
-              <!-- Password Strength Indicator -->
-              <div class="space-y-1 pt-0.5">
-                <div class="flex items-center gap-1.5 h-1.5">
-                  <div id="strengthBar1" class="w-1/4 h-full bg-gray-200 rounded-full transition-colors"></div>
-                  <div id="strengthBar2" class="w-1/4 h-full bg-gray-200 rounded-full transition-colors"></div>
-                  <div id="strengthBar3" class="w-1/4 h-full bg-gray-200 rounded-full transition-colors"></div>
-                  <div id="strengthBar4" class="w-1/4 h-full bg-gray-200 rounded-full transition-colors"></div>
-                </div>
-                <div class="flex justify-between items-center text-[11px]">
-                  <span class="text-gray-400">Độ mạnh mật khẩu:</span>
-                  <span id="strengthText" class="font-bold text-gray-400">Yếu</span>
-                </div>
-              </div>
-
-              <div class="relative">
-                <i data-lucide="shield-check" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="password" id="reg-confirm-password" required placeholder="Xác nhận lại mật khẩu" class="auth-ui-input">
-              </div>
-
-              <div class="pt-1">
-                <label class="custom-checkbox-wrapper !items-start" for="reg-agree">
-                  <input type="checkbox" id="reg-agree" required checked class="custom-checkbox-input">
-                  <div class="custom-checkbox-circle mt-0.5">
-                    <svg width="11" height="11" viewBox="0 0 24 24">
-                      <path class="custom-checkbox-path" d="M4 12l5 5L20 6"></path>
-                    </svg>
-                  </div>
-                  <span class="custom-checkbox-label !text-xs text-gray-600 leading-relaxed font-medium">
-                    Tôi đồng ý với <a href="#" class="font-bold text-[#7C3AED] hover:underline">Điều khoản sử dụng</a> & <a href="#" class="font-bold text-[#7C3AED] hover:underline">Chính sách bảo mật</a>.
-                  </span>
-                </label>
-              </div>
-
-              <button type="submit" class="auth-btn-gradient w-full py-3.5 rounded-2xl text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 mt-2">
-                <span class="btn-text">Tạo Tài Khoản & Bắt Đầu Ngay</span>
-                <i data-lucide="rocket" class="w-5 h-5"></i>
-              </button>
-            </form>
-
-            <p class="text-center text-xs sm:text-sm text-gray-500 mt-6">
-              Đã có tài khoản? 
-              <button type="button" id="btn-goto-login" class="font-bold text-[#7C3AED] hover:underline ml-1">Đăng nhập tại đây</button>
-            </p>
-          </div>
-
-          <!-- ==================== FORGOT PASSWORD VIEW ==================== -->
-          <div id="forgotView" class="auth-view hidden">
-            <div class="w-12 h-12 mb-4 rounded-2xl bg-amber-50 flex items-center justify-center border border-amber-100">
-              <i data-lucide="key-round" class="w-6 h-6 text-amber-500"></i>
-            </div>
-            <h2 class="display text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Khôi Phục Mật Khẩu</h2>
-            <p class="text-gray-500 text-sm mb-7">Nhập email đã đăng ký để nhận mã khôi phục mật khẩu tài khoản.</p>
-
-            <form id="form-forgot" class="space-y-4">
-              <div class="relative">
-                <i data-lucide="mail" class="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
-                <input type="email" id="forgot-email" required placeholder="name@example.com" class="auth-ui-input">
-              </div>
-              <button type="submit" class="auth-btn-gradient w-full py-3.5 rounded-2xl text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20">
-                <span class="btn-text">Gửi Liên Kết Khôi Phục</span>
-                <i data-lucide="send" class="w-5 h-5"></i>
-              </button>
-            </form>
-
-            <button type="button" id="btn-forgot-back-login" class="mt-6 w-full text-xs sm:text-sm font-bold text-gray-500 hover:text-[#7C3AED] flex items-center justify-center gap-2 py-2">
-              <i data-lucide="arrow-left" class="w-4 h-4"></i> Quay lại Đăng nhập
-            </button>
           </div>
 
         </div>
@@ -484,6 +396,9 @@ export function renderAuthPage({ initialView = 'loginView', onStartOnboarding, o
   bindAuthEvents({ onStartOnboarding, onLoginSuccess, onBackToLanding });
 }
 
+// Tài khoản test duy nhất được phép đăng nhập (demo công khai, hiển thị trên trang đăng nhập)
+const DEMO_AUTH = { username: 'admin', password: '1234' };
+
 function bindAuthEvents({ onStartOnboarding, onLoginSuccess, onBackToLanding }) {
   // 1. Switch View Helpers
   function switchAuthView(viewId) {
@@ -498,72 +413,45 @@ function bindAuthEvents({ onStartOnboarding, onLoginSuccess, onBackToLanding }) 
     if (window.lucide) window.lucide.createIcons();
   }
 
-  // 2. Navigation Switch Handlers
-  document.getElementById('btn-goto-register')?.addEventListener('click', () => switchAuthView('registerView'));
-  document.getElementById('btn-goto-login')?.addEventListener('click', () => switchAuthView('loginView'));
-  document.getElementById('btn-goto-forgot')?.addEventListener('click', () => switchAuthView('forgotView'));
-  document.getElementById('btn-forgot-back-login')?.addEventListener('click', () => switchAuthView('loginView'));
+  // 2. Back to Landing
   document.getElementById('btn-back-to-landing')?.addEventListener('click', () => {
     if (typeof onBackToLanding === 'function') onBackToLanding();
   });
 
-  // 3. Password Toggle Visibility
-  function setupPwdToggle(btnId, inputId, iconId) {
-    document.getElementById(btnId)?.addEventListener('click', () => {
-      const input = document.getElementById(inputId);
-      const icon = document.getElementById(iconId);
-      if (!input || !icon) return;
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.setAttribute('data-lucide', 'eye');
-      } else {
-        input.type = 'password';
-        icon.setAttribute('data-lucide', 'eye-off');
-      }
-      if (window.lucide) window.lucide.createIcons();
-    });
-  }
-  setupPwdToggle('btn-toggle-login-pwd', 'login-password', 'icon-login-pwd');
-  setupPwdToggle('btn-toggle-reg-pwd', 'reg-password', 'icon-reg-pwd');
+  // 3. Điền sẵn tài khoản demo
+  document.getElementById('btn-fill-demo-creds')?.addEventListener('click', () => {
+    const userInput = document.getElementById('login-email');
+    const pwdInput = document.getElementById('login-password');
+    if (userInput) userInput.value = DEMO_AUTH.username;
+    if (pwdInput) pwdInput.value = DEMO_AUTH.password;
+    document.getElementById('login-error')?.classList.add('hidden');
+  });
 
-  // 4. Password Strength Meter
-  document.getElementById('reg-password')?.addEventListener('input', (e) => {
-    const pwd = e.target.value;
-    const bars = [
-      document.getElementById('strengthBar1'),
-      document.getElementById('strengthBar2'),
-      document.getElementById('strengthBar3'),
-      document.getElementById('strengthBar4')
-    ];
-    const text = document.getElementById('strengthText');
-    if (!text || !bars[0]) return;
-
-    let strength = 0;
-    if (pwd.length >= 6) strength++;
-    if (pwd.length >= 10) strength++;
-    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) strength++;
-    if (/[0-9]/.test(pwd) || /[^a-zA-Z0-9]/.test(pwd)) strength++;
-
-    const colors = ['bg-red-400', 'bg-amber-400', 'bg-yellow-400', 'bg-emerald-500'];
-    const labels = ['Yếu', 'Vừa', 'Tốt', 'Mạnh'];
-    const textColors = ['text-red-500', 'text-amber-500', 'text-yellow-500', 'text-emerald-500'];
-
-    bars.forEach((bar, i) => {
-      if (bar) {
-        bar.className = `w-1/4 h-full rounded-full transition-colors ${i < strength ? colors[strength - 1] : 'bg-gray-200'}`;
-      }
-    });
-
-    text.textContent = strength > 0 ? labels[strength - 1] : 'Yếu';
-    text.className = `font-bold ${strength > 0 ? textColors[strength - 1] : 'text-gray-400'}`;
+  // 4. Password Toggle Visibility
+  document.getElementById('btn-toggle-login-pwd')?.addEventListener('click', () => {
+    const input = document.getElementById('login-password');
+    const icon = document.getElementById('icon-login-pwd');
+    if (!input || !icon) return;
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.setAttribute('data-lucide', 'eye');
+    } else {
+      input.type = 'password';
+      icon.setAttribute('data-lucide', 'eye-off');
+    }
+    if (window.lucide) window.lucide.createIcons();
   });
 
   // 5. Toast Notification
-  function showToast(message) {
+  function showToast(message, isError = false) {
     const toast = document.getElementById('auth-toast');
     const toastText = document.getElementById('auth-toast-text');
     if (!toast || !toastText) return;
     toastText.innerText = message;
+    toast.querySelector('i')?.setAttribute('data-lucide', isError ? 'alert-circle' : 'check-circle');
+    toast.querySelector('div')?.classList.toggle('border-l-red-500', isError);
+    toast.querySelector('div')?.classList.toggle('border-l-emerald-500', !isError);
+    if (window.lucide) window.lucide.createIcons();
     toast.classList.remove('hidden');
     toast.style.transform = 'translateX(120%)';
 
@@ -577,18 +465,45 @@ function bindAuthEvents({ onStartOnboarding, onLoginSuccess, onBackToLanding }) 
     }, 2500);
   }
 
-  // 6. Handle Form Login Submit
+  // 6. Handle Form Login Submit — chỉ tài khoản admin duy nhất được vào
   document.getElementById('form-login')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     const textSpan = btn?.querySelector('.btn-text');
     const originalText = textSpan ? textSpan.innerText : 'Đăng Nhập Vào Hệ Thống';
+    const errorEl = document.getElementById('login-error');
+    const showLoginError = (msg) => {
+      if (errorEl) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+      }
+      showToast(msg, true);
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-75');
+      }
+      if (textSpan) textSpan.innerText = originalText;
+    };
+
+    const username = (document.getElementById('login-email')?.value || '').trim().toLowerCase();
+    const password = document.getElementById('login-password')?.value || '';
+
+    if (!username || !password) {
+      showLoginError('Vui lòng nhập đầy đủ tài khoản và mật khẩu.');
+      return;
+    }
 
     if (btn) {
       btn.disabled = true;
       btn.classList.add('opacity-75');
     }
     if (textSpan) textSpan.innerText = 'Đang xác thực...';
+
+    // Xác thực ngay (đồng bộ) — sai tài khoản/mật khẩu thì chặn, không cho vào
+    if (username !== DEMO_AUTH.username || password !== DEMO_AUTH.password) {
+      showLoginError('Sai tài khoản hoặc mật khẩu! Chỉ tài khoản "admin" mới được đăng nhập.');
+      return;
+    }
 
     setTimeout(async () => {
       showToast('Đăng nhập thành công! Đang chuyển tiếp...');
@@ -602,72 +517,5 @@ function bindAuthEvents({ onStartOnboarding, onLoginSuccess, onBackToLanding }) 
         }
       }, 700);
     }, 1000);
-  });
-
-  // 7. Handle Form Register Submit
-  document.getElementById('form-register')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nameVal = document.getElementById('reg-name')?.value?.trim() || 'Người dùng';
-    const btn = e.target.querySelector('button[type="submit"]');
-    const textSpan = btn?.querySelector('.btn-text');
-
-    if (btn) {
-      btn.disabled = true;
-      btn.classList.add('opacity-75');
-    }
-    if (textSpan) textSpan.innerText = 'Đang tạo tài khoản...';
-
-    setTimeout(async () => {
-      // Save name to profile
-      const profile = await DataService.getUserProfile();
-      profile.name = nameVal;
-      await DataService.saveUserProfile(profile);
-
-      showToast('Tạo tài khoản thành công! Bắt đầu thiết lập hành trình...');
-
-      setTimeout(() => {
-        if (typeof onStartOnboarding === 'function') {
-          onStartOnboarding();
-        }
-      }, 800);
-    }, 1100);
-  });
-
-  // 8. Handle Form Forgot Password Submit
-  document.getElementById('form-forgot')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    const textSpan = btn?.querySelector('.btn-text');
-
-    if (btn) {
-      btn.disabled = true;
-      btn.classList.add('opacity-75');
-    }
-    if (textSpan) textSpan.innerText = 'Đang gửi mã...';
-
-    setTimeout(() => {
-      if (btn) btn.disabled = false;
-      if (textSpan) textSpan.innerText = 'Gửi Liên Kết Khôi Phục';
-      showToast('Đã gửi liên kết khôi phục tới email của bạn!');
-      setTimeout(() => switchAuthView('loginView'), 1500);
-    }, 1000);
-  });
-
-  // 9. Handle Social Login (Mock Google / Apple)
-  document.querySelectorAll('.btn-social-mock').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      showToast('Đang kết nối tài khoản...');
-      setTimeout(async () => {
-        showToast('Xác thực thành công!');
-        const profile = await DataService.getUserProfile();
-        setTimeout(() => {
-          if (!profile.isOnboarded && typeof onStartOnboarding === 'function') {
-            onStartOnboarding();
-          } else if (typeof onLoginSuccess === 'function') {
-            onLoginSuccess();
-          }
-        }, 600);
-      }, 800);
-    });
   });
 }
