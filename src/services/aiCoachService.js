@@ -147,7 +147,9 @@ const AiCoachServiceHelpers = {
       try {
         const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
         if (!res.ok) return null;
-        const data = await res.json();
+        const raw = await res.text();
+        if (raw.trim().startsWith('<')) return null; // dev http: HTML từ Vite, không phải JSON
+        const data = JSON.parse(raw);
         const content = data.choices?.[0]?.message?.content || '';
         if (content && !isGeminiModel(provider.model)) {
           const used = data.usage?.total_tokens
@@ -550,6 +552,11 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
         const rawText = await response.text();
         let aiContent = '';
         let usage = null;
+        // Dev http: proxy /api/chat trả về HTML của Vite → coi như thất bại để fallback
+        if (rawText.trim().startsWith('<')) {
+          console.warn(`❌ [${attempt.name}] Non-JSON (HTML) response — dev server without serverless proxy.`);
+          return null;
+        }
         if (rawText.trim().startsWith('data:')) {
           const lines = rawText.split('\n');
           for (const line of lines) {

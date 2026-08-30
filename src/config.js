@@ -36,7 +36,7 @@ export const CONFIG = {
   // Fallback mode if API Key is not set or network fails
   SMART_LOCAL_FALLBACK: true,
   // Hạn mức token AI mỗi người dùng mỗi ngày — chỉ áp dụng cho model XKiro (reset sang ngày mới)
-  DAILY_TOKEN_LIMIT: Number(import.meta.env.VITE_DAILY_TOKEN_LIMIT || 50000),
+  DAILY_TOKEN_LIMIT: Number(import.meta.env.VITE_DAILY_TOKEN_LIMIT || 5000000),
 
   // Thông tin provider (dùng nội bộ cho routing)
   AI_PROVIDERS: [
