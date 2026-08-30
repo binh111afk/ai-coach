@@ -7,8 +7,8 @@ import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 
-// Trạng thái kiểm tra key Nguồn AI (giữ qua các lần re-render trang cài đặt)
-const providerKeyTestState = { status: 'idle', message: '' };
+// Trạng thái Nguồn AI (giữ qua các lần re-render trang cài đặt): key đang gõ + kết quả test
+const providerKeyTestState = { status: 'idle', message: '', key: '' };
 
 export async function renderSettingsPage(onSaveComplete) {
   const profile = await DataService.getUserProfile();
@@ -25,6 +25,10 @@ export async function renderSettingsPage(onSaveComplete) {
   const aiQuota = await DataService.getAiQuotaStatus();
   const availableModels = currentProviderId !== 'xkiro' ? await DataService.getAvailableModels(currentProviderId) : null;
   const keyTestState = providerKeyTestState;
+  // Key đang hiển thị: ưu tiên key người dùng đang gõ (giữ qua re-render), sau đó tới key đã lưu
+  if (keyTestState.key === '' && providerApiKey) keyTestState.key = providerApiKey;
+  const displayApiKey = keyTestState.key || providerApiKey;
+  const keyTestOk = keyTestState.status === 'ok' && !!displayApiKey;
 
   // Gộp model khả dụng đã xác thực (VD: model Gemini nạp từ key AI Studio) vào danh sách chọn model
   const extraModelObjs = (availableModels || [])
@@ -260,8 +264,8 @@ export async function renderSettingsPage(onSaveComplete) {
             <label class="text-[10px] uppercase tracking-wider text-[var(--muted)] font-bold">API Key (tùy chọn — ưu tiên key của bạn)</label>
             <div class="mt-1.5 flex items-center gap-2 p-3 bg-white dark:bg-gray-800/60 rounded-xl transition" style="border: 1px solid rgba(124, 58, 237, 0.16);">
               <i data-lucide="key-round" class="w-5 h-5 text-[var(--muted)] flex-shrink-0"></i>
-              <input type="password" id="input-provider-api-key" autocomplete="off" value="${providerApiKey}" placeholder="Dán API key của provider đang chọn..." class="flex-1 min-w-0 bg-transparent border-none focus:outline-none font-semibold text-sm" style="color: var(--fg); padding-right: 0.5rem;">
-              ${keyTestState.status === 'ok'
+              <input type="password" id="input-provider-api-key" autocomplete="off" value="${displayApiKey}" placeholder="Dán API key của provider đang chọn..." class="flex-1 min-w-0 bg-transparent border-none focus:outline-none font-semibold text-sm" style="color: var(--fg); padding-right: 0.5rem;">
+              ${keyTestOk
                 ? '<span class="text-emerald-500 flex-shrink-0" title="Key hợp lệ & kết nối thành công"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
                 : `<button type="button" id="btn-test-provider-key" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${keyTestState.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${keyTestState.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
             </div>
@@ -269,7 +273,7 @@ export async function renderSettingsPage(onSaveComplete) {
             <button type="button" id="btn-restore-provider" class="mt-2 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 dark:text-gray-300 font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-800/50 transition flex items-center justify-center gap-1.5">
               <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
             </button>` : ''}
-            <p class="text-[11px] font-semibold mt-1.5 ${keyTestState.status === 'ok' ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ ' : keyTestState.status === 'ok' ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực & nạp model khả dụng. Model mới sẽ xuất hiện trong mục chọn Model.'}</p>
+            <p class="text-[11px] font-semibold mt-1.5 ${keyTestOk ? 'text-emerald-600' : keyTestState.status === 'error' ? 'text-red-500' : 'text-[var(--muted)]'}">${keyTestState.status === 'testing' ? '⏳ Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...' : `${keyTestOk ? '✅ ' : keyTestState.status === 'error' ? '❌ ' : ''}${keyTestState.message || 'Nhập key rồi bấm "Kiểm tra" để xác thực & nạp model khả dụng. Model mới sẽ xuất hiện trong mục chọn Model.'}`}</p>
             <p class="text-[10px] text-[var(--muted)] mt-1">Chỉ lưu trên thiết bị này. Để trống để dùng key cấu hình sẵn trên server (Vercel).</p>
           </div>
           <div class="mt-3">
@@ -752,21 +756,26 @@ export async function renderSettingsPage(onSaveComplete) {
         const pid = card.getAttribute('data-provider-option');
         if (pid === currentProviderId) return;
         currentProviderId = pid;
-        document.querySelectorAll('[data-provider-option]').forEach(c => {
-          const isActive = c.getAttribute('data-provider-option') === pid;
-          c.classList.toggle('border-[#7C3AED]', isActive);
-          c.classList.toggle('bg-white', isActive);
-          c.classList.toggle('border-transparent', !isActive);
-        });
-        // Nạp key đã lưu của provider mới chọn vào ô nhập
-        const keyInput = document.getElementById('input-provider-api-key');
-        if (keyInput) keyInput.value = (await DataService.getProviderApiKey(pid)) || '';
+        // Reset kết quả test, nạp key & model khả dụng đã lưu của provider mới, rồi re-render
+        // (re-render để modal chọn Model tính lại danh sách theo provider vừa chọn)
+        providerKeyTestState.status = 'idle';
+        providerKeyTestState.message = '';
+        providerKeyTestState.key = (await DataService.getProviderApiKey(pid)) || '';
+        renderSettingsPage(onSaveComplete);
       });
     });
 
+    // Giữ key người dùng đang gõ qua các lần re-render + gỡ tick xanh khi key thay đổi
+    document.getElementById('input-provider-api-key')?.addEventListener('input', (e) => {
+      providerKeyTestState.key = e.target.value;
+      if (providerKeyTestState.status === 'ok') {
+        providerKeyTestState.status = 'idle';
+        providerKeyTestState.message = '';
+      }
+    });
+
     document.getElementById('btn-test-provider-key')?.addEventListener('click', async () => {
-      const keyInput = document.getElementById('input-provider-api-key');
-      const key = (keyInput?.value || '').trim();
+      const key = (providerKeyTestState.key || '').trim();
       if (!key) {
         providerKeyTestState.status = 'error';
         providerKeyTestState.message = 'Vui lòng nhập API key trước khi kiểm tra.';
@@ -779,6 +788,7 @@ export async function renderSettingsPage(onSaveComplete) {
       const result = await AiCoachService.validateProviderKey(currentProviderId, key);
       if (result.valid) {
         providerKeyTestState.status = 'ok';
+        providerKeyTestState.key = key;
         providerKeyTestState.message = `Kết nối thành công! Đã nạp ${result.models.length} model khả dụng — bấm nút chọn Model để xem danh sách mới.`;
         await DataService.setAvailableModels(currentProviderId, result.models);
       } else {
@@ -792,6 +802,7 @@ export async function renderSettingsPage(onSaveComplete) {
       // Khôi phục về nguồn AI do app cung cấp (XKiro) + model mặc định
       providerKeyTestState.status = 'idle';
       providerKeyTestState.message = '';
+      providerKeyTestState.key = '';
       await DataService.setSelectedProvider('xkiro');
       renderSettingsPage(onSaveComplete);
     });

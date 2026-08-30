@@ -451,8 +451,10 @@ export function renderOnboarding(onComplete) {
         ok: { cls: 'text-emerald-600', icon: '✅ ' },
         error: { cls: 'text-red-500', icon: '❌ ' }
       }[aiKeyTest.status] || { cls: 'text-gray-400', icon: '' };
-      const testStatusText = aiKeyTest.message
-        || 'Nhập key rồi bấm kiểm tra để xác thực & nạp model khả dụng. Để trống nếu dùng key cấu hình sẵn trên server.';
+      const testStatusText = aiKeyTest.status === 'testing'
+        ? 'Đang kiểm tra kết nối tới nhà cung cấp, vui lòng đợi vài giây...'
+        : (aiKeyTest.message
+          || 'Nhập key rồi bấm kiểm tra để xác thực & nạp model khả dụng. Để trống nếu dùng key cấu hình sẵn trên server.');
 
       return `
         <div class="flex-1 space-y-3 mt-2 max-h-[380px] sm:max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
