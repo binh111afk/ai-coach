@@ -15,8 +15,7 @@ export default async function handler(req, res) {
     let apiKey = (clientKey && typeof clientKey === 'string' && clientKey.length > 10) ? clientKey : '';
     if (!apiKey) {
       if (provider === 'gemini') apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-      else if (provider === 'xkiro') apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
-      else apiKey = process.env.NINEROUTER_API_KEY || process.env.VITE_NINEROUTER_API_KEY;
+      else apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
     }
 
     if (!apiKey) {
@@ -24,7 +23,7 @@ export default async function handler(req, res) {
     }
 
     // Chỉ cho phép gọi tới các host nhà cung cấp trong allowlist tĩnh
-    const modelsUrl = PROVIDER_MODELS_URL[provider] || PROVIDER_MODELS_URL.ninerouter;
+    const modelsUrl = PROVIDER_MODELS_URL[provider] || PROVIDER_MODELS_URL.xkiro;
 
     // Gemini dùng endpoint native + header x-goog-api-key; các router OpenAI-compatible dùng Bearer
     const headers = provider === 'gemini'
@@ -53,8 +52,7 @@ export default async function handler(req, res) {
 const PROVIDER_MODELS_URL = {
   // Endpoint native ListModels (theo tài liệu ai.google.dev) — hỗ trợ header x-goog-api-key
   gemini: 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000',
-  xkiro: 'https://api.xkiro.com/v1/models',
-  ninerouter: 'https://r7nnd8p.abc-tunnel.us/v1/models'
+  xkiro: 'https://api.xkiro.com/v1/models'
 };
 
 // Parse 2 định dạng: OpenAI-compat ({data:[{id}]}) và Gemini native ({models:[{name, supportedGenerationMethods}]})

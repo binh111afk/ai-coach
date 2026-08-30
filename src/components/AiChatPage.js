@@ -1,8 +1,9 @@
 import { DataService } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { appState } from '../services/appState.js';
-import { CONFIG } from '../config.js';
+import { CONFIG, isGeminiModel } from '../config.js';
 import { renderGeminiIcon, renderPdfIcon, renderProviderIcon } from './ui/Icons.js';
+import { Modal } from './ui/Modal.js';
 import { getLevelInfo } from '../services/gamificationService.js';
 
 export async function renderAiChatPage(onStateUpdated) {
@@ -304,13 +305,14 @@ export async function renderAiChatPage(onStateUpdated) {
       if (currentModelIcon) currentModelIcon.innerHTML = renderProviderIcon(currentModelObj.id);
 
       const top3Ids = [
-        "gemini/gemini-3.6-flash",
-        "oc/big-pickle",
-        "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
+        "deepseek/deepseek-v4-pro",
+        "gemini-2.5-flash",
+        "gpt-4o"
       ];
 
       const top3Models = CONFIG.SUPPORTED_MODELS.filter(m => top3Ids.includes(m.id));
       const remainingModels = CONFIG.SUPPORTED_MODELS.filter(m => !top3Ids.includes(m.id));
+      const hasGeminiKey = !!(await DataService.getProviderApiKey('gemini'));
 
       dropdown.innerHTML = `
         <div class="model-dropdown-section-title">Model Nổi Bật (Khuyên Dùng)</div>
@@ -321,6 +323,7 @@ export async function renderAiChatPage(onStateUpdated) {
               <div class="name">${m.name.split(' (')[0]}</div>
               <div class="desc">${m.name.includes('(') ? m.name.split('(')[1].replace(')', '') : 'AI Coach Model'}</div>
             </div>
+            ${isGeminiModel(m.id) && !hasGeminiKey ? '<span style="font-size:9px;font-weight:800;color:#B45309;background:#FEF3C7;padding:2px 6px;border-radius:5px;white-space:nowrap;flex-shrink:0;">🔒 Cần key</span>' : ''}
           </div>
         `).join('')}
         <div class="model-dropdown-section-title" style="margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 8px;">Tất Cả Models (${remainingModels.length})</div>
@@ -331,6 +334,7 @@ export async function renderAiChatPage(onStateUpdated) {
               <div class="name">${m.name.split(' (')[0]}</div>
               <div class="desc">${m.name.includes('(') ? m.name.split('(')[1].replace(')', '') : 'AI Coach Model'}</div>
             </div>
+            ${isGeminiModel(m.id) && !hasGeminiKey ? '<span style="font-size:9px;font-weight:800;color:#B45309;background:#FEF3C7;padding:2px 6px;border-radius:5px;white-space:nowrap;flex-shrink:0;">🔒 Cần key</span>' : ''}
           </div>
         `).join('')}
       `;
@@ -340,6 +344,30 @@ export async function renderAiChatPage(onStateUpdated) {
           e.stopPropagation();
           const selectedId = opt.getAttribute('data-model-id');
           if (selectedId) {
+            // Model Gemini cần API key riêng — chưa có key thì hiện modal nhập key trước khi cho chọn
+            if (isGeminiModel(selectedId) && !(await DataService.getProviderApiKey('gemini'))) {
+              const enteredKey = await Modal.prompt({
+                title: 'Nhập API Key Google AI Studio',
+                message: `Model **"${(CONFIG.SUPPORTED_MODELS.find(m => m.id === selectedId)?.name || selectedId).split(' (')[0]}"** chạy bằng nguồn **Gemini** của bạn và **không tính vào hạn mức token XKiro**.\n\nVui lòng dán API key lấy miễn phí tại **aistudio.google.com** để mở khóa model này.`,
+                placeholder: 'Dán API key Gemini của bạn vào đây...',
+                confirmText: 'Xác Thực & Chọn'
+              });
+              const key = (enteredKey || '').trim();
+              if (!key) {
+                dropdown.classList.remove('open');
+                return;
+              }
+              const test = await AiCoachService.validateProviderKey('gemini', key);
+              if (!test.valid) {
+                await Modal.alert({
+                  title: 'API Key Không Hợp Lệ',
+                  message: test.error || 'Không xác thực được API key với Google AI Studio. Vui lòng kiểm tra lại key rồi thử lại.'
+                });
+                dropdown.classList.remove('open');
+                return;
+              }
+              await DataService.setProviderApiKey('gemini', key);
+            }
             await DataService.setSelectedModel(selectedId);
             await buildModelDropdown();
           }

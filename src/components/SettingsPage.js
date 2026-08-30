@@ -2,7 +2,7 @@ import { DataService, generate7DayMealPlan } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
 import { dbManager } from '../services/db.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, getLevelInfo } from '../services/gamificationService.js';
-import { CONFIG, isVisionModel, pickTopModels } from '../config.js';
+import { CONFIG, isVisionModel, isGeminiModel } from '../config.js';
 import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
@@ -18,7 +18,7 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
   let currentModelId = selectedModelId;
   let newAvatarBase64 = null;
 
-  // Nguồn AI — chỉ cho chọn 9Router / Google AI Studio. XKiro là nguồn do app cung cấp (không hiện ở đây).
+  // Nguồn AI — chỉ cho chọn Google AI Studio (Gemini). XKiro là nguồn do app cung cấp (không hiện ở đây).
   // keepState: re-render nội bộ (bấm card/test/restore) giữ lựa chọn tạm; mount mới thì đọc lại từ DB
   let currentProviderId;
   if (opts.keepState && providerKeyTestState.providerId) {
@@ -37,17 +37,10 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
   const displayApiKey = keyTestState.key || providerApiKey;
   const keyTestOk = keyTestState.status === 'ok' && !!displayApiKey;
 
-  // Danh sách model chọn: model router mặc định + 5 model Gemini đại diện (tĩnh trong config)
-  const extraModelObjs = CONFIG.GEMINI_MODELS.filter(m => !CONFIG.SUPPORTED_MODELS.some(s => s.id === m.id));
-  const baseModelChoices = [...CONFIG.SUPPORTED_MODELS, ...extraModelObjs];
-
-  // Nạp model khả dụng đã xác thực từ API (lưu trong DB) — merge tối đa 5 model phổ biến
-  const storedApiModels = await DataService.getAvailableModels(currentProviderId);
-  const topApiModels = pickTopModels(storedApiModels || [], 5);
-  const apiModelObjs = topApiModels
-    .filter(id => !baseModelChoices.some(m => m.id === id))
-    .map(id => ({ id, name: id + ' (API Key)', isVision: isVisionModel(id) }));
-  const modelChoices = [...baseModelChoices, ...apiModelObjs];
+  // Danh sách model chọn là TĨNH trong config: model XKiro (tính token) + model Gemini (cần API key riêng)
+  const modelChoices = CONFIG.SUPPORTED_MODELS;
+  // Model Gemini chỉ mở khóa khi đã có API key (người dùng nhập trong modal khi chọn model)
+  const hasGeminiKey = !!(await DataService.getProviderApiKey('gemini'));
 
   // Read saved image analysis setting (defaults to true if model has vision, false otherwise)
   const savedImageAnalysis = await DataService.getSetting('ai_image_analysis');
@@ -289,20 +282,23 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
           <button type="button" id="btn-restore-provider" class="mt-3 w-full py-2.5 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition flex items-center justify-center gap-1.5 shadow-sm">
             <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Khôi phục nguồn AI do app cung cấp (XKiro)
           </button>` : ''}
-          ${isUsingXkiro ? `
+          <!-- Thanh token XKiro luôn luôn hiện — model Gemini (key riêng) không tính vào hạn mức này -->
           <div class="mt-3">
             <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1">
-              <span>Token AI hôm nay (áp dụng nguồn XKiro)</span>
+              <span>Token AI hôm nay (nguồn XKiro do app cung cấp)</span>
               <span>${aiQuota.used.toLocaleString('vi-VN')} / ${aiQuota.limit.toLocaleString('vi-VN')}</span>
             </div>
             <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: rgba(124, 58, 237, 0.12);">
               <div class="h-full rounded-full bg-gradient-to-r from-[#7C3AED] to-[#D946EF]" style="width: ${Math.min(100, Math.round((aiQuota.used / aiQuota.limit) * 100))}%;"></div>
             </div>
-          </div>` : `
-          <div class="mt-3 flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20" style="border: 1px solid rgba(16, 185, 129, 0.2);">
-            <i data-lucide="infinity" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
-            <p class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Không giới hạn token — bạn đang dùng API key riêng.</p>
-          </div>`}
+            <div id="token-quota-note" class="mt-1.5">
+              ${isGeminiModel(currentModelId) ? `
+              <p class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                <i data-lucide="infinity" class="w-3.5 h-3.5 flex-shrink-0"></i> Đang dùng model Gemini — không tính vào hạn mức token XKiro.
+              </p>` : `
+              <p class="text-[11px] font-semibold text-[var(--muted)]">Model XKiro tính vào hạn mức trên. Chọn model Gemini (cần API key riêng) để không giới hạn.</p>`}
+            </div>
+          </div>
         </div>
 
         <!-- AI Toggles & Dark Mode Switcher -->
@@ -440,9 +436,13 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
               badgeText = "Logic";
             }
 
-            const visionBadgeHtml = hasVision 
+            const visionBadgeHtml = hasVision
               ? `<span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Hỗ trợ đọc & phân tích hình ảnh">Vision</span>`
               : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400 px-1.5 py-0.5 rounded">Text</span>`;
+
+            const geminiKeyBadgeHtml = (isGeminiModel(m.id) && !hasGeminiKey)
+              ? `<span class="text-[10px] font-bold text-amber-700 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Chọn model này sẽ hiện modal yêu cầu nhập API key Google AI Studio"><i data-lucide="key-round" class="w-3 h-3"></i> Cần key</span>`
+              : '';
 
             return `
               <label class="model-card flex items-center gap-4 p-3 border ${isChecked ? 'border-[#C4B5FD] bg-[#F5F3FF] dark:bg-[#2E1A47] dark:border-[#7C3AED] is-selected' : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#25213B]'} rounded-2xl cursor-pointer transition-all duration-200" data-model-id="${m.id}">
@@ -454,6 +454,7 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
                     <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">${m.name.split(' (')[0]}</h3>
                     <span class="text-[10px] font-bold ${badgeClass} px-1.5 py-0.5 rounded">${badgeText}</span>
                     ${visionBadgeHtml}
+                    ${geminiKeyBadgeHtml}
                   </div>
                   <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${m.name.includes('(') ? m.name.split('(')[1].replace(')', '') : m.id}</p>
                 </div>
@@ -614,8 +615,38 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
 
     applyBtn?.addEventListener('click', async () => {
       if (tempSelectedModelId) {
-        currentModelId = tempSelectedModelId;
-        await DataService.saveSetting('ninerouter_model', currentModelId);
+        const candidateModelId = tempSelectedModelId;
+
+        // Model Gemini cần API key riêng — nếu chưa có key thì hiện modal nhập key trước khi cho áp dụng
+        if (isGeminiModel(candidateModelId) && !(await DataService.getProviderApiKey('gemini'))) {
+          const enteredKey = await Modal.prompt({
+            title: 'Nhập API Key Google AI Studio',
+            message: `Model **"${(modelChoices.find(m => m.id === candidateModelId)?.name || candidateModelId).split(' (')[0]}"** chạy bằng nguồn **Gemini** của bạn và **không tính vào hạn mức token XKiro**.\n\nVui lòng dán API key lấy miễn phí tại **aistudio.google.com** để mở khóa model này.`,
+            placeholder: 'Dán API key Gemini của bạn vào đây...',
+            confirmText: 'Xác Thực & Áp Dụng'
+          });
+
+          const key = (enteredKey || '').trim();
+          if (!key) return; // Người dùng hủy — giữ nguyên model hiện tại
+
+          const test = await AiCoachService.validateProviderKey('gemini', key);
+          if (!test.valid) {
+            await Modal.alert({
+              title: 'API Key Không Hợp Lệ',
+              message: test.error || 'Không xác thực được API key với Google AI Studio. Vui lòng kiểm tra lại key rồi thử lần nữa.'
+            });
+            return;
+          }
+          await DataService.setProviderApiKey('gemini', key);
+          // Đồng bộ ô nhập key & trạng thái test của khung Nguồn AI
+          providerKeyTestState.status = 'ok';
+          providerKeyTestState.key = key;
+          providerKeyTestState.message = 'Kết nối thành công! API key Gemini hợp lệ — đã mở khóa các model Gemini.';
+          providerKeyTestState.providerId = 'gemini';
+        }
+
+        currentModelId = candidateModelId;
+        await DataService.setSelectedModel(currentModelId);
 
         const mObj = modelChoices.find(m => m.id === currentModelId);
         const dispEl = document.getElementById('disp-active-model-name');
@@ -630,6 +661,15 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
           if (iconEl) {
             iconEl.innerHTML = renderProviderIcon(mObj.id);
           }
+        }
+
+        // Cập nhật ghi chú hạn mức token: model Gemini không tính vào hạn mức XKiro
+        const quotaNote = document.getElementById('token-quota-note');
+        if (quotaNote) {
+          quotaNote.innerHTML = isGeminiModel(currentModelId)
+            ? `<p class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5"><i data-lucide="infinity" class="w-3.5 h-3.5 flex-shrink-0"></i> Đang dùng model Gemini — không tính vào hạn mức token XKiro.</p>`
+            : `<p class="text-[11px] font-semibold text-[var(--muted)]">Model XKiro tính vào hạn mức trên. Chọn model Gemini (cần API key riêng) để không giới hạn.</p>`;
+          if (window.lucide) window.lucide.createIcons();
         }
 
         // Tự động tắt công tắc Phân tích hình ảnh nếu người dùng chọn Model thuần Văn bản (Text-only)
@@ -844,10 +884,12 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
         if (result.valid) {
           providerKeyTestState.status = 'ok';
           providerKeyTestState.key = key;
-          const topCount = pickTopModels(result.models, 5).length;
-          providerKeyTestState.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng, ${topCount} model phổ biến đã nạp vào danh sách chọn Model).`;
-          await DataService.setAvailableModels(currentProviderId, result.models);
-          // Re-render toàn trang Settings để model mới xuất hiện trong modal chọn Model
+          // Lưu key ngay khi xác thực thành công → mở khóa model Gemini trong danh sách Model
+          await DataService.setProviderApiKey(currentProviderId, key);
+          providerKeyTestState.message = currentProviderId === 'gemini'
+            ? 'Kết nối thành công! API key Gemini hợp lệ — bạn đã có thể chọn các model Gemini trong danh sách Model (không tính token XKiro).'
+            : 'Kết nối thành công! API key hợp lệ.';
+          // Re-render để cập nhật badge "Cần key" trên các model Gemini + tick xanh
           renderSettingsPage(onSaveComplete, { keepState: true });
         } else {
           providerKeyTestState.status = 'error';
@@ -883,7 +925,7 @@ export async function renderSettingsPage(onSaveComplete, opts = {}) {
       profile.foodAllergies = allergyList.join(', ');
       await DataService.saveUserProfile(profile);
 
-      // Lưu Nguồn AI: chỉ áp dụng cho 9Router / Google AI Studio (XKiro là nguồn do app cung cấp, không đổi từ đây)
+      // Lưu Nguồn AI: chỉ áp dụng cho Google AI Studio (XKiro là nguồn do app cung cấp, không đổi từ đây)
       if (currentProviderId !== 'xkiro') {
         await DataService.setSelectedProvider(currentProviderId);
         const providerKeyInput = document.getElementById('input-provider-api-key');

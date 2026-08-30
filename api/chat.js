@@ -33,21 +33,18 @@ export default async function handler(req, res) {
         apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
       }
     } else {
-      baseUrl = process.env.NINEROUTER_BASE_URL || process.env.VITE_NINEROUTER_BASE_URL || 'https://r7nnd8p.abc-tunnel.us/v1/chat/completions';
+      // Mặc định: XKiro (nguồn do app cung cấp)
+      baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
       if (!apiKey) {
-        apiKey = process.env.NINEROUTER_API_KEY || process.env.VITE_NINEROUTER_API_KEY;
+        apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
       }
     }
 
     // Fallback chain giữa các provider (chỉ khi client không cung cấp key riêng)
     if (!apiKey && !clientApiKey) {
-      if (isGemini) {
-        apiKey = process.env.NINEROUTER_API_KEY || process.env.VITE_NINEROUTER_API_KEY;
-        baseUrl = process.env.NINEROUTER_BASE_URL || process.env.VITE_NINEROUTER_BASE_URL || 'https://r7nnd8p.abc-tunnel.us/v1/chat/completions';
-      } else {
-        apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
-        baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
-      }
+      // Gemini không có key server → quay về nguồn XKiro do app cung cấp
+      apiKey = process.env.XKIRO_API_KEY || process.env.VITE_XKIRO_API_KEY;
+      baseUrl = process.env.XKIRO_BASE_URL || process.env.VITE_XKIRO_BASE_URL || 'https://api.xkiro.com/v1/chat/completions';
     }
 
     if (!apiKey) {
@@ -59,7 +56,7 @@ export default async function handler(req, res) {
       baseUrl = baseUrl.replace(/\/+$/, '') + '/chat/completions';
     }
 
-    const defaultModel = isGemini ? 'gemini-2.5-flash' : (isXkiro ? 'deepseek/deepseek-v4-pro' : 'gemini/gemini-3.7-flash');
+    const defaultModel = isGemini ? 'gemini-2.5-flash' : 'deepseek/deepseek-v4-pro';
     const modelToUse = model || defaultModel;
     console.log(`[Vercel Serverless Proxy] Dispatching request to ${baseUrl} (${provider || 'auto'}) with model ${modelToUse}...`);
 

@@ -1,9 +1,9 @@
 import { DataService } from './dataService.js';
-import { CONFIG } from '../config.js';
+import { CONFIG, isGeminiModel } from '../config.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget } from './gamificationService.js';
 
 function getApiEndpoint() {
-  const configured = CONFIG.NINEROUTER_BASE_URL || "http://localhost:20128/v1/chat/completions";
+  const configured = CONFIG.XKIRO_BASE_URL || "http://localhost:20128/v1/chat/completions";
   // On Vercel HTTPS production, fallback localhost to Vercel Serverless proxy /api/chat
   if (typeof window !== 'undefined' && window.location.protocol === 'https:' && configured.includes('localhost')) {
     return '/api/chat';
@@ -18,9 +18,10 @@ const AiCoachServiceHelpers = {
     return Math.ceil(String(text).length / 3.5);
   },
 
-  /** Hạn mức token ngày chỉ áp dụng cho XKiro — nguồn do app cung cấp. Key riêng của người dùng thì không giới hạn. */
+  /** Hạn mức token ngày chỉ áp dụng cho model XKiro — model Gemini dùng key riêng nên không giới hạn. */
   async isQuotaEnforced() {
-    return (await DataService.getSelectedProvider()) === 'xkiro';
+    const model = await DataService.getSelectedModel();
+    return !isGeminiModel(model);
   },
 
   /**
@@ -42,7 +43,7 @@ const AiCoachServiceHelpers = {
         // Endpoint native ListModels với key dạng query — GET đơn giản, không bị chặn CORS preflight từ trình duyệt
         return fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=${encodeURIComponent(apiKey)}`);
       }
-      const base = providerId === 'xkiro' ? CONFIG.XKIRO_BASE_URL : CONFIG.NINEROUTER_BASE_URL;
+      const base = providerId === 'gemini' ? CONFIG.GEMINI_BASE_URL : CONFIG.XKIRO_BASE_URL;
       const modelsUrl = base.replace('/chat/completions', '/models');
       return fetch(modelsUrl, { headers: { 'Authorization': `Bearer ${apiKey}` } });
     };
@@ -92,29 +93,27 @@ const AiCoachServiceHelpers = {
     return [...new Set(models)].sort();
   },
 
-  /** Cấu hình provider đang được chọn (model, key người dùng nhập, baseUrl) */
+  /** Cấu hình provider tự động dựa trên model đang chọn: Gemini model → provider gemini, còn lại → xkiro */
   async getActiveProviderConfig() {
-    const providerId = await DataService.getSelectedProvider();
-    return this.getActiveProviderConfigForId(providerId);
+    const selectedModel = await DataService.getSelectedModel();
+    const isGem = isGeminiModel(selectedModel);
+    const providerId = isGem ? 'gemini' : 'xkiro';
+    return this.getActiveProviderConfigForId(providerId, selectedModel);
   },
 
   /** Cấu hình một provider cụ thể theo id (model, key, baseUrl) */
-  async getActiveProviderConfigForId(providerId) {
+  async getActiveProviderConfigForId(providerId, overrideModel) {
     const meta = CONFIG.AI_PROVIDERS.find(p => p.id === providerId);
     if (!meta) return null;
-    const selectedModel = await DataService.getSelectedModel();
+    const selectedModel = overrideModel || await DataService.getSelectedModel();
     let model = meta.defaultModel;
     if (meta.models.includes(selectedModel)) {
       model = selectedModel;
-    } else if (providerId === 'gemini' && selectedModel && selectedModel.startsWith('gemini-') && !selectedModel.includes('/')) {
-      model = selectedModel;
-    } else if (providerId === 'ninerouter' && selectedModel && selectedModel.includes('/')) {
+    } else if (providerId === 'gemini' && isGeminiModel(selectedModel)) {
       model = selectedModel;
     }
     const key = await DataService.getProviderApiKey(providerId);
-    const baseUrl = providerId === 'gemini' ? CONFIG.GEMINI_BASE_URL
-      : providerId === 'xkiro' ? CONFIG.XKIRO_BASE_URL
-      : CONFIG.NINEROUTER_BASE_URL;
+    const baseUrl = providerId === 'gemini' ? CONFIG.GEMINI_BASE_URL : CONFIG.XKIRO_BASE_URL;
     return { id: providerId, name: meta.name, model, key, baseUrl };
   },
 
@@ -126,8 +125,8 @@ const AiCoachServiceHelpers = {
     const provider = await this.getActiveProviderConfig();
     if (!provider) return null;
 
-    // Hạn mức token ngày chỉ áp dụng khi dùng XKiro (nguồn do app cung cấp)
-    if (provider.id === 'xkiro') {
+    // Hạn mức token ngày chỉ áp dụng khi dùng model XKiro (không phải Gemini)
+    if (!isGeminiModel(provider.model)) {
       const quota = await DataService.getAiQuotaStatus();
       if (quota.exceeded) return null;
     }
@@ -150,7 +149,7 @@ const AiCoachServiceHelpers = {
         if (!res.ok) return null;
         const data = await res.json();
         const content = data.choices?.[0]?.message?.content || '';
-        if (content && provider.id === 'xkiro') {
+        if (content && !isGeminiModel(provider.model)) {
           const used = data.usage?.total_tokens
             || (this.estimateTokens(JSON.stringify(messages)) + this.estimateTokens(content));
           await DataService.recordAiUsage(used);
@@ -180,7 +179,7 @@ export const AiCoachService = {
   },
 
   /**
-   * System Prompt for 9Router AI Coach
+   * System Prompt for AI Coach
    */
   async getSystemPrompt() {
     const profile = await DataService.getUserProfile();
@@ -475,10 +474,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
   },
 
   /**
-   * Send message to 9router AI API directly on local or configured base URL
-   */
-  /**
-   * Send message to AI (9Router primary, XKiro fallback, Smart Local Parser last fallback)
+   * Send message to AI (provider suy ra từ model đang chọn: Gemini → Google AI, còn lại → XKiro; Smart Local Parser là fallback cuối)
    */
   async sendMessage(userMessage, conversationHistory = [], attachments = []) {
     const systemPrompt = await this.getSystemPrompt();
@@ -498,14 +494,15 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       messagesPayload.push({ role: "user", content: userMessage });
     }
 
-    // 0. Hạn mức token hàng ngày chỉ áp dụng khi dùng XKiro (nguồn do app cung cấp, mặc định 50.000 token/ngày)
-    const selectedProviderId = await DataService.getSelectedProvider();
-    if (selectedProviderId === 'xkiro') {
+    // 0. Hạn mức token hàng ngày chỉ áp dụng cho model XKiro (nguồn do app cung cấp) —
+    // model Gemini dùng key riêng của người dùng nên không tính vào hạn mức
+    const selectedModel = await DataService.getSelectedModel();
+    if (!isGeminiModel(selectedModel)) {
       const quota = await DataService.getAiQuotaStatus();
       if (quota.exceeded) {
         return {
           role: "assistant",
-          content: `🚫 **Hạn mức AI hôm nay đã hết!**\n\nBạn đã dùng **${quota.used.toLocaleString('vi-VN')}/${quota.limit.toLocaleString('vi-VN')} token** của nguồn XKiro trong ngày hôm nay. Hạn mức sẽ tự động đặt lại vào ngày mai.\n\n> 💡 **Lời khuyên AI Coach:** Bạn có thể chuyển sang nguồn không giới hạn bằng key riêng của mình (9Router hoặc Google AI Studio) trong **Cài đặt → Nguồn AI** để tiếp tục trò chuyện ngay!`,
+          content: `🚫 **Hạn mức AI hôm nay đã hết!**\n\nBạn đã dùng **${quota.used.toLocaleString('vi-VN')}/${quota.limit.toLocaleString('vi-VN')} token** của nguồn XKiro trong ngày hôm nay. Hạn mức sẽ tự động đặt lại vào ngày mai.\n\n> 💡 **Lời khuyên AI Coach:** Bạn có thể chuyển sang **Gemini** với API key riêng không giới hạn (lấy miễn phí tại aistudio.google.com) trong **Cài đặt → Nguồn AI** để tiếp tục trò chuyện ngay!`,
           proposedChange: null
         };
       }
@@ -580,10 +577,11 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       }
     };
 
-    // Thứ tự thử: provider đang chọn trước (proxy → trực tiếp nếu có key), sau đó lần lượt các provider còn lại
+    // Thứ tự thử: provider suy ra từ model đang chọn trước (proxy → trực tiếp nếu có key), sau đó lần lượt các provider còn lại
+    const primaryProviderId = isGeminiModel(selectedModel) ? 'gemini' : 'xkiro';
     const providerOrder = [
-      selectedProviderId,
-      ...CONFIG.AI_PROVIDERS.map(p => p.id).filter(id => id !== selectedProviderId)
+      primaryProviderId,
+      ...CONFIG.AI_PROVIDERS.map(p => p.id).filter(id => id !== primaryProviderId)
     ];
 
     const inputTokens = AiCoachServiceHelpers.estimateTokens(systemPrompt)
@@ -617,7 +615,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       return fallbackResult;
     }
 
-    // Chỉ đếm token vào hạn mức khi thành công qua XKiro (nguồn do app cung cấp)
+    // Chỉ đếm token vào hạn mức khi thành công qua XKiro — model Gemini dùng key riêng, không tính
     if (successProviderId === 'xkiro') {
       await DataService.recordAiUsage(usedTokens);
     }
@@ -640,7 +638,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
   /**
    * Generate full N-day journey plan (meal + workout) split into phases via AI.
-   * Primary: 9Router AI | Fallback: XKiro AI | Last Fallback: Local Generator
+   * Primary: AI theo model đang chọn (Gemini hoặc XKiro) | Last Fallback: Local Generator
    */
   async generateFullJourneyPlan(profileData, goalData, modelOverride = null) {
     const totalDays = goalData.totalJourneyDays || goalData.targetDays || 60;
@@ -764,9 +762,9 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
       }
     };
 
-    // Hạn mức token ngày trước khi sinh kế hoạch chỉ áp dụng khi dùng XKiro (prompt lớn, tiêu tốn nhiều token)
+    // Hạn mức token ngày trước khi sinh kế hoạch chỉ áp dụng cho model XKiro — Gemini dùng key riêng, không tính
     const primary = await AiCoachServiceHelpers.getActiveProviderConfig();
-    if (primary.id === 'xkiro') {
+    if (primary && !isGeminiModel(primary.model)) {
       const planQuota = await DataService.getAiQuotaStatus();
       if (planQuota.exceeded) {
         console.warn(`⚠️ [AI Journey Plan] Hạn mức token ngày XKiro đã hết (${planQuota.used}/${planQuota.limit}). Chuyển sang bộ sinh kế hoạch nội bộ.`);
@@ -798,7 +796,7 @@ Hãy trả lời bằng tiếng Việt thân thiện, giàu động lực, chuy�
 
     // 3. If both failed, return null to trigger smart local fallback
     if (!parsed) {
-      console.warn('⚠️ [AI Journey Plan] Both 9Router and XKiro AI failed. Switching to local plan generator fallback.');
+      console.warn('⚠️ [AI Journey Plan] All AI providers failed. Switching to local plan generator fallback.');
       return null;
     }
 

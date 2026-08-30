@@ -1176,10 +1176,6 @@ export const DataService = {
     await dbManager.put('settings', { key, value });
   },
 
-  async getNinerouterApiKey() {
-    return CONFIG.NINEROUTER_API_KEY || '';
-  },
-
   async getXkiroApiKey() {
     return CONFIG.XKIRO_API_KEY || '';
   },
@@ -1201,7 +1197,7 @@ export const DataService = {
   async getSelectedProvider() {
     const p = await this.getSetting('ai_provider');
     const valid = CONFIG.AI_PROVIDERS.some(x => x.id === p);
-    return valid ? p : 'ninerouter';
+    return valid ? p : 'xkiro';
   },
 
   async setSelectedProvider(providerId) {
@@ -1221,7 +1217,7 @@ export const DataService = {
     if (stored && String(stored).trim()) return String(stored).trim();
     if (providerId === 'gemini') return CONFIG.GEMINI_API_KEY || '';
     if (providerId === 'xkiro') return CONFIG.XKIRO_API_KEY || '';
-    return CONFIG.NINEROUTER_API_KEY || '';
+    return '';
   },
 
   async setProviderApiKey(providerId, key) {

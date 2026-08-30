@@ -1,6 +1,6 @@
 import { DataService, generate7DayMealPlan, generate7DayWorkoutRoutine, generateFullJourneyPhases, sanitizeMealItem } from '../services/dataService.js';
 import { AiCoachService } from '../services/aiCoachService.js';
-import { CONFIG, getModelDisplayName, pickTopModels } from '../config.js';
+import { CONFIG, getModelDisplayName } from '../config.js';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros, calculateWaterTarget, generateJourneyLevelsAndBadges, ACTIVITY_MULTIPLIERS } from '../services/gamificationService.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 import confetti from 'canvas-confetti';
@@ -47,11 +47,9 @@ export function renderOnboarding(onComplete) {
   let validationError = '';
   let dismissedSafetyWarning = false;
 
-  // Bước 5: Lựa chọn Nguồn AI (9Router / XKiro / Google AI Studio)
-  const aiProviderChoice = { provider: 'ninerouter', model: '', apiKey: '' };
+  // Bước 5: Lựa chọn Nguồn AI (XKiro / Google AI Studio)
+  const aiProviderChoice = { provider: 'xkiro', model: '', apiKey: '' };
   const aiKeyTest = { status: 'idle', message: '' };
-  // Model khả dụng từ API key (nạp sau khi test key thành công)
-  let extraModelsFromApi = [];
   (async () => {
     aiProviderChoice.provider = await DataService.getSelectedProvider();
     aiProviderChoice.model = (await DataService.getSelectedModel()) || '';
@@ -438,13 +436,8 @@ export function renderOnboarding(onComplete) {
       const activeProvider = providers.find(p => p.id === aiProviderChoice.provider) || providers[0];
       const isUsingXkiro = aiProviderChoice.provider === 'xkiro';
 
-      // Merge model tĩnh của provider + model đã nạp từ API key
+      // Model tĩnh của provider (cấu hình sẵn trong config.js)
       const providerModels = [...activeProvider.models];
-      if (extraModelsFromApi.length > 0) {
-        extraModelsFromApi.forEach(m => {
-          if (!providerModels.includes(m)) providerModels.push(m);
-        });
-      }
       if (aiProviderChoice.model && !providerModels.includes(aiProviderChoice.model)) {
         aiProviderChoice.model = activeProvider.defaultModel;
       }
@@ -472,7 +465,7 @@ export function renderOnboarding(onComplete) {
               <span class="text-xs font-bold uppercase tracking-wider opacity-85">Nguồn AI Coach — XKiro (App cung cấp)</span>
               <p class="text-xs mt-1.5 opacity-90 leading-relaxed">
                 Nguồn <b>XKiro</b> do app cung cấp, giới hạn <b>${(CONFIG.DAILY_TOKEN_LIMIT || 50000).toLocaleString('vi-VN')} token/ngày</b> (tự làm mới vào ngày mai).
-                Chọn <b>9Router</b> hoặc <b>Google AI Studio</b> với key riêng của bạn thì không giới hạn.
+                Chọn <b>Google AI Studio (Gemini)</b> với API key riêng của bạn thì không giới hạn.
               </p>
             </div>
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xs pointer-events-none"></div>
@@ -506,13 +499,13 @@ export function renderOnboarding(onComplete) {
           <!-- Model & API Key -->
           <div class="bg-[#F9FAFB] border border-gray-100 rounded-2xl p-3.5 space-y-3">
             <div>
-              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Model (${activeProvider.name})${extraModelsFromApi.length > 0 ? ' — đã nạp từ API' : ''}</label>
+              <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Model (${activeProvider.name})</label>
               <select id="ob-provider-model" class="ui-input">${modelOptions}</select>
             </div>
             <div>
               <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">API Key</label>
               <div class="relative">
-                <input type="password" id="ob-provider-key" autocomplete="off" value="${aiProviderChoice.apiKey}" placeholder="${activeProvider.keyHint}" class="ui-input" style="padding-right: ${aiKeyTest.status === 'ok' ? '3rem' : '6rem'};">
+                <input type="password" id="ob-provider-key" autocomplete="off" value="${aiProviderChoice.apiKey}" placeholder="${activeProvider.id === 'gemini' ? 'Dán API key Google AI Studio (aistudio.google.com)...' : 'Để trống — dùng key do app cung cấp'}" class="ui-input" style="padding-right: ${aiKeyTest.status === 'ok' ? '3rem' : '6rem'};">
                 ${aiKeyTest.status === 'ok'
                   ? '<span class="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span>'
                   : `<button type="button" id="ob-test-key" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white font-bold text-[10px] uppercase tracking-wide hover:bg-[#6D28D9] transition ${aiKeyTest.status === 'testing' ? 'opacity-70 pointer-events-none animate-pulse' : ''}">${aiKeyTest.status === 'testing' ? 'Đang kiểm tra<span class="kt-dot">.</span><span class="kt-dot" style="animation-delay:.15s">.</span><span class="kt-dot" style="animation-delay:.3s">.</span>' : 'Kiểm tra'}</button>`}
@@ -870,7 +863,6 @@ export function renderOnboarding(onComplete) {
         aiProviderChoice.provider = pid;
         const meta = CONFIG.AI_PROVIDERS.find(p => p.id === pid);
         aiProviderChoice.model = meta ? meta.defaultModel : '';
-        extraModelsFromApi = [];
         aiKeyTest.status = 'idle';
         aiKeyTest.message = '';
         render();
@@ -899,14 +891,13 @@ export function renderOnboarding(onComplete) {
       render();
       const result = await AiCoachService.validateProviderKey(aiProviderChoice.provider, aiProviderChoice.apiKey);
       if (result.valid) {
-        // Nạp 5 model phổ biến vào dropdown và lưu vào DB
-        const topModels = pickTopModels(result.models, 5);
-        extraModelsFromApi = topModels;
-        await DataService.setAvailableModels(aiProviderChoice.provider, result.models);
+        // Lưu key ngay khi xác thực thành công → mở khóa model Gemini trong danh sách chọn
+        await DataService.setProviderApiKey(aiProviderChoice.provider, aiProviderChoice.apiKey);
         aiKeyTest.status = 'ok';
-        aiKeyTest.message = `Kết nối thành công! API key hợp lệ (${result.models.length} model khả dụng, ${topModels.length} model phổ biến đã nạp). Chọn model bên trên rồi bắt đầu hành trình nhé!`;
+        aiKeyTest.message = aiProviderChoice.provider === 'gemini'
+          ? 'Kết nối thành công! API key Gemini hợp lệ — các model Gemini đã sẵn sàng và không tính vào hạn mức token XKiro. Bấm "Bắt đầu" để tiếp tục!'
+          : 'Kết nối thành công! API key hợp lệ. Chọn model bên trên rồi bắt đầu hành trình nhé!';
       } else {
-        extraModelsFromApi = [];
         aiKeyTest.status = 'error';
         aiKeyTest.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
       }
@@ -919,7 +910,6 @@ export function renderOnboarding(onComplete) {
       const meta = CONFIG.AI_PROVIDERS.find(p => p.id === 'xkiro');
       aiProviderChoice.model = meta ? meta.defaultModel : '';
       aiProviderChoice.apiKey = '';
-      extraModelsFromApi = [];
       aiKeyTest.status = 'idle';
       aiKeyTest.message = '';
       render();
