@@ -7,10 +7,10 @@ import { renderProviderIcon } from './ui/Icons.js';
 import { Modal } from './ui/Modal.js';
 import { renderDropdown, initDropdownListeners } from './ui/Dropdown.js';
 
-// Trạng thái Nguồn AI (giữ qua các lần re-render trang cài đặt): key đang gõ + kết quả test
-const providerKeyTestState = { status: 'idle', message: '', key: '' };
+// Trạng thái Nguồn AI (giữ qua các lần re-render trang cài đặt): provider đang chọn tạm, key đang gõ, kết quả test
+const providerKeyTestState = { status: 'idle', message: '', key: '', providerId: null };
 
-export async function renderSettingsPage(onSaveComplete) {
+export async function renderSettingsPage(onSaveComplete, opts = {}) {
   const profile = await DataService.getUserProfile();
   const selectedModelId = await DataService.getSelectedModel();
   const plan = await DataService.getUserPlan();
@@ -19,7 +19,14 @@ export async function renderSettingsPage(onSaveComplete) {
   let newAvatarBase64 = null;
 
   // Nguồn AI — chỉ cho chọn 9Router / Google AI Studio. XKiro là nguồn do app cung cấp (không hiện ở đây).
-  let currentProviderId = await DataService.getSelectedProvider();
+  // keepState: re-render nội bộ (bấm card/test/restore) giữ lựa chọn tạm; mount mới thì đọc lại từ DB
+  let currentProviderId;
+  if (opts.keepState && providerKeyTestState.providerId) {
+    currentProviderId = providerKeyTestState.providerId;
+  } else {
+    currentProviderId = await DataService.getSelectedProvider();
+    providerKeyTestState.providerId = currentProviderId;
+  }
   const selectableProviders = CONFIG.AI_PROVIDERS.filter(p => p.id !== 'xkiro');
   const providerApiKey = await DataService.getProviderApiKey(currentProviderId);
   const aiQuota = await DataService.getAiQuotaStatus();
@@ -756,12 +763,13 @@ export async function renderSettingsPage(onSaveComplete) {
         const pid = card.getAttribute('data-provider-option');
         if (pid === currentProviderId) return;
         currentProviderId = pid;
+        providerKeyTestState.providerId = pid;
         // Reset kết quả test, nạp key & model khả dụng đã lưu của provider mới, rồi re-render
         // (re-render để modal chọn Model tính lại danh sách theo provider vừa chọn)
         providerKeyTestState.status = 'idle';
         providerKeyTestState.message = '';
         providerKeyTestState.key = (await DataService.getProviderApiKey(pid)) || '';
-        renderSettingsPage(onSaveComplete);
+        renderSettingsPage(onSaveComplete, { keepState: true });
       });
     });
 
@@ -779,12 +787,12 @@ export async function renderSettingsPage(onSaveComplete) {
       if (!key) {
         providerKeyTestState.status = 'error';
         providerKeyTestState.message = 'Vui lòng nhập API key trước khi kiểm tra.';
-        renderSettingsPage(onSaveComplete);
+        renderSettingsPage(onSaveComplete, { keepState: true });
         return;
       }
       providerKeyTestState.status = 'testing';
       providerKeyTestState.message = '';
-      renderSettingsPage(onSaveComplete);
+      renderSettingsPage(onSaveComplete, { keepState: true });
       const result = await AiCoachService.validateProviderKey(currentProviderId, key);
       if (result.valid) {
         providerKeyTestState.status = 'ok';
@@ -795,7 +803,7 @@ export async function renderSettingsPage(onSaveComplete) {
         providerKeyTestState.status = 'error';
         providerKeyTestState.message = result.error || 'Key không hợp lệ hoặc không kết nối được.';
       }
-      renderSettingsPage(onSaveComplete);
+      renderSettingsPage(onSaveComplete, { keepState: true });
     });
 
     document.getElementById('btn-restore-provider')?.addEventListener('click', async () => {
@@ -803,8 +811,9 @@ export async function renderSettingsPage(onSaveComplete) {
       providerKeyTestState.status = 'idle';
       providerKeyTestState.message = '';
       providerKeyTestState.key = '';
+      providerKeyTestState.providerId = 'xkiro';
       await DataService.setSelectedProvider('xkiro');
-      renderSettingsPage(onSaveComplete);
+      renderSettingsPage(onSaveComplete, { keepState: true });
     });
 
     // 5. MAIN SAVE SETTINGS BUTTON & RESET DATA BUTTON AT BOTTOM
